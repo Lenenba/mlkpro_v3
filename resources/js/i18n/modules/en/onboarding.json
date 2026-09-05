@@ -85,7 +85,9 @@
       "address_hide": "Hide",
       "address_show": "Enter manually",
       "address_error_key": "Geoapify configuration missing. Check application configuration.",
-      "address_error_failed": "Search failed. Check the Geoapify key or use manual entry."
+      "address_error_failed": "Search failed. Check the Geoapify key or use manual entry.",
+      "currency_label": "Main business currency",
+      "currency_hint": "Products, services, invoices, and Stripe online charges will use {currency}."
     },
     "type": {
       "services": "Service business",

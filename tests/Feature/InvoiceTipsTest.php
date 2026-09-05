@@ -1,16 +1,16 @@
 <?php
 
+use App\Http\Middleware\EnsureCompanyFeature;
+use App\Http\Middleware\EnsureDemoSafeMode;
+use App\Http\Middleware\EnsureTwoFactorVerified;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Work;
-use App\Services\TipAllocationService;
 use App\Services\StripeInvoiceService;
-use App\Http\Middleware\EnsureCompanyFeature;
-use App\Http\Middleware\EnsureDemoSafeMode;
-use App\Http\Middleware\EnsureTwoFactorVerified;
+use App\Services\TipAllocationService;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 
 beforeEach(function () {
@@ -29,7 +29,7 @@ function createOwnerForInvoiceTips(): User
 
     return User::query()->create([
         'name' => 'Invoice Tip Owner',
-        'email' => 'owner-tip-' . uniqid('', true) . '@example.com',
+        'email' => 'owner-tip-'.uniqid('', true).'@example.com',
         'role_id' => $role->id,
         'password' => 'password',
         'company_name' => 'Tip Company',
@@ -86,6 +86,40 @@ test('invoice balance logic ignores tip amount and uses payment amount only', fu
     expect($invoice->status)->toBe('partial');
     expect($invoice->amount_paid)->toBe(90.0);
     expect($invoice->balance_due)->toBe(10.0);
+});
+
+test('invoice payment status compares currency amounts at cent precision', function () {
+    $user = createOwnerForInvoiceTips();
+    $customer = Customer::factory()->create(['user_id' => $user->id]);
+    $work = Work::factory()->create([
+        'user_id' => $user->id,
+        'customer_id' => $customer->id,
+    ]);
+    $invoice = Invoice::query()->create([
+        'work_id' => $work->id,
+        'customer_id' => $customer->id,
+        'user_id' => $user->id,
+        'status' => 'sent',
+        'total' => 86.23,
+    ]);
+
+    foreach ([43.12, 43.11] as $amount) {
+        Payment::query()->create([
+            'invoice_id' => $invoice->id,
+            'customer_id' => $customer->id,
+            'user_id' => $user->id,
+            'amount' => $amount,
+            'method' => 'card',
+            'status' => Payment::STATUS_COMPLETED,
+            'paid_at' => now(),
+        ]);
+    }
+
+    $invoice->refreshPaymentStatus();
+
+    expect($invoice->fresh()->status)->toBe('paid')
+        ->and($invoice->amount_paid)->toBe(86.23)
+        ->and($invoice->balance_due)->toBe(0.0);
 });
 
 test('stripe invoice sync stores tip amount from checkout metadata', function () {
@@ -185,7 +219,28 @@ test('owner can reverse tip and allocation is updated', function () {
     $allocation = $payment->tipAllocations()->first();
 
     expect((float) $payment->tip_reversed_amount)->toBe(5.0);
-    expect($payment->status)->toBe('reversed');
+    expect($payment->status)->toBe(Payment::STATUS_COMPLETED);
     expect($payment->tip_reversal_rule)->toBe('prorata');
     expect((float) ($allocation?->reversed_amount ?? 0))->toBe(5.0);
+    expect($payment->tip_net_amount)->toBe(7.0);
+    expect($payment->charged_net_amount)->toBe(127.0);
+    expect($invoice->fresh()->amount_paid)->toBe(120.0);
+    expect($invoice->fresh()->balance_due)->toBe(0.0);
+
+    $this
+        ->actingAs($owner)
+        ->post(route('payment.tip-reverse', $payment), [
+            'amount' => 7,
+            'rule' => 'prorata',
+            'reason' => 'Reverse remaining tip',
+        ])
+        ->assertRedirect();
+
+    $payment->refresh();
+    expect((float) $payment->tip_reversed_amount)->toBe(12.0);
+    expect($payment->status)->toBe(Payment::STATUS_COMPLETED);
+    expect($payment->tip_net_amount)->toBe(0.0);
+    expect($payment->charged_net_amount)->toBe(120.0);
+    expect($invoice->fresh()->amount_paid)->toBe(120.0);
+    expect($invoice->fresh()->balance_due)->toBe(0.0);
 });

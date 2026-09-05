@@ -57,6 +57,7 @@ const hasQuickAnnouncements = computed(() => props.quickAnnouncements.length > 0
                         v-if="hasTopAnnouncements"
                         :announcements="topAnnouncements"
                         variant="side"
+                        :fill-height="false"
                         :title="$t('super_admin.announcements_preview.top.panel_title')"
                         :subtitle="$t('super_admin.announcements_preview.example_view')"
                         :limit="3"

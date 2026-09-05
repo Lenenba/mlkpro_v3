@@ -12,7 +12,9 @@
     "new_quote": "New quote",
     "new_request": "New request",
     "loading_categories": "Loading categories...",
+    "retry": "Try again",
     "errors": {
+      "load_form": "Unable to load the form. Please try again.",
       "load_customers": "Unable to load customers.",
       "load_categories": "Unable to load categories."
     }

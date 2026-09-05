@@ -58,6 +58,7 @@ class EmailCampaignProvider implements CampaignChannelProvider
                 'ok' => false,
                 'provider' => 'mail',
                 'reason' => 'mail_exception',
+                'delivery_outcome' => 'unknown',
                 'error' => $exception->getMessage(),
             ];
         }

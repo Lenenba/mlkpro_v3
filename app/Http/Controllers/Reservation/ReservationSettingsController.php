@@ -114,7 +114,7 @@ class ReservationSettingsController extends Controller
 
         $accountSettings = ReservationSetting::query()
             ->forAccount($account->id)
-            ->whereNull('team_member_id')
+            ->accountDefault()
             ->first();
         $resolvedAccountSettings = $this->effectiveSettings(
             $account,
@@ -374,7 +374,7 @@ class ReservationSettingsController extends Controller
                 $notificationPayload = $validated['notification_settings'] ?? [];
                 $storedPreset = ReservationSetting::query()
                     ->forAccount($account->id)
-                    ->whereNull('team_member_id')
+                    ->accountDefault()
                     ->value('business_preset');
                 $effectivePreset = ReservationPresetResolver::resolveForAccount($account, $storedPreset);
                 if (! ReservationPresetResolver::queueFeaturesEnabled($effectivePreset)) {
@@ -424,11 +424,6 @@ class ReservationSettingsController extends Controller
         array $data,
         ?ReservationSettingsRequest $request = null
     ): void {
-        $attributes = [
-            'account_id' => $accountId,
-            'team_member_id' => $teamMemberId,
-        ];
-
         $payload = [
             'buffer_minutes' => (int) ($data['buffer_minutes'] ?? 0),
             'slot_interval_minutes' => (int) ($data['slot_interval_minutes'] ?? 30),
@@ -479,7 +474,7 @@ class ReservationSettingsController extends Controller
 
             $existing = ReservationSetting::query()
                 ->forAccount($accountId)
-                ->whereNull('team_member_id')
+                ->accountDefault()
                 ->first();
             if ((bool) ($data['clear_kiosk_image'] ?? false)) {
                 $this->deleteKioskImage($existing?->kiosk_image_path);
@@ -508,9 +503,34 @@ class ReservationSettingsController extends Controller
             $payload['no_show_fee_amount'] = array_key_exists('no_show_fee_amount', $data)
                 ? max(0, round((float) $data['no_show_fee_amount'], 2))
                 : max(0, round((float) ($presetDefaults['no_show_fee_amount'] ?? 0), 2));
+            $payload['past_reservation_reconciliation_enabled'] = array_key_exists('past_reservation_reconciliation_enabled', $data)
+                ? (bool) $data['past_reservation_reconciliation_enabled']
+                : (bool) ($existing?->past_reservation_reconciliation_enabled ?? false);
+            $payload['past_reservation_reconciliation_mode'] = ReservationSetting::PAST_RECONCILIATION_MODE_SIGNAL_ONLY;
+            $payload['past_reservation_grace_minutes'] = max(0, min(10080, (int) (
+                $data['past_reservation_grace_minutes']
+                ?? $existing?->past_reservation_grace_minutes
+                ?? 120
+            )));
+            $payload['past_reservation_max_catchup_days'] = max(1, min(365, (int) (
+                $data['past_reservation_max_catchup_days']
+                ?? $existing?->past_reservation_max_catchup_days
+                ?? 7
+            )));
+
+            ReservationSetting::query()->updateOrCreate([
+                'account_id' => $accountId,
+                'team_member_id' => null,
+                'account_default_marker' => ReservationSetting::ACCOUNT_DEFAULT_MARKER,
+            ], $payload);
+
+            return;
         }
 
-        ReservationSetting::query()->updateOrCreate($attributes, $payload);
+        ReservationSetting::query()->updateOrCreate([
+            'account_id' => $accountId,
+            'team_member_id' => $teamMemberId,
+        ], $payload);
     }
 
     private function effectiveSettings(User $account, array $settings): array
@@ -583,6 +603,10 @@ class ReservationSettingsController extends Controller
             'deposit_amount' => (float) ($setting?->deposit_amount ?? $resolvedDefaults['deposit_amount'] ?? 0),
             'no_show_fee_enabled' => (bool) ($setting?->no_show_fee_enabled ?? $resolvedDefaults['no_show_fee_enabled'] ?? false),
             'no_show_fee_amount' => (float) ($setting?->no_show_fee_amount ?? $resolvedDefaults['no_show_fee_amount'] ?? 0),
+            'past_reservation_reconciliation_enabled' => (bool) ($setting?->past_reservation_reconciliation_enabled ?? false),
+            'past_reservation_reconciliation_mode' => (string) ($setting?->past_reservation_reconciliation_mode ?? ReservationSetting::PAST_RECONCILIATION_MODE_SIGNAL_ONLY),
+            'past_reservation_grace_minutes' => max(0, min(10080, (int) ($setting?->past_reservation_grace_minutes ?? 120))),
+            'past_reservation_max_catchup_days' => max(1, min(365, (int) ($setting?->past_reservation_max_catchup_days ?? 7))),
             'owner_only_mode' => (bool) ($resolvedDefaults['owner_only_mode'] ?? false),
             'slot_booking_enabled' => (bool) ($resolvedDefaults['slot_booking_enabled'] ?? true),
         ];

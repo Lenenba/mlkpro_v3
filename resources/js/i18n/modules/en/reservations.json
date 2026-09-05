@@ -3,6 +3,39 @@
     "title": "Reservations",
     "subtitle": "Review, confirm, or decline reservations assigned to your team.",
     "empty": "No reservations yet.",
+    "calendar": {
+      "loading": "Loading reservations..."
+    },
+    "outcome_review": {
+      "badge": "Needs review",
+      "title": "Confirm the reservation outcome",
+      "description": "This past reservation has no reliable final status. Manually choose Completed, No-show, or Cancelled based on what actually happened."
+    },
+    "list": {
+      "title": "At a glance",
+      "subtitle": "Scan services, clients, and team members without losing context.",
+      "count": "{count} reservations",
+      "timezone": "Local time · {timezone}",
+      "reference": "Reservation #{id}",
+      "unavailable": "Unavailable",
+      "unassigned": "Unassigned",
+      "open": "Open {service} for {client}",
+      "actions_for": "Actions for {reference}",
+      "service_image_alt": "Preview of {service}",
+      "loading": "Refreshing reservations…",
+      "error_title": "The list could not be refreshed",
+      "retry": "Try again",
+      "mobile_controls": "List display",
+      "sort_by": "Sort by",
+      "sort_direction": "Sort direction",
+      "sort_ascending": "Ascending order",
+      "sort_descending": "Descending order",
+      "rows_per_page": "Per page",
+      "empty_title": "No reservations to display",
+      "empty_description": "Upcoming reservations will appear here with their service, client, and status.",
+      "empty_filtered": "No reservation matches the active criteria.",
+      "empty_filtered_title": "No results"
+    },
     "owner_only": {
       "staff_notice": "Solo growth keeps reservations in limited mode: view existing reservations, manage the waitlist, and configure global settings, but staff-based booking stays disabled.",
       "client_notice": "This solo workspace does not offer live appointment slots yet. Join the waitlist instead and the business can follow up manually.",
@@ -18,13 +51,13 @@
     },
     "performance": {
       "title": "Performance (last {days} days)",
-      "occupancy_rate": "Occupancy rate",
-      "no_show_rate": "No-show rate",
-      "reschedule_rate": "Reschedule rate",
-      "completion_rate": "Completion rate",
-      "avg_service_value": "Avg service value",
-      "tip_rate": "Tip rate",
-      "resource_reservation_rate": "Resource usage",
+      "occupancy_rate": "Occupancy",
+      "no_show_rate": "No-shows",
+      "reschedule_rate": "Reschedules",
+      "completion_rate": "Completion",
+      "avg_service_value": "Avg service",
+      "tip_rate": "Tips",
+      "resource_reservation_rate": "Resource use",
       "table_turnover": "Table turnover",
       "party_size_avg": "Avg party size"
     },
@@ -35,17 +68,25 @@
       "sort": "Sort",
       "all_statuses": "All statuses",
       "date_from": "From",
-      "date_to": "To"
+      "date_to": "To",
+      "active": "Active filters",
+      "active_hint": "These filters limit the reservations shown in the list and calendar.",
+      "remove": "Remove filter {filter}"
     },
     "scope": {
       "mine": "My reservations",
       "all": "All reservations"
     },
     "quick": {
+      "label": "Reservation quick views",
+      "all": "All",
       "pending": "Pending",
       "today": "Today",
       "upcoming": "Upcoming",
-      "past": "Past"
+      "past": "Past",
+      "completed": "Completed",
+      "no_show": "No-shows",
+      "cancelled": "Cancelled"
     },
     "sort": {
       "date_asc": "Date (oldest first)",
@@ -69,12 +110,53 @@
       "reschedule": "Reschedule",
       "filters": "Filters",
       "clear_filters": "Clear filters",
-      "delete_confirm": "Delete this reservation?"
+      "delete_confirm": "Delete this reservation?",
+      "cancel_confirm": "Cancel reservation {reference}?",
+      "clear": "Clear"
     },
     "form": {
       "create_title": "Create reservation",
+      "create_subtitle": "Choose the customer, then enter the service and schedule.",
       "edit_title": "Edit reservation",
+      "edit_subtitle": "Update the customer, service, or time slot for this reservation.",
       "customer": "Customer",
+      "customer_choice": "Customer choice",
+      "customer_section_title": "Customer",
+      "customer_section_hint": "Select an existing customer or create their profile without leaving this reservation.",
+      "existing_customer": "Existing customer",
+      "existing_customer_hint": "Search your customer list",
+      "new_customer": "New customer",
+      "new_customer_choice_hint": "Create their profile now",
+      "new_customer_title": "Create a customer",
+      "new_customer_hint": "Enter the essential contact details. The customer will be selected automatically after creation.",
+      "create_customer": "Create and select customer",
+      "search_customer": "Search by name, email, or phone",
+      "no_customer": "No customer",
+      "no_customer_hint": "Reservation not linked to a customer profile",
+      "no_customer_results": "No customers match this search.",
+      "selected_customer": "Selected customer",
+      "selected_customer_hint": "This reservation will be added to their profile.",
+      "no_customer_selected_hint": "The reservation will be created without linking it to a customer profile.",
+      "rebooking": {
+        "title": "Book again",
+        "loading": "Loading this customer’s booking habits…",
+        "load_error": "This customer’s history could not be loaded.",
+        "retry": "Try again",
+        "empty": "No booking history yet",
+        "empty_hint": "Create the reservation normally. Completed services will then appear here.",
+        "recent_reservations": "Recent reservations",
+        "frequent_services": "Usual services",
+        "duration": "{count} min",
+        "reservation_count": "Booked {count} times",
+        "last_booked": "Last booked: {date}",
+        "service_unavailable": "Unavailable service",
+        "team_member_unavailable": "unavailable — choose another team member",
+        "choose_another_service": "This service is no longer available. Choose another one.",
+        "action": "Book again",
+        "action_aria": "Book {service} again"
+      },
+      "reservation_section_title": "Reservation details",
+      "reservation_section_hint": "Set the service, assigned team member, and schedule.",
       "item": "Product or service",
       "status": "Status",
       "title": "Title",
@@ -94,6 +176,7 @@
       "when": "Date/time",
       "customer": "Customer",
       "item": "Product/service",
+      "source": "Source",
       "status": "Status",
       "size_qty": "Size / Qty",
       "contact": "Contact",
@@ -128,6 +211,31 @@
       "title": "Hybrid queue",
       "subtitle": "Operate walk-ins and appointments in a single queue.",
       "empty": "No queue items right now.",
+      "view": {
+        "label": "Queue display mode",
+        "table": "Table",
+        "cards": "Cards"
+      },
+      "filters": {
+        "label": "Filter the queue by stage",
+        "all": "All",
+        "not_arrived": "Upcoming",
+        "waiting": "Waiting",
+        "called": "Called",
+        "in_service": "In service",
+        "awaiting_payment": "Awaiting payment",
+        "done": "Completed",
+        "empty": "No queue item matches this filter.",
+        "clear": "Show the full queue"
+      },
+      "details": {
+        "schedule": "Schedule",
+        "check_in": "Arrival",
+        "duration": "Estimated duration",
+        "call_deadline": "Call deadline",
+        "view_reservation": "View reservation",
+        "view_reservation_for": "View reservation for {client}"
+      },
       "cards": {
         "waiting": "Waiting",
         "called": "Called",
@@ -157,6 +265,7 @@
         "called": "Called",
         "skipped": "Skipped",
         "in_service": "In service",
+        "awaiting_payment": "Awaiting payment",
         "done": "Done",
         "no_show": "No show",
         "cancelled": "Cancelled",
@@ -168,11 +277,74 @@
         "call": "Call",
         "start": "Start",
         "done": "Done",
+        "finish_checkout": "Collect payment and finish",
+        "checkout": "Collect payment",
+        "done_without_payment": "Finish without payment",
         "skip": "Skip",
         "call_next": "Call next",
         "updated": "Queue item updated.",
         "update_error": "Unable to update queue item.",
         "call_next_empty": "No callable queue item is available right now."
+      },
+      "availability_confirmation": {
+        "title": "Confirm availability",
+        "description": "{teamMember} is marked as busy, but no active service was detected.",
+        "hint": "Confirm availability only if this person is actually free. The pre-call or call will then be retried.",
+        "still_busy": "Still busy",
+        "available_continue": "Available, continue",
+        "continuing": "Checking...",
+        "fallback_member": "This team member"
+      },
+      "checkout": {
+        "title": "Collect payment",
+        "subtitle": "The service is finished. Record the payment to close this ticket.",
+        "walk_in_customer": "Walk-in customer",
+        "service_total": "Service",
+        "subtotal": "Service subtotal",
+        "taxes": "Taxes",
+        "taxes_with_rate": "Taxes ({rate}%)",
+        "invoice_total": "Invoice total",
+        "total_to_collect": "Total to collect",
+        "payment_method": "Payment method",
+        "tip_title": "Tip",
+        "tip_hint": "The tip is assigned to the employee who delivered the service.",
+        "tip_on": "Added",
+        "tip_off": "Add",
+        "percent": "Percent",
+        "fixed": "Fixed amount",
+        "custom_percent": "Custom percent",
+        "custom_amount": "Custom amount",
+        "tip_amount": "Tip",
+        "reference": "Reference (optional)",
+        "notes": "Note (optional)",
+        "cancel": "Cancel",
+        "submit": "Collect payment and finish",
+        "submit_card": "Continue to Stripe",
+        "processing": "Collecting...",
+        "completed": "Payment recorded and service completed.",
+        "free_completed": "Service completed.",
+        "open_error": "Unable to prepare checkout.",
+        "submit_error": "Unable to record payment.",
+        "stripe_return": {
+          "success": "Stripe payment confirmed. The invoice and receipt are ready.",
+          "pending": "The Stripe payment is still being confirmed. This queue will update automatically.",
+          "cancelled": "Stripe payment was cancelled. The service still needs to be collected.",
+          "error": "The Stripe return could not be verified. No payment was recorded."
+        },
+        "receipt": {
+          "label": "Send receipt",
+          "hint": "The receipt is sent after payment confirmation. SMS contains a secure link.",
+          "none": "Do not send now",
+          "email": "By email (PDF)",
+          "sms": "By SMS (secure link)",
+          "view": "Open receipt"
+        },
+        "methods": {
+          "cash": "Cash",
+          "card": "Card",
+          "bank_transfer": "Bank transfer",
+          "check": "Check"
+        }
       },
       "client": {
         "title": "Walk-in queue",
@@ -234,6 +406,11 @@
         "disabled": "Hybrid queue mode is disabled. Enable it in reservation settings."
       }
     },
+    "public_navigation": {
+      "aria_label": "Public reservation navigation",
+      "book": "Book online",
+      "kiosk": "Open the kiosk"
+    },
     "kiosk": {
       "title": "Salon kiosk",
       "subtitle": "Take a walk-in ticket, check in as an existing client, or track your ticket.",
@@ -256,6 +433,28 @@
         "searching": "Searching...",
         "creating": "Creating...",
         "clear": "Clear"
+      },
+      "guided": {
+        "progress": "Journey progress",
+        "continue": "Continue",
+        "back": "Back",
+        "restart": "Start over",
+        "finish": "Finish",
+        "confirmation": "Confirmation",
+        "waiting": "Waiting",
+        "in_service": "In service",
+        "position": "Position",
+        "eta": "Estimated wait",
+        "ticket_title": "Your ticket is ready",
+        "arrival_title": "Your arrival",
+        "tracking_title": "Your live ticket",
+        "result_help": "Keep this number handy. We will let you know what to do as your turn approaches.",
+        "next_action_help": "Review the information below to complete your arrival.",
+        "client_not_found_title": "We could not find your profile yet",
+        "client_not_found_help": "You can continue as a walk-in with the same phone number.",
+        "take_ticket": "Take a ticket",
+        "identified_client": "Identified client",
+        "auto_reset": "For your privacy, this screen resets automatically after 60 seconds."
       },
       "preview": {
         "label": "PREVIEW",
@@ -338,6 +537,7 @@
       "showing": "{from} - {to}"
     },
     "view": {
+      "calendar": "Calendar",
       "list": "List"
     },
     "status": {
@@ -362,6 +562,7 @@
     },
     "errors": {
       "load_events": "Unable to load reservation events.",
+      "load_list": "Unable to refresh the reservation list.",
       "load_slots": "Unable to load available slots.",
       "cancel": "Unable to cancel this reservation.",
       "create": "Unable to create reservation.",
@@ -373,6 +574,144 @@
       "service": "Service",
       "product": "Product"
     },
+    "details": {
+      "eyebrow": "Reservation overview",
+      "title": "Reservation details",
+      "subtitle": "Review the appointment, the people involved, and its progress.",
+      "description": "Review the appointment, the people involved, and its progress.",
+      "reference": "Reservation #{id}",
+      "close": "Close reservation details",
+      "sections": {
+        "schedule": "Schedule",
+        "client": "Client",
+        "team_member": "Team member",
+        "service": "Service",
+        "notes": "Notes",
+        "resources": "Resources",
+        "milestones": "Progress",
+        "payment": "Payment"
+      },
+      "schedule": "Schedule",
+      "client": "Client",
+      "customer": "Client",
+      "people": "People",
+      "team_member": "Team member",
+      "assigned_team_member": "Assigned team member",
+      "service": "Service",
+      "date": "Date",
+      "time": "Time",
+      "duration": "Duration",
+      "minutes": "{count} min",
+      "party_size_value": "People: {count}",
+      "catalog_price": "Catalog price",
+      "catalogue_price": "Catalog price",
+      "notes": "Notes",
+      "client_notes": "Client notes",
+      "internal_notes": "Internal notes",
+      "no_notes": "No notes for this reservation.",
+      "no_contact": "No contact details available.",
+      "unavailable": "Unavailable",
+      "resources": "Resources",
+      "resource_quantity": "Quantity: {count}",
+      "landmarks": "Progress",
+      "milestones": {
+        "created": "Created",
+        "scheduled": "Scheduled",
+        "cancelled": "Cancelled",
+        "auto_closed": "Automatically closed"
+      },
+      "created_at": "Created on",
+      "scheduled_for": "Scheduled for",
+      "cancelled_at": "Cancelled on",
+      "auto_closed_at": "Automatically closed on",
+      "created_by": "Created by {name}",
+      "cancelled_by": "Cancelled by {name}",
+      "cancellation_reason": "Reason: {reason}",
+      "auto_closed_reason": "Reason: {reason}",
+      "source": "Source: {source}",
+      "sources": {
+        "staff": "Staff",
+        "client": "Client portal",
+        "api": "API",
+        "public_booking": "Public booking",
+        "unknown": "Not specified"
+      },
+      "vip": "VIP client",
+      "loading": "Loading reservation details...",
+      "error": "Unable to load this reservation's details.",
+      "error_title": "Details unavailable",
+      "error_description": "Unable to load this reservation's details.",
+      "retry": "Try again",
+      "labels": {
+        "contact": "Contact details",
+        "category": "Category",
+        "resource": "Resource"
+      },
+      "media": {
+        "service_alt": "Image for {service}",
+        "client_alt": "Photo of {client}",
+        "team_member_alt": "Photo of {team_member}",
+        "service_fallback": "No service image"
+      },
+      "service_fallback": "Service",
+      "service_image_alt": "Image for {service}",
+      "customer_fallback": "Client",
+      "team_member_fallback": "Team member",
+      "payment": "Payment",
+      "deposit": "Deposit",
+      "no_show_fee": "No-show fee",
+      "payment_status": "Payment status",
+      "no_payment": "No payment policy is associated with this reservation.",
+      "payment_states": {
+        "required": "Required",
+        "not_required": "Not required",
+        "due_on_invoice": "Due on invoice",
+        "forfeited": "Forfeited",
+        "refundable": "Refundable",
+        "refunded": "Refunded",
+        "not_applied": "Not applied",
+        "not_applicable": "Not applicable",
+        "charge_required": "Payment required",
+        "waived": "Waived",
+        "paid": "Paid"
+      },
+      "conversion": {
+        "public_booking_title": "Public booking",
+        "public_booking_description": "Contact details submitted with the public booking.",
+        "title": "Convert to client",
+        "description": "Check for duplicates before creating a new client.",
+        "fields": {
+          "name": "Client name",
+          "client_name": "Client name",
+          "email": "Email",
+          "phone": "Phone",
+          "company": "Company (optional)"
+        },
+        "actions": {
+          "check": "Check",
+          "checking": "Checking...",
+          "link": "Link",
+          "linking": "Linking...",
+          "create": "Create client",
+          "creating": "Converting..."
+        },
+        "states": {
+          "loading": "Loading conversion options...",
+          "converting": "Converting...",
+          "no_matches": "No matching existing client was found.",
+          "ready": "The information is ready to be checked.",
+          "already_converted": "This reservation is already linked to a client."
+        },
+        "success": {
+          "converted": "Prospect converted to a client."
+        },
+        "errors": {
+          "load": "Unable to load conversion options.",
+          "convert": "Unable to convert this prospect.",
+          "validation": "Check the client information before continuing."
+        }
+      }
+    },
     "payment_policy": {
       "title": "Payment policy snapshot",
       "deposit": "Deposit",
@@ -382,7 +721,7 @@
     "client": {
       "book": {
         "title": "Book reservation",
-        "subtitle": "Choose a slot that works best for you.",
+        "subtitle": "Book in a few steps: tell us what you need, choose a time, and review the details.",
         "my_reservations": "My reservations",
         "summary_title": "Booking details",
         "selected_slot": "Selected slot",
@@ -394,9 +733,80 @@
         "select_slot_error": "Select an available slot to continue.",
         "deposit_notice": "Booking deposit required: {amount}",
         "no_show_notice": "No-show fee policy: {amount}",
+        "slot_conflict_error": "This time slot is no longer available. Choose another one.",
+        "generic_service": "General booking",
+        "generic_service_description": "Continue without choosing a specific service.",
+        "service_fallback_description": "Service available by appointment.",
+        "service_search_hint": "Type a few letters to automatically filter the available services.",
+        "follow_up_title": "After your booking",
+        "stepper": {
+          "aria_label": "Booking steps",
+          "progress": "Step {current} of {total}",
+          "step_label": "Step {current} of {total}: {label}",
+          "completed": "Completed step"
+        },
+        "steps": {
+          "preferences": {
+            "label": "Your needs",
+            "short": "Needs",
+            "eyebrow": "Step 1",
+            "title": "Prepare your request",
+            "description": "Choose the service, preferred professional, and party size."
+          },
+          "slot": {
+            "label": "Your time",
+            "short": "Time",
+            "eyebrow": "Step 2",
+            "title": "Choose an available time",
+            "description": "Choose a day first, then select the time that works for you.",
+            "week": "Week",
+            "previous_week": "View previous week",
+            "next_week": "View next week",
+            "day_availability": "{date}, {count} available time(s)",
+            "available_count": "{count} available",
+            "unavailable": "Full",
+            "times_for": "Times for {date}",
+            "time_hint": "Select a time to continue.",
+            "slot_label": "{time}, with {member}",
+            "no_slots_for_day": "No times are available that day. Choose another day."
+          },
+          "review": {
+            "label": "Review",
+            "short": "Review",
+            "eyebrow": "Step 3",
+            "title": "Review your booking",
+            "description": "Confirm your contact information and booking details before submitting."
+          },
+          "done": {
+            "label": "Confirmation",
+            "short": "Done"
+          }
+        },
+        "summary": {
+          "service": "Service",
+          "slot": "Date and time",
+          "party_size": "Party size",
+          "contact": "Contact information",
+          "contact_hint": "Your account contact information is prefilled.",
+          "not_selected": "To be selected",
+          "not_provided": "Not provided"
+        },
+        "states": {
+          "unavailable_title": "Scheduled booking unavailable",
+          "unavailable_description": "This business is not accepting scheduled bookings through the portal right now.",
+          "no_services": "No specific services are listed. You can continue with a general booking.",
+          "no_service_match": "No service matches your search."
+        },
+        "success": {
+          "title": "Your request has been sent",
+          "description": "The business received your booking request. You can now track it under My reservations.",
+          "description_book_only": "The business received your booking request."
+        },
         "fields": {
           "team_member": "Team member",
           "service": "Service",
+          "service_search": "Search for a service",
+          "service_search_placeholder": "Service name or description",
           "duration": "Duration (minutes)",
           "party_size": "Party size",
           "contact_name": "Contact name",
@@ -407,10 +817,16 @@
         "actions": {
           "submit": "Submit reservation",
           "submitting": "Submitting...",
-          "submitted": "Reservation request submitted."
+          "submitted": "Reservation request submitted.",
+          "continue": "Continue",
+          "back": "Back",
+          "show_service_suggestions": "Show service suggestions",
+          "start_over": "Book another reservation",
+          "view_reservations": "View my reservations",
+          "back_to_dashboard": "Back to dashboard"
         },
         "waitlist": {
-          "title": "Join the waitlist",
+          "title": "Waitlist",
           "description": "No matching slot right now. Join the waitlist and get priority when a slot is released.",
           "join_button": "Join waitlist",
           "created": "Waitlist request submitted.",
@@ -459,6 +875,33 @@
           }
         }
       }
+    },
+    "filter_summary": {
+      "title": "Filter summary",
+      "results": "{count} reservation(s)",
+      "updating": "Updating…",
+      "active_count": "{count} active criterion/criteria",
+      "mode_label": "Quick-filter combination mode",
+      "modes": {
+        "all": "All criteria",
+        "any": "At least one criterion"
+      },
+      "quick_filters_label": "Reservation quick filters",
+      "search_badge": "Search: {value}",
+      "filter_badge": "{label}: {value}",
+      "remove": "Remove {label}",
+      "clear_all": "Clear filters"
+    },
+    "advanced_filters": {
+      "title": "Advanced filters",
+      "close": "Close advanced filters",
+      "reset": "Reset",
+      "apply": "Apply filters",
+      "trigger_active": "Filters ({count})",
+      "draft_count": "{count} draft criterion/criteria",
+      "current_results": "{count} current result(s)",
+      "description": "Refine reservations by status, service, team member, or period.",
+      "period": "Period"
     }
   }
 }

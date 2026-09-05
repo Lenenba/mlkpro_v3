@@ -7,6 +7,10 @@ use Illuminate\Support\Facades\URL;
 
 class PublicLeadFormUrlService
 {
+    public function __construct(
+        private readonly TenantBrandingResolver $tenantBrandingResolver,
+    ) {}
+
     public function resolve(?int $preferredUserId = null, array $parameters = []): ?string
     {
         $user = $this->resolveEligibleUser($preferredUserId);
@@ -19,28 +23,31 @@ class PublicLeadFormUrlService
 
     private function resolveEligibleUser(?int $preferredUserId = null): ?User
     {
-        if ($preferredUserId) {
-            $preferred = User::query()->find($preferredUserId);
-            if ($this->supportsLeadForm($preferred)) {
-                return $preferred;
-            }
+        if (! $preferredUserId) {
+            return null;
         }
 
-        foreach (User::query()->orderBy('id')->cursor() as $candidate) {
-            if ($this->supportsLeadForm($candidate)) {
-                return $candidate;
-            }
-        }
+        $preferred = User::query()->find($preferredUserId);
+        $preferredOwner = $this->resolveAccountOwner($preferred);
 
-        return null;
+        return $this->supportsLeadForm($preferredOwner)
+            ? $preferredOwner
+            : null;
     }
 
     private function supportsLeadForm(?User $user): bool
     {
-        if (! $user || $user->isSuspended()) {
+        if (! $user || $user->isSuspended() || $user->isSuperadmin() || $user->isPlatformAdmin()) {
             return false;
         }
 
         return app(CompanyFeatureService::class)->hasFeature($user, 'requests');
+    }
+
+    private function resolveAccountOwner(?User $user): ?User
+    {
+        return $user
+            ? $this->tenantBrandingResolver->resolveAccountOwner($user)
+            : null;
     }
 }

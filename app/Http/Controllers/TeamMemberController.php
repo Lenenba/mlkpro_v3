@@ -9,9 +9,11 @@ use App\Models\TeamMember;
 use App\Models\User;
 use App\Notifications\InviteUserNotification;
 use App\Services\CompanyFeatureService;
+use App\Services\Rbac\CompanyPermissionAvailability;
 use App\Services\UsageLimitService;
 use App\Support\NotificationDispatcher;
 use App\Utils\FileHandler;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
@@ -23,6 +25,8 @@ use Illuminate\Validation\ValidationException;
 
 class TeamMemberController extends Controller
 {
+    public function __construct(private readonly CompanyPermissionAvailability $permissionAvailability) {}
+
     private const AVAILABLE_PERMISSIONS = [
         ['id' => 'jobs.view', 'name' => 'View assigned jobs'],
         ['id' => 'jobs.edit', 'name' => 'Edit assigned jobs'],
@@ -49,7 +53,7 @@ class TeamMemberController extends Controller
         ['id' => 'campaigns.view', 'name' => 'View campaigns'],
         ['id' => 'campaigns.manage', 'name' => 'Create and edit campaigns'],
         ['id' => 'campaigns.send', 'name' => 'Send campaigns'],
-        ['id' => 'social.view', 'name' => 'View Malikia Pulse'],
+        ['id' => 'social.view', 'name' => 'View Pulse'],
         ['id' => 'social.manage', 'name' => 'Create and edit social posts'],
         ['id' => 'social.publish', 'name' => 'Publish and schedule social posts'],
         ['id' => 'social.approve', 'name' => 'Approve social posts'],
@@ -119,6 +123,7 @@ class TeamMemberController extends Controller
         $this->authorizeCompanyPermission($user, 'view_team_members');
         $accountId = (int) $user->accountOwnerId();
         $accountOwner = User::query()->findOrFail($accountId);
+        $availableCompanyPermissionSlugs = $this->permissionAvailability->availableSlugs($accountOwner);
 
         $filters = $request->only([
             'search',
@@ -144,7 +149,11 @@ class TeamMemberController extends Controller
             });
 
         $teamMembers = (clone $baseQuery)
-            ->with(['user', 'companyRole.permissions'])
+            ->with([
+                'user',
+                'companyRole.permissions' => fn (BelongsToMany $permissions): BelongsToMany => $permissions
+                    ->whereIn('permissions.slug', $availableCompanyPermissionSlugs),
+            ])
             ->orderBy('created_at')
             ->paginate((int) $filters['per_page'])
             ->withQueryString();
@@ -161,7 +170,7 @@ class TeamMemberController extends Controller
             'teamMembers' => $teamMembers,
             'filters' => $filters,
             'availablePermissions' => $availablePermissions,
-            'companyRoles' => $this->companyRolesForAccount($accountId),
+            'companyRoles' => $this->companyRolesForAccount($accountId, $availableCompanyPermissionSlugs),
             'stats' => [
                 'total' => $statsMembers->count(),
                 'active' => $statsMembers->where('is_active', true)->count(),
@@ -208,6 +217,20 @@ class TeamMemberController extends Controller
         if ($companyRoleId) {
             $this->authorizeCompanyPermission($user, 'assign_roles');
         }
+        $directPermissions = array_values($validated['permissions'] ?? []);
+        if ($directPermissions !== []) {
+            $this->authorizeCompanyPermission($user, 'manage_roles_permissions');
+        }
+        if ($companyRoleId && $directPermissions !== []) {
+            throw ValidationException::withMessages([
+                'permissions' => 'Direct permissions cannot be combined with an access role.',
+            ]);
+        }
+        $permissions = $directPermissions;
+        if ($permissions === [] && ! $companyRoleId) {
+            $this->authorizeCompanyPermission($user, 'manage_roles_permissions');
+            $permissions = $this->defaultPermissionsForRole($validated['role'], $allowedPermissions);
+        }
 
         $roleId = Role::where('name', 'employee')->value('id');
         if (! $roleId) {
@@ -235,11 +258,6 @@ class TeamMemberController extends Controller
             'profile_picture' => $profilePicture,
         ]);
 
-        $permissions = array_values($validated['permissions'] ?? []);
-        if (! $permissions && ! $companyRoleId) {
-            $permissions = $this->defaultPermissionsForRole($validated['role'], $allowedPermissions);
-        }
-
         $planningRules = $this->normalizePlanningRules($validated['planning_rules'] ?? null);
 
         $teamMember = TeamMember::create([
@@ -259,7 +277,8 @@ class TeamMemberController extends Controller
             $token,
             $accountOwner->company_name ?: config('app.name'),
             $accountOwner->company_logo_url,
-            'team'
+            'team',
+            $accountOwner->id,
         ), [
             'team_member_id' => $teamMember->id,
         ]);
@@ -337,6 +356,21 @@ class TeamMemberController extends Controller
                 $this->authorizeCompanyPermission($user, 'assign_roles');
             }
         }
+        if (array_key_exists('role', $validated) && $validated['role'] !== $teamMember->role) {
+            $this->authorizeCompanyPermission($user, 'assign_roles');
+        }
+        $resultingCompanyRoleId = array_key_exists('company_role_id', $validated)
+            ? $companyRoleId
+            : $teamMember->company_role_id;
+        $directPermissions = array_values($validated['permissions'] ?? []);
+        if (array_key_exists('permissions', $validated)) {
+            $this->authorizeCompanyPermission($user, 'manage_roles_permissions');
+        }
+        if ($resultingCompanyRoleId && $directPermissions !== []) {
+            throw ValidationException::withMessages([
+                'permissions' => 'Direct permissions cannot be combined with an access role.',
+            ]);
+        }
 
         $userUpdates = [];
         if (array_key_exists('name', $validated)) {
@@ -382,7 +416,7 @@ class TeamMemberController extends Controller
         }
         if (array_key_exists('company_role_id', $validated)) {
             $teamMemberUpdates['company_role_id'] = $companyRoleId;
-            if ($companyRoleChanged && ! array_key_exists('permissions', $validated)) {
+            if ($companyRoleId || ($companyRoleChanged && ! array_key_exists('permissions', $validated))) {
                 $teamMemberUpdates['permissions'] = [];
             }
         }
@@ -449,17 +483,19 @@ class TeamMemberController extends Controller
     }
 
     /**
+     * @param  array<int, string>  $availablePermissionSlugs
      * @return array<int, array<string, mixed>>
      */
-    private function companyRolesForAccount(int $accountId): array
+    private function companyRolesForAccount(int $accountId, array $availablePermissionSlugs): array
     {
         return CompanyRole::query()
-            ->with('permissions:id,slug')
+            ->with([
+                'permissions' => fn (BelongsToMany $permissions): BelongsToMany => $permissions
+                    ->select(['permissions.id', 'permissions.slug'])
+                    ->whereIn('permissions.slug', $availablePermissionSlugs),
+            ])
             ->where('is_active', true)
-            ->where(function ($query) use ($accountId) {
-                $query->whereNull('company_id')
-                    ->orWhere('company_id', $accountId);
-            })
+            ->availableForCompany($accountId)
             ->orderByDesc('is_system')
             ->orderBy('name')
             ->get()
@@ -484,10 +520,7 @@ class TeamMemberController extends Controller
         $role = CompanyRole::query()
             ->whereKey((int) $companyRoleId)
             ->where('is_active', true)
-            ->where(function ($query) use ($accountId) {
-                $query->whereNull('company_id')
-                    ->orWhere('company_id', $accountId);
-            })
+            ->availableForCompany($accountId)
             ->first();
 
         if (! $role) {

@@ -660,14 +660,18 @@ const buttonLabel = computed(() => (props.product
                         <FloatingSelect v-model="form.unit" :label="$t('products.form.unit')" :options="unitOptions" />
                         <FloatingInput v-model="form.supplier_name" :label="$t('products.form.supplier')" />
                         <FloatingInput v-model="form.supplier_email" :label="$t('products.form.supplier_email')" />
-                        <FloatingNumberInput v-model="form.tax_rate" :label="$t('products.form.tax_rate')" :step="0.01" />
+                        <FloatingNumberInput v-model="form.tax_rate" :label="$t('products.form.tax_rate')" :step="0.0001" />
                         <div class="flex items-center gap-x-2">
                             <Checkbox v-model:checked="form.is_active" />
                             <span class="text-sm text-stone-600 dark:text-neutral-400">{{ $t('products.status.active') }}</span>
                         </div>
                     </div>
                     <FloatingTextarea v-model="form.description" :label="$t('products.form.description')" />
-                    <DropzoneInput v-model="form.image" :label="$t('products.form.primary_image')" />
+                    <DropzoneInput
+                        v-model="form.image"
+                        :label="$t('products.form.primary_image')"
+                        :allowed-extensions="['jpg', 'jpeg', 'png', 'webp']"
+                    />
                     <div v-if="aiImageVisible" class="mt-2 rounded-sm border border-dashed border-emerald-200 bg-emerald-50/40 p-3 text-xs text-emerald-800 dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-200">
                         <div class="flex flex-wrap items-center justify-between gap-2">
                             <span class="font-semibold">{{ $t('products.ai.generate') }}</span>

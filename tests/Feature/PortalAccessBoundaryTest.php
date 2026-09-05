@@ -3,6 +3,7 @@
 use App\Http\Middleware\EnsureTwoFactorVerified;
 use App\Models\Customer;
 use App\Models\Invoice;
+use App\Models\Payment;
 use App\Models\Quote;
 use App\Models\Role;
 use App\Models\Sale;
@@ -10,6 +11,7 @@ use App\Models\User;
 use App\Models\Work;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Support\Str;
+use Inertia\Testing\AssertableInertia as Assert;
 
 function phase7PortalRoleId(string $name): int
 {
@@ -127,6 +129,54 @@ beforeEach(function () {
     $this->withoutMiddleware(EnsureTwoFactorVerified::class);
 });
 
+it('logs out a client whose portal access was disabled', function () {
+    $owner = phase7CreatePortalOwner();
+    $client = phase7CreatePortalClient();
+    phase7CreatePortalCustomer($owner, $client, [
+        'portal_access' => false,
+    ]);
+
+    $response = $this->actingAs($client)->get(route('dashboard'));
+
+    $response
+        ->assertRedirect(route('login'))
+        ->assertSessionHasErrors([
+            'email' => __('ui.auth.portal_access_disabled'),
+        ]);
+    $this->assertGuest();
+});
+
+it('returns 403 json without clearing the web session when portal access was disabled', function () {
+    $owner = phase7CreatePortalOwner();
+    $client = phase7CreatePortalClient();
+    phase7CreatePortalCustomer($owner, $client, [
+        'portal_access' => false,
+    ]);
+
+    $this->actingAs($client)
+        ->getJson(route('portal.invoices.index'))
+        ->assertForbidden()
+        ->assertJsonPath('message', __('ui.auth.portal_access_disabled'));
+    $this->assertAuthenticatedAs($client);
+});
+
+it('keeps an html impersonation session active when the client portal is disabled', function () {
+    $owner = phase7CreatePortalOwner();
+    $client = phase7CreatePortalClient();
+    $impersonator = phase7CreatePortalClient([
+        'role_id' => phase7PortalRoleId('superadmin'),
+    ]);
+    phase7CreatePortalCustomer($owner, $client, [
+        'portal_access' => false,
+    ]);
+
+    $this->actingAs($client)
+        ->withSession(['impersonator_id' => $impersonator->id])
+        ->get(route('dashboard'))
+        ->assertOk();
+    $this->assertAuthenticatedAs($client);
+});
+
 it('forbids portal invoice access for an unrelated client', function () {
     $owner = phase7CreatePortalOwner();
     $allowedClient = phase7CreatePortalClient();
@@ -141,8 +191,85 @@ it('forbids portal invoice access for an unrelated client', function () {
         ->assertForbidden();
 });
 
-it('forbids portal quote actions for an unrelated client', function () {
+it('shows only the connected customer invoice and payment history', function () {
     $owner = phase7CreatePortalOwner();
+    $client = phase7CreatePortalClient();
+    $otherClient = phase7CreatePortalClient();
+
+    $customer = phase7CreatePortalCustomer($owner, $client);
+    $otherCustomer = phase7CreatePortalCustomer($owner, $otherClient);
+    $invoice = phase7CreatePortalInvoice($owner, $customer);
+    phase7CreatePortalInvoice($owner, $otherCustomer);
+
+    Payment::query()->create([
+        'invoice_id' => $invoice->id,
+        'customer_id' => $customer->id,
+        'user_id' => $owner->id,
+        'amount' => 40,
+        'tip_amount' => 5,
+        'charged_total' => 45,
+        'method' => 'cash',
+        'provider' => 'manual',
+        'status' => Payment::STATUS_COMPLETED,
+        'paid_at' => now(),
+    ]);
+
+    $this->actingAs($client)
+        ->get(route('portal.invoices.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Portal/InvoicesIndex')
+            ->has('invoices.data', 1)
+            ->where('invoices.data.0.id', $invoice->id)
+            ->where('invoices.data.0.total_paid', 40)
+            ->where('invoices.data.0.balance_due', 110)
+            ->has('invoices.data.0.payments', 1)
+            ->where('invoices.data.0.payments.0.amount', 40)
+            ->where('invoices.data.0.payments.0.tip_amount', 5)
+        );
+});
+
+it('exposes a signed receipt download link for a paid invoice in the client portal', function () {
+    $owner = phase7CreatePortalOwner();
+    $client = phase7CreatePortalClient();
+    $customer = phase7CreatePortalCustomer($owner, $client);
+    $invoice = phase7CreatePortalInvoice($owner, $customer);
+    $invoice->forceFill([
+        'status' => 'paid',
+        'receipt_delivery_status' => 'failed',
+        'receipt_delivery_last_error' => 'provider secret diagnostics',
+    ])->save();
+
+    $this->actingAs($client)
+        ->get(route('portal.invoices.index'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Portal/InvoicesIndex')
+            ->where('invoices.data.0.receipt_url', fn ($url) => is_string($url)
+                && str_contains($url, '/pay/invoices/'.$invoice->id.'/receipt')
+                && str_contains($url, 'signature='))
+        );
+
+    $this->actingAs($client)
+        ->get(route('portal.invoices.show', $invoice))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Portal/InvoiceShow')
+            ->missing('invoice.receipt_delivery_last_error')
+            ->missing('invoice.receipt_delivery_claim_token')
+            ->where('invoice.receipt_url', fn ($url) => is_string($url)
+                && str_contains($url, '/pay/invoices/'.$invoice->id.'/receipt')
+                && str_contains($url, 'signature='))
+        );
+});
+
+it('forbids portal quote actions for an unrelated client', function () {
+    $owner = phase7CreatePortalOwner([
+        'company_features' => [
+            'quotes' => true,
+            'jobs' => true,
+        ],
+    ]);
     $allowedClient = phase7CreatePortalClient();
     $otherClient = phase7CreatePortalClient();
 
@@ -156,7 +283,12 @@ it('forbids portal quote actions for an unrelated client', function () {
 });
 
 it('forbids portal work proof access for an unrelated client', function () {
-    $owner = phase7CreatePortalOwner();
+    $owner = phase7CreatePortalOwner([
+        'company_features' => [
+            'jobs' => true,
+            'tasks' => true,
+        ],
+    ]);
     $allowedClient = phase7CreatePortalClient();
     $otherClient = phase7CreatePortalClient();
 
@@ -172,6 +304,10 @@ it('forbids portal work proof access for an unrelated client', function () {
 it('hides portal orders for an unrelated client', function () {
     $owner = phase7CreatePortalOwner([
         'company_type' => 'products',
+        'company_features' => [
+            'products' => true,
+            'sales' => true,
+        ],
     ]);
     $allowedClient = phase7CreatePortalClient();
     $otherClient = phase7CreatePortalClient();
@@ -183,4 +319,44 @@ it('hides portal orders for an unrelated client', function () {
     $this->actingAs($otherClient)
         ->getJson(route('portal.orders.show', $sale))
         ->assertNotFound();
+});
+
+it('opens portal product orders for any tenant with product and sales capabilities', function () {
+    $owner = phase7CreatePortalOwner([
+        'company_type' => 'services',
+        'company_features' => [
+            'products' => true,
+            'sales' => true,
+        ],
+    ]);
+    $client = phase7CreatePortalClient();
+    $customer = phase7CreatePortalCustomer($owner, $client);
+    $sale = phase7CreatePortalSale($owner, $customer);
+
+    $this->actingAs($client)
+        ->getJson(route('portal.orders.index'))
+        ->assertOk()
+        ->assertJsonPath('company.id', $owner->id)
+        ->assertJsonPath('customer.id', $customer->id);
+
+    $this->actingAs($client)
+        ->getJson(route('portal.orders.show', $sale))
+        ->assertOk()
+        ->assertJsonPath('order.id', $sale->id);
+});
+
+it('keeps portal product orders closed when either required capability is disabled', function () {
+    $owner = phase7CreatePortalOwner([
+        'company_type' => 'services',
+        'company_features' => [
+            'products' => false,
+            'sales' => true,
+        ],
+    ]);
+    $client = phase7CreatePortalClient();
+    phase7CreatePortalCustomer($owner, $client);
+
+    $this->actingAs($client)
+        ->getJson(route('portal.orders.index'))
+        ->assertForbidden();
 });

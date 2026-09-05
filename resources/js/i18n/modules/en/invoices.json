@@ -1,6 +1,10 @@
 {
   "invoices": {
     "title": "Invoices",
+    "history": {
+      "title": "Invoice and payment history",
+      "subtitle": "Review your invoices, payments, and remaining balances."
+    },
     "company_fallback": "Company",
     "view": {
       "table": "Table",
@@ -125,7 +129,12 @@
       "line_items_empty": "No line items.",
       "summary": {
         "subtotal": "Subtotal",
+        "taxes": "Taxes",
+        "invoice_total": "Invoice total",
         "paid": "Paid",
+        "paid_toward_invoice": "Paid toward invoice",
+        "tips": "Tips",
+        "charged_total": "Charged total",
         "total_amount": "Total amount",
         "balance_due": "Balance due"
       },
@@ -162,6 +171,7 @@
       "invoices": "No invoices yet."
     },
     "pagination": {
+      "label": "Invoice pagination",
       "previous": "Previous",
       "next": "Next",
       "of": "of"

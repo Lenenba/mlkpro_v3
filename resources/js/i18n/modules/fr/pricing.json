@@ -9,9 +9,6 @@
     "switch": {
       "label": "Choisissez votre contexte d'exploitation"
     },
-    "currency": {
-      "label": "Devise"
-    },
     "billing_cycle": {
       "label": "Cycle de facturation",
       "monthly": "Mensuel",

@@ -1,0 +1,39 @@
+{
+  "dropzone": {
+    "upload_image": "Upload an image",
+    "upload_media": "Drop your media",
+    "image_preview": "Image preview",
+    "current_image": "Current image",
+    "preview_alt": "Preview",
+    "replace": "Replace",
+    "remove": "Remove",
+    "attached_hint": "This image is already attached. You can replace it or remove it.",
+    "drop_here": "Drop your file here or",
+    "browse": "browse",
+    "optimization_hint": "Large images are optimized automatically.",
+    "media_hint": "Images, videos, and PDFs are detected automatically.",
+    "limit_reached": "The {count}-media limit has been reached.",
+    "media_types": {
+      "image": "Image",
+      "video": "Video",
+      "document": "Document",
+      "file": "File"
+    },
+    "errors": {
+      "svg_not_allowed": "SVG images are not allowed.",
+      "unsupported_format": "Unsupported image format. Allowed: {formats}.",
+      "unsupported_media_format": "Unsupported media format. Allowed: {formats}.",
+      "too_many_files": "You can attach up to {count} media files.",
+      "processing_failed": "Image processing failed.",
+      "too_large": "Image too large. Max {size}.",
+      "video_too_large": "Video too large. Max {size}.",
+      "document_too_large": "PDF too large. Max {size}.",
+      "total_too_large": "The total size of new files cannot exceed {size}."
+    }
+  },
+  "kpi_visibility": {
+    "title": "Indicators",
+    "show": "Show indicators",
+    "hide": "Hide indicators"
+  }
+}

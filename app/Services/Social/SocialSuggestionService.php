@@ -122,7 +122,7 @@ class SocialSuggestionService
             SocialPrefillService::SOURCE_PRODUCT => ['ProductSpotlight', 'NewIn', 'ShopSmall'],
             SocialPrefillService::SOURCE_SERVICE => ['ServiceSpotlight', 'BookNow', 'ClientCare'],
             SocialPrefillService::SOURCE_CAMPAIGN => ['CampaignLaunch', 'BrandUpdate', 'Community'],
-            default => ['BrandUpdate', 'LocalBusiness', 'MalikiaPulse'],
+            default => ['BrandUpdate', 'LocalBusiness', 'Pulse'],
         };
 
         if (($context['company_type'] ?? 'services') === 'products') {

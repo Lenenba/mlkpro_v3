@@ -2,7 +2,7 @@
 defineProps({
     lastUpdated: {
         type: String,
-        default: '2025-01-01',
+        default: null,
     },
 });
 </script>
@@ -16,7 +16,7 @@ defineProps({
             <h1 class="text-2xl font-semibold tracking-tight text-stone-900 dark:text-neutral-100">
                 {{ $t('terms.intro.title') }}
             </h1>
-            <p class="text-sm text-stone-600 dark:text-neutral-400">
+            <p v-if="lastUpdated" class="text-sm text-stone-600 dark:text-neutral-400">
                 {{ $t('terms.intro.updated', { date: lastUpdated }) }}
             </p>
             <p class="text-sm text-stone-600 dark:text-neutral-400">

@@ -42,11 +42,12 @@
         margin-top: 16px;
       }
       .logo {
-        width: 40px;
-        height: 40px;
-        object-fit: cover;
-        border: 1px solid #e7e5e4;
-        border-radius: 3px;
+        display: block;
+        max-width: 110px;
+        max-height: 48px;
+        width: auto;
+        height: auto;
+        object-fit: contain;
       }
       .company-label {
         font-size: 10px;
@@ -220,19 +221,22 @@
   </head>
   <body>
     @php
-      $companyName = $company?->company_name ?: config('app.name');
-      $companyLogo = $company?->company_logo_url;
+      $companyBranding = app(\App\Services\TenantBrandingResolver::class)->forAccountOwner($company);
+      $companyName = $companyBranding['name'];
+      $companyLogo = $companyBranding['custom_logo_url'];
       $companyLogoUrl = null;
       if (!empty($companyLogo)) {
           $companyLogoUrl = str_starts_with($companyLogo, '/') ? url($companyLogo) : $companyLogo;
       }
+      $customerSnapshot = is_array($invoice->customer_snapshot ?? null) ? $invoice->customer_snapshot : [];
       $customerLabel = $customer?->company_name
         ?: trim(($customer?->first_name ?? '') . ' ' . ($customer?->last_name ?? ''));
+      $customerLabel = $customerLabel ?: ($customerSnapshot['name'] ?? $customerSnapshot['company_name'] ?? null);
       $customerLabel = $customerLabel ?: 'Client';
       $contactName = trim(($customer?->first_name ?? '') . ' ' . ($customer?->last_name ?? ''));
-      $contactName = $contactName ?: ($customer?->company_name ?: '-');
-      $contactEmail = $customer?->email ?: '-';
-      $contactPhone = $customer?->phone ?: '-';
+      $contactName = $contactName ?: ($customer?->company_name ?: ($customerSnapshot['name'] ?? '-'));
+      $contactEmail = $customer?->email ?: ($customerSnapshot['email'] ?? '-');
+      $contactPhone = $customer?->phone ?: ($customerSnapshot['phone'] ?? '-');
       $locale = strtolower((string) config('app.locale', 'fr'));
       $useComma = str_starts_with($locale, 'fr');
       $formatMoney = function ($value) use ($useComma) {
@@ -312,7 +316,7 @@
               $statusClass = 'status-void';
               break;
       }
-      $jobTitle = $work?->job_title ?: 'Job';
+      $jobTitle = $work?->job_title ?: ($productItems->first()['title'] ?? 'Service');
       $property = $work?->quote?->property;
       if (!$property && $customer && $customer->relationLoaded('properties')) {
           $property = $customer->properties->firstWhere('is_default', true) ?? $customer->properties->first();
@@ -345,11 +349,15 @@
               $starHtml .= $i <= $filled ? '&#9733;' : '&#9734;';
           }
       }
-      $invoiceSubtotal = $subtotal;
-      if (!$isTaskBased && $work && $work->subtotal !== null) {
-          $invoiceSubtotal = (float) $work->subtotal;
-      }
-      $totalPaid = (float) $invoice->amount_paid;
+      $invoiceSubtotal = (float) ($invoiceSubtotal ?? $subtotal);
+      $invoiceTotal = (float) ($invoiceTotal ?? $invoice->total ?? 0);
+      $taxTotal = (float) ($taxTotal ?? max(0, $invoiceTotal - $invoiceSubtotal));
+      $totalPaid = (float) ($totalPaid ?? $invoice->amount_paid);
+      $tipTotal = (float) ($tipTotal ?? 0);
+      $chargedTotal = (float) ($chargedTotal ?? ($totalPaid + $tipTotal));
+      $paymentRows = $paymentRows ?? $invoice->payments
+          ->whereIn('status', \App\Models\Payment::settledStatuses())
+          ->sortByDesc('paid_at');
     @endphp
 
     <div class="panel">
@@ -359,8 +367,8 @@
             <table class="full">
               <tr>
                 @if(!empty($companyLogoUrl))
-                  <td style="width: 50px; vertical-align: top; padding-right: 10px;">
-                    <img src="{{ $companyLogoUrl }}" alt="Logo" class="logo">
+                  <td style="width: 120px; vertical-align: top; padding-right: 10px;">
+                    <img src="{{ $companyLogoUrl }}" alt="{{ $companyName }}" class="logo">
                   </td>
                 @endif
                 <td>
@@ -513,15 +521,29 @@
                 <td class="value highlight">{{ $formatMoney($invoiceSubtotal) }}</td>
               </tr>
               <tr class="summary-divider">
-                <td class="label">Payee:</td>
+                <td class="label">Taxes:</td>
+                <td class="value">{{ $formatMoney($taxTotal) }}</td>
+              </tr>
+              <tr class="summary-divider">
+                <td class="label"><strong>Total de la facture:</strong></td>
+                <td class="value"><strong>{{ $formatMoney($invoiceTotal) }}</strong></td>
+              </tr>
+              <tr class="summary-divider">
+                <td class="label">Payé sur la facture:</td>
                 <td class="value">{{ $formatMoney($totalPaid) }}</td>
               </tr>
+              @if($paymentRows->isNotEmpty())
+                <tr class="summary-divider">
+                  <td class="label">Pourboire:</td>
+                  <td class="value">{{ $formatMoney($tipTotal) }}</td>
+                </tr>
+                <tr class="summary-divider">
+                  <td class="label"><strong>Total encaissé:</strong></td>
+                  <td class="value"><strong>{{ $formatMoney($chargedTotal) }}</strong></td>
+                </tr>
+              @endif
               <tr class="summary-divider">
-                <td class="label"><strong>Montant total:</strong></td>
-                <td class="value"><strong>{{ $formatMoney($invoice->total) }}</strong></td>
-              </tr>
-              <tr class="summary-divider">
-                <td class="label">Solde du:</td>
+                <td class="label">Solde dû:</td>
                 <td class="value">{{ $formatMoney($invoice->balance_due) }}</td>
               </tr>
             </table>
@@ -530,10 +552,10 @@
       </table>
     </div>
 
-    @if($invoice->payments->isNotEmpty())
+    @if($paymentRows->isNotEmpty())
       <div class="card section">
         <div class="label" style="font-weight: 600;">Paiements</div>
-        @foreach($invoice->payments as $payment)
+        @foreach($paymentRows as $payment)
           <div class="payment-row">
             <table class="full">
               <tr>
@@ -541,6 +563,11 @@
                   <div style="font-size: 11px; color: #44403c;">
                     {{ $formatMoney($payment->amount) }} - {{ $payment->method ?: '-' }}
                   </div>
+                  @if($payment->tip_net_amount > 0)
+                    <div class="muted">
+                      Pourboire : {{ $formatMoney($payment->tip_net_amount) }} · Total encaissé : {{ $formatMoney($payment->charged_net_amount) }}
+                    </div>
+                  @endif
                   <div class="muted">{{ $formatRelativeDate($payment->paid_at) }}</div>
                 </td>
                 <td class="right muted">{{ $payment->status ?: '-' }}</td>

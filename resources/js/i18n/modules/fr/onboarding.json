@@ -69,7 +69,7 @@
       "name": "Nom de l'entreprise",
       "logo_optional": "Logo (optionnel)",
       "logo_upload": "Téléverser votre logo",
-      "description_optional": "Description (optionnel)",
+      "description_optional": "Description (optionnelle)",
       "address": "Adresse de l'entreprise",
       "address_search_placeholder": "Rechercher une adresse",
       "address_searching": "Recherche...",
@@ -78,14 +78,16 @@
       "street": "Rue",
       "city": "Ville",
       "province": "Province",
-      "province_region": "Province / Region",
+      "province_region": "Province / Région",
       "country": "Pays",
       "postal_code": "Code postal",
       "address_manual": "Adresse manuelle",
       "address_hide": "Masquer",
       "address_show": "Saisir manuellement",
       "address_error_key": "Configuration Geoapify manquante. Vérifiez la configuration de l'application.",
-      "address_error_failed": "Échec de recherche. Vérifiez la clé Geoapify ou utilisez la saisie manuelle."
+      "address_error_failed": "Échec de recherche. Vérifiez la clé Geoapify ou utilisez la saisie manuelle.",
+      "currency_label": "Devise principale de l'entreprise",
+      "currency_hint": "Les produits, prestations, factures et paiements en ligne Stripe utiliseront la devise {currency}."
     },
     "type": {
       "services": "Entreprise de services",

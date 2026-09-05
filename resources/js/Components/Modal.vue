@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 
 const props = defineProps({
     show: {
@@ -18,26 +18,55 @@ const props = defineProps({
         type: String,
         default: 'top',
     },
+    fullScreenMobile: {
+        type: Boolean,
+        default: false,
+    },
+    presentation: {
+        type: String,
+        default: 'dialog',
+        validator: (value) => ['dialog', 'drawer'].includes(value),
+    },
 });
 
 const emit = defineEmits(['close']);
 const dialog = ref();
 const showSlot = ref(props.show);
+const previouslyFocusedElement = ref(null);
+let closeTimer;
+
+const cancelPendingClose = () => {
+    if (closeTimer) {
+        clearTimeout(closeTimer);
+        closeTimer = undefined;
+    }
+};
 
 watch(
     () => props.show,
-    () => {
+    async () => {
         if (props.show) {
+            cancelPendingClose();
+            previouslyFocusedElement.value ??= document.activeElement;
             document.body.style.overflow = 'hidden';
             showSlot.value = true;
 
-            dialog.value?.showModal();
+            await nextTick();
+            if (dialog.value && !dialog.value.open) {
+                dialog.value.showModal();
+            }
         } else {
             document.body.style.overflow = '';
 
-            setTimeout(() => {
-                dialog.value?.close();
+            cancelPendingClose();
+            closeTimer = setTimeout(() => {
+                if (dialog.value?.open) {
+                    dialog.value.close();
+                }
                 showSlot.value = false;
+                previouslyFocusedElement.value?.focus?.();
+                previouslyFocusedElement.value = null;
+                closeTimer = undefined;
             }, 200);
         }
     },
@@ -62,6 +91,7 @@ const closeOnEscape = (e) => {
 onMounted(() => document.addEventListener('keydown', closeOnEscape));
 
 onUnmounted(() => {
+    cancelPendingClose();
     document.removeEventListener('keydown', closeOnEscape);
 
     document.body.style.overflow = '';
@@ -86,15 +116,25 @@ const positionClass = computed(() => {
         center: 'items-start sm:items-center',
     }[props.position] ?? 'items-start';
 });
+
+const isDrawer = computed(() => props.presentation === 'drawer');
 </script>
 
 <template>
     <dialog
         class="z-50 m-0 min-h-full min-w-full overflow-y-auto bg-transparent backdrop:bg-transparent"
         ref="dialog"
+        @cancel.prevent="close"
     >
         <div
-            class="fixed inset-0 z-50 overflow-y-auto px-4 py-6 sm:px-6"
+            class="fixed inset-0 z-50 overflow-y-auto"
+            :class="
+                isDrawer
+                    ? 'p-0'
+                    : fullScreenMobile
+                      ? 'p-0 sm:px-6 sm:py-6'
+                      : 'px-4 py-6 sm:px-6'
+            "
             scroll-region
         >
             <Transition
@@ -116,7 +156,26 @@ const positionClass = computed(() => {
                 </div>
             </Transition>
 
-            <div class="flex min-h-full justify-center" :class="positionClass">
+            <div v-if="isDrawer" class="flex min-h-full justify-end">
+                <Transition
+                    enter-active-class="ease-out duration-300 motion-reduce:transition-none motion-reduce:duration-0"
+                    enter-from-class="opacity-0 translate-x-full"
+                    enter-to-class="opacity-100 translate-x-0"
+                    leave-active-class="ease-in duration-200 motion-reduce:transition-none motion-reduce:duration-0"
+                    leave-from-class="opacity-100 translate-x-0"
+                    leave-to-class="opacity-0 translate-x-full"
+                >
+                    <div
+                        v-show="show"
+                        class="h-dvh w-full max-w-full min-w-0 transform overflow-hidden border-l border-stone-200 bg-white text-stone-900 shadow-2xl transition-all motion-reduce:transition-none dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+                        :class="maxWidthClass"
+                    >
+                        <slot v-if="showSlot" />
+                    </div>
+                </Transition>
+            </div>
+
+            <div v-else class="flex min-h-full justify-center" :class="positionClass">
                 <Transition
                     enter-active-class="ease-out duration-300"
                     enter-from-class="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
@@ -127,8 +186,13 @@ const positionClass = computed(() => {
                 >
                     <div
                         v-show="show"
-                        class="w-full max-w-full min-w-0 transform overflow-hidden rounded-sm border border-stone-200 bg-white text-stone-900 shadow-xl transition-all dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-                        :class="maxWidthClass"
+                        class="w-full max-w-full min-w-0 transform overflow-hidden bg-white text-stone-900 shadow-xl transition-all dark:bg-neutral-900 dark:text-neutral-100"
+                        :class="[
+                            maxWidthClass,
+                            fullScreenMobile
+                                ? 'min-h-dvh rounded-none border-0 sm:min-h-0 sm:rounded-sm sm:border sm:border-stone-200 sm:dark:border-neutral-700'
+                                : 'rounded-sm border border-stone-200 dark:border-neutral-700',
+                        ]"
                     >
                         <slot v-if="showSlot" />
                     </div>

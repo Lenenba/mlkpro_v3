@@ -12,6 +12,19 @@ import SecondaryButton from '@/Components/SecondaryButton.vue';
 import SocialMediaAssetPicker from '@/Pages/Social/Components/SocialMediaAssetPicker.vue';
 import SocialPostQualityPanel from '@/Pages/Social/Components/SocialPostQualityPanel.vue';
 import SocialVisualPostPreview from '@/Pages/Social/Components/SocialVisualPostPreview.vue';
+import {
+    needsSocialDeliveryVerification,
+    socialStatusAxes,
+    socialStatusToneClass,
+} from '@/utils/socialStatusAxes';
+import { resolveMediaType } from '@/utils/media';
+import {
+    normalizeSocialMediaState,
+    serializeSocialMediaAssets,
+    SOCIAL_MEDIA_EXTENSIONS,
+    SOCIAL_MEDIA_MAX_ITEMS,
+} from '@/utils/socialMediaAssets';
+import { socialScheduleInputValue } from '@/utils/socialScheduleInput';
 
 const props = defineProps({
     initialConnectedAccounts: {
@@ -71,6 +84,8 @@ const normalizeAccounts = (payload) => Array.isArray(payload) ? payload : [];
 const normalizeDrafts = (payload) => Array.isArray(payload) ? payload : [];
 const normalizeTemplates = (payload) => Array.isArray(payload) ? payload : [];
 const normalizeMediaAssets = (payload) => Array.isArray(payload) ? payload : [];
+const mediaExtensions = SOCIAL_MEDIA_EXTENSIONS;
+const normalizeMediaState = normalizeSocialMediaState;
 const normalizeSummary = (payload) => payload && typeof payload === 'object' ? payload : {};
 const normalizeAccess = (payload) => ({
     can_view: Boolean(payload?.can_view),
@@ -143,12 +158,15 @@ const normalizePrefill = (payload) => {
         return null;
     }
 
+    const mediaState = normalizeMediaState(payload?.media_assets, payload?.image_url);
+
     return {
         source_type: sourceType,
         source_id: sourceId,
         source_label: normalizeString(payload?.source_label),
         text: String(payload?.text || ''),
-        image_url: String(payload?.image_url || ''),
+        image_url: mediaState.image_url,
+        media_assets: mediaState.media_assets,
         link_url: String(payload?.link_url || ''),
         link_cta_label: String(payload?.link_cta_label || ''),
     };
@@ -236,6 +254,7 @@ const lastAppliedTemplateId = ref(null);
 const lastAppliedPrefillKey = ref('');
 const draftSnapshot = ref(null);
 const busy = ref(false);
+const retrying = ref(false);
 const isLoading = ref(false);
 const suggestionsLoading = ref(false);
 const error = ref('');
@@ -244,11 +263,12 @@ const templateName = ref('');
 const hashtagDraft = ref('');
 const suggestions = ref(normalizeSuggestions(null));
 const sourceReference = ref(normalizeSourceReference(props.initialPrefill));
-const imageFile = ref(null);
+const mediaFiles = ref([]);
 const localImagePreviewUrl = ref('');
 const form = ref({
     text: '',
     image_url: String(props.initialMediaUrl || '').trim(),
+    media_assets: [],
     link_url: '',
     link_cta_label: '',
     scheduled_for: '',
@@ -300,11 +320,56 @@ const statusClass = (status) => {
 };
 
 const previewStatus = computed(() => t(`social.composer_manager.statuses.${currentStatus.value}`));
+const isFailedPublication = computed(() => ['failed', 'partial_failed'].includes(currentStatus.value));
+const canRetryPublication = computed(() => Boolean(draftSnapshot.value?.can_retry));
+const activeStatusAxes = computed(() => socialStatusAxes(draftSnapshot.value));
+const deliveryVerificationRequired = computed(() => needsSocialDeliveryVerification(draftSnapshot.value));
+const statusAxisLabel = (axis) => t(`social.delivery_axes.labels.${axis.key}`);
+const statusAxisValueLabel = (axis) => {
+    const key = `social.delivery_axes.statuses.${axis.key}.${axis.value}`;
+    const translated = t(key);
 
-const isQueuedPublication = computed(() => Boolean(draftSnapshot.value?.metadata?.publish_requested_at));
+    return translated === key ? axis.value.replace(/_/gu, ' ') : translated;
+};
+
+const isQueuedPublication = computed(() => (
+    typeof draftSnapshot.value?.is_queued_publication === 'boolean'
+        ? draftSnapshot.value.is_queued_publication
+        : Boolean(draftSnapshot.value?.metadata?.publish_requested_at)
+));
 const approvalRequest = computed(() => draftSnapshot.value?.approval_request || null);
 const isApprovalLocked = computed(() => currentStatus.value === 'pending_approval');
-const isEditDisabled = computed(() => !canManage.value || busy.value || isApprovalLocked.value);
+const isServerLocked = computed(() => Boolean(
+    draftSnapshot.value && draftSnapshot.value.is_editable === false
+));
+const isEditDisabled = computed(() => (
+    !canManage.value
+    || busy.value
+    || isApprovalLocked.value
+    || isQueuedPublication.value
+    || isServerLocked.value
+));
+const existingMediaItems = computed(() => {
+    const items = form.value.media_assets.map((asset, index) => ({
+        ...asset,
+        composer_source: 'media_assets',
+        composer_index: index,
+    }));
+    const imageUrl = String(form.value.image_url || '').trim();
+
+    if (imageUrl !== '') {
+        items.unshift({
+            type: 'image',
+            url: imageUrl,
+            composer_source: 'image_url',
+        });
+    }
+
+    return items;
+});
+const mediaLimitReached = computed(() => (
+    existingMediaItems.value.length + mediaFiles.value.length >= SOCIAL_MEDIA_MAX_ITEMS
+));
 const sourceDisplayName = computed(() => sourceDisplayLabelFor(sourceReference.value));
 const sourceHref = computed(() => sourceHrefFor(sourceReference.value));
 const hasSuggestions = computed(() => (
@@ -333,27 +398,29 @@ const approvalRequestDate = computed(() => (
     || null
 ));
 const imageInputModel = computed({
-    get: () => imageFile.value || String(form.value.image_url || '').trim() || null,
+    get: () => String(form.value.image_url || '').trim() || null,
     set: (value) => {
-        if (value instanceof File) {
-            imageFile.value = value;
-            form.value.image_url = '';
-
+        if (isEditDisabled.value) {
             return;
         }
 
         if (typeof value === 'string' && value.trim() !== '') {
-            imageFile.value = null;
             form.value.image_url = value.trim();
 
             return;
         }
 
-        imageFile.value = null;
         form.value.image_url = '';
     },
 });
-const previewImageSrc = computed(() => localImagePreviewUrl.value || String(form.value.image_url || '').trim());
+const previewImageFile = computed(() => mediaFiles.value.find((file) => (
+    resolveMediaType(file) === 'image'
+)) || null);
+const previewImageSrc = computed(() => (
+    localImagePreviewUrl.value
+    || String(form.value.image_url || '').trim()
+    || String(form.value.media_assets.find((asset) => asset?.type === 'image')?.url || '').trim()
+));
 const normalizeLinkCandidate = (value) => {
     const candidate = String(value || '').trim();
     if (candidate === '') {
@@ -482,22 +549,40 @@ const revokeLocalImagePreview = () => {
     localImagePreviewUrl.value = '';
 };
 
-const clearImageSelection = () => {
-    imageFile.value = null;
+const clearMediaFiles = () => {
+    mediaFiles.value = [];
+};
+
+const removeExistingMedia = (item) => {
+    if (isEditDisabled.value) {
+        return;
+    }
+
+    if (item?.composer_source === 'image_url') {
+        form.value.image_url = '';
+
+        return;
+    }
+
+    const index = Number(item?.composer_index);
+    form.value.media_assets = form.value.media_assets.filter((_, assetIndex) => assetIndex !== index);
 };
 
 const syncFormFromDraft = (draft) => {
+    const mediaState = normalizeMediaState(draft?.media_assets, draft?.image_url);
+
     draftSnapshot.value = draft ? { ...draft } : null;
     templateName.value = '';
     resetSuggestions();
     sourceReference.value = normalizeSourceReference(draft);
-    clearImageSelection();
+    clearMediaFiles();
     form.value = {
         text: String(draft?.text || ''),
-        image_url: String(draft?.image_url || ''),
+        image_url: mediaState.image_url,
+        media_assets: mediaState.media_assets,
         link_url: String(draft?.link_url || ''),
         link_cta_label: String(draft?.link_cta_label || ''),
-        scheduled_for: String(draft?.scheduled_for || ''),
+        scheduled_for: socialScheduleInputValue(draft),
         target_connection_ids: Array.isArray(draft?.selected_target_connection_ids)
             ? draft.selected_target_connection_ids.map((id) => Number(id)).filter((id) => id > 0)
             : [],
@@ -512,10 +597,11 @@ const resetForm = () => {
     templateName.value = '';
     resetSuggestions();
     sourceReference.value = null;
-    clearImageSelection();
+    clearMediaFiles();
     form.value = {
         text: '',
         image_url: '',
+        media_assets: [],
         link_url: '',
         link_cta_label: '',
         scheduled_for: '',
@@ -595,20 +681,11 @@ watch(() => props.selectedTemplateId, (value) => {
     requestedTemplateId.value = value;
 }, { immediate: true });
 
-watch(imageFile, (value) => {
+watch(previewImageFile, (value) => {
     revokeLocalImagePreview();
 
     if (value instanceof File) {
         localImagePreviewUrl.value = URL.createObjectURL(value);
-    }
-});
-
-watch(() => form.value.image_url, (value, previous) => {
-    const next = String(value || '').trim();
-    const prev = String(previous || '').trim();
-
-    if (next !== '' && next !== prev && imageFile.value instanceof File) {
-        clearImageSelection();
     }
 });
 
@@ -626,7 +703,11 @@ watch([sortedDrafts, activeDraftId], () => {
         activeDraftId.value = null;
     }
 
-    if (!form.value.text && !form.value.image_url && !form.value.link_url && !form.value.target_connection_ids.length) {
+    if (!form.value.text
+        && !form.value.image_url
+        && !form.value.media_assets.length
+        && !form.value.link_url
+        && !form.value.target_connection_ids.length) {
         return;
     }
 }, { immediate: true });
@@ -636,6 +717,7 @@ onBeforeUnmount(() => {
 });
 
 const applyTemplate = (template, { announce = true } = {}) => {
+    const mediaState = normalizeMediaState(template?.media_assets, template?.image_url);
     const availableTargetIds = availableTargetConnectionIds(template?.selected_target_connection_ids);
     const missingTargetCount = Math.max(0, Number(template?.selected_accounts_count || 0) - availableTargetIds.length);
 
@@ -646,10 +728,11 @@ const applyTemplate = (template, { announce = true } = {}) => {
     templateName.value = String(template?.name || '');
     resetSuggestions();
     sourceReference.value = null;
-    clearImageSelection();
+    clearMediaFiles();
     form.value = {
         text: String(template?.text || ''),
-        image_url: String(template?.image_url || ''),
+        image_url: mediaState.image_url,
+        media_assets: mediaState.media_assets,
         link_url: String(template?.link_url || ''),
         link_cta_label: String(template?.link_cta_label || ''),
         scheduled_for: '',
@@ -665,7 +748,7 @@ const applyTemplate = (template, { announce = true } = {}) => {
 };
 
 const applyPrefill = (prefill, { announce = true } = {}) => {
-    const normalizedPrefill = normalizePrefill(prefill);
+    const normalizedPrefill = prefill && typeof prefill === 'object' ? prefill : null;
     const key = sourceReferenceKey(normalizedPrefill);
     if (!normalizedPrefill || key === '') {
         return;
@@ -678,10 +761,11 @@ const applyPrefill = (prefill, { announce = true } = {}) => {
     templateName.value = '';
     resetSuggestions();
     sourceReference.value = normalizeSourceReference(normalizedPrefill);
-    clearImageSelection();
+    clearMediaFiles();
     form.value = {
         text: String(normalizedPrefill.text || ''),
         image_url: String(normalizedPrefill.image_url || ''),
+        media_assets: normalizedPrefill.media_assets,
         link_url: String(normalizedPrefill.link_url || ''),
         link_cta_label: String(normalizedPrefill.link_cta_label || ''),
         scheduled_for: '',
@@ -698,6 +782,10 @@ const applyPrefill = (prefill, { announce = true } = {}) => {
 };
 
 const clearSourceReference = () => {
+    if (isEditDisabled.value) {
+        return;
+    }
+
     sourceReference.value = null;
     error.value = '';
     info.value = '';
@@ -802,7 +890,7 @@ const load = async () => {
 };
 
 const toggleTarget = (accountId) => {
-    if (!canManage.value) {
+    if (isEditDisabled.value) {
         return;
     }
 
@@ -850,7 +938,7 @@ const loadSuggestions = async () => {
 };
 
 const applyCaptionSuggestion = (caption) => {
-    if (!canManage.value) {
+    if (isEditDisabled.value) {
         return;
     }
 
@@ -860,7 +948,7 @@ const applyCaptionSuggestion = (caption) => {
 };
 
 const appendHashtagsToText = () => {
-    if (!canManage.value) {
+    if (isEditDisabled.value) {
         return;
     }
 
@@ -870,7 +958,7 @@ const appendHashtagsToText = () => {
 };
 
 const applyCtaSuggestion = (cta) => {
-    if (!canManage.value) {
+    if (isEditDisabled.value) {
         return;
     }
 
@@ -880,7 +968,7 @@ const applyCtaSuggestion = (cta) => {
 };
 
 const addCustomHashtag = () => {
-    if (!canManage.value) {
+    if (isEditDisabled.value) {
         return;
     }
 
@@ -899,7 +987,7 @@ const addCustomHashtag = () => {
 };
 
 const removeHashtag = (hashtag) => {
-    if (!canManage.value) {
+    if (isEditDisabled.value) {
         return;
     }
 
@@ -927,6 +1015,14 @@ const appendFormDataValue = (formData, key, value) => {
     formData.append(key, value ?? '');
 };
 
+const appendMediaAssets = (formData, assets) => {
+    const serializedAssets = serializeSocialMediaAssets(assets);
+
+    formData.append('media_assets', JSON.stringify(serializedAssets));
+};
+
+const serializedMediaAssets = () => serializeSocialMediaAssets(form.value.media_assets);
+
 const usesFormData = (payload) => payload instanceof FormData;
 
 const putWithPayload = (url, payload) => {
@@ -943,6 +1039,7 @@ const composerPayload = () => {
     const payload = {
         text: String(form.value.text || '').trim(),
         image_url: String(form.value.image_url || '').trim(),
+        media_assets: serializedMediaAssets(),
         link_url: String(form.value.link_url || '').trim(),
         link_cta_label: String(form.value.link_cta_label || '').trim(),
         scheduled_for: String(form.value.scheduled_for || '').trim(),
@@ -951,7 +1048,7 @@ const composerPayload = () => {
         target_connection_ids: form.value.target_connection_ids.map((id) => Number(id)).filter((id) => id > 0),
     };
 
-    if (!(imageFile.value instanceof File)) {
+    if (mediaFiles.value.length === 0) {
         return payload;
     }
 
@@ -959,7 +1056,10 @@ const composerPayload = () => {
 
     appendFormDataValue(formData, 'text', payload.text);
     appendFormDataValue(formData, 'image_url', payload.image_url);
-    appendFormDataValue(formData, 'image_file', imageFile.value);
+    mediaFiles.value.forEach((mediaFile) => {
+        formData.append('media_files[]', mediaFile);
+    });
+    appendMediaAssets(formData, form.value.media_assets);
     appendFormDataValue(formData, 'link_url', payload.link_url);
     appendFormDataValue(formData, 'link_cta_label', payload.link_cta_label);
     appendFormDataValue(formData, 'scheduled_for', payload.scheduled_for);
@@ -982,12 +1082,13 @@ const templatePayload = (name) => {
         name,
         text: String(form.value.text || '').trim(),
         image_url: String(form.value.image_url || '').trim(),
+        media_assets: serializedMediaAssets(),
         link_url: String(form.value.link_url || '').trim(),
         link_cta_label: String(form.value.link_cta_label || '').trim(),
         target_connection_ids: availableTargetConnectionIds(form.value.target_connection_ids),
     };
 
-    if (!(imageFile.value instanceof File)) {
+    if (mediaFiles.value.length === 0) {
         return payload;
     }
 
@@ -996,7 +1097,10 @@ const templatePayload = (name) => {
     appendFormDataValue(formData, 'name', payload.name);
     appendFormDataValue(formData, 'text', payload.text);
     appendFormDataValue(formData, 'image_url', payload.image_url);
-    appendFormDataValue(formData, 'image_file', imageFile.value);
+    mediaFiles.value.forEach((mediaFile) => {
+        formData.append('media_files[]', mediaFile);
+    });
+    appendMediaAssets(formData, form.value.media_assets);
     appendFormDataValue(formData, 'link_url', payload.link_url);
     appendFormDataValue(formData, 'link_cta_label', payload.link_cta_label);
     appendFormDataValue(formData, 'target_connection_ids', payload.target_connection_ids);
@@ -1005,7 +1109,7 @@ const templatePayload = (name) => {
 };
 
 const saveDraft = async ({ quiet = false } = {}) => {
-    if (!canManage.value) {
+    if (isEditDisabled.value) {
         return null;
     }
 
@@ -1047,7 +1151,7 @@ const submit = async () => {
 };
 
 const submitApprovalRequest = async () => {
-    if (!canSubmitForApproval.value) {
+    if (!canSubmitForApproval.value || isEditDisabled.value) {
         return;
     }
 
@@ -1089,7 +1193,7 @@ const submitApprovalRequest = async () => {
 };
 
 const saveAsTemplate = async () => {
-    if (!canManage.value) {
+    if (!canManage.value || isEditDisabled.value) {
         return;
     }
 
@@ -1169,6 +1273,40 @@ const publishDraft = async (mode) => {
     }
 };
 
+const retryPublication = async () => {
+    if (!canRetryPublication.value) {
+        return;
+    }
+
+    const draftId = Number(activeDraftId.value || draftSnapshot.value?.id || 0);
+    if (draftId <= 0) {
+        return;
+    }
+
+    busy.value = true;
+    retrying.value = true;
+    error.value = '';
+    info.value = '';
+
+    try {
+        const response = await axios.post(route('social.posts.retry', draftId));
+
+        refreshFromPayload(response.data);
+
+        if (response.data?.draft) {
+            activeDraftId.value = Number(response.data.draft.id);
+            syncFormFromDraft(response.data.draft);
+        }
+
+        info.value = String(response.data?.message || t('social.composer_manager.messages.retry_success'));
+    } catch (requestError) {
+        error.value = requestErrorMessage(requestError, t('social.composer_manager.messages.retry_error'));
+    } finally {
+        retrying.value = false;
+        busy.value = false;
+    }
+};
+
 const resolveApproval = async (decision) => {
     if (!canApprove.value || currentStatus.value !== 'pending_approval') {
         return;
@@ -1215,7 +1353,7 @@ const resolveApproval = async (decision) => {
 </script>
 
 <template>
-    <div class="space-y-5">
+    <div class="space-y-5" :aria-busy="busy || isLoading || suggestionsLoading">
         <div class="flex flex-wrap justify-end gap-2">
             <SecondaryButton :disabled="busy || isLoading" @click="load">
                 {{ t('social.composer_manager.actions.reload') }}
@@ -1249,7 +1387,7 @@ const resolveApproval = async (decision) => {
                     </SecondaryButton>
                 </Link>
 
-                <SecondaryButton type="button" :disabled="busy" @click="clearSourceReference">
+                <SecondaryButton type="button" :disabled="isEditDisabled" @click="clearSourceReference">
                     {{ t('social.composer_manager.actions.clear_source') }}
                 </SecondaryButton>
             </div>
@@ -1257,6 +1395,8 @@ const resolveApproval = async (decision) => {
 
         <div
             v-if="error"
+            role="alert"
+            aria-live="assertive"
             class="rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300"
         >
             {{ error }}
@@ -1264,9 +1404,39 @@ const resolveApproval = async (decision) => {
 
         <div
             v-if="info"
+            role="status"
+            aria-live="polite"
             class="rounded-3xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300"
         >
             {{ info }}
+        </div>
+
+        <div
+            v-if="draftSnapshot?.failure_reason"
+            role="status"
+            aria-live="polite"
+            class="rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-200"
+        >
+            <div class="font-semibold">
+                {{ t('social.delivery_axes.failure_reason_label') }}
+            </div>
+            <div class="mt-1 break-words">
+                {{ draftSnapshot.failure_reason }}
+            </div>
+        </div>
+
+        <div
+            v-if="deliveryVerificationRequired"
+            role="alert"
+            aria-live="assertive"
+            class="rounded-3xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100"
+        >
+            <div class="font-semibold">
+                {{ t('social.delivery_axes.verification.title') }}
+            </div>
+            <div class="mt-1">
+                {{ t('social.delivery_axes.verification.description') }}
+            </div>
         </div>
 
         <div class="grid grid-cols-1 gap-5 xl:grid-cols-[1.1fr,0.9fr]">
@@ -1325,25 +1495,36 @@ const resolveApproval = async (decision) => {
                             :disabled="isEditDisabled"
                         />
 
-                        <DropzoneInput
-                            v-model="imageInputModel"
-                            :label="t('social.composer_manager.fields.image_file')"
-                        />
+                        <div class="rounded-2xl border border-neutral-200 bg-neutral-50/70 p-4 dark:border-neutral-700 dark:bg-neutral-900/40">
+                            <div>
+                                <div class="text-sm font-semibold text-neutral-900 dark:text-white">
+                                    {{ t('social.composer_manager.fields.media') }}
+                                </div>
+                                <p class="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                                    {{ t('social.composer_manager.fields.media_help') }}
+                                </p>
+                            </div>
 
-                        <SocialMediaAssetPicker
-                            v-model="imageInputModel"
-                            :assets="mediaAssets"
-                            :disabled="isEditDisabled"
-                        />
+                            <div class="mt-4 grid grid-cols-1 gap-4">
+                                <DropzoneInput
+                                    v-model="mediaFiles"
+                                    mode="media"
+                                    multiple
+                                    :max-files="SOCIAL_MEDIA_MAX_ITEMS"
+                                    :existing-items="existingMediaItems"
+                                    :allowed-extensions="mediaExtensions"
+                                    :label="t('social.composer_manager.fields.media')"
+                                    :disabled="isEditDisabled"
+                                    @remove-existing="removeExistingMedia"
+                                />
 
-                        <FloatingInput
-                            v-model="form.image_url"
-                            type="url"
-                            :label="t('social.composer_manager.fields.image_url')"
-                            placeholder="https://example.com/image.jpg"
-                            autocomplete="url"
-                            :disabled="isEditDisabled"
-                        />
+                                <SocialMediaAssetPicker
+                                    v-model="imageInputModel"
+                                    :assets="mediaAssets"
+                                    :disabled="isEditDisabled || mediaLimitReached"
+                                />
+                            </div>
+                        </div>
 
                         <FloatingInput
                             v-model="form.link_url"
@@ -1369,19 +1550,29 @@ const resolveApproval = async (decision) => {
                     </div>
 
                     <div class="mt-4 flex flex-wrap items-center gap-2">
-                        <PrimaryButton type="button" :disabled="busy || !canManage || isApprovalLocked" @click="submit">
+                        <PrimaryButton type="button" :disabled="isEditDisabled" @click="submit">
                             {{ activeDraftId ? t('social.composer_manager.actions.update_draft') : t('social.composer_manager.actions.save_draft') }}
                         </PrimaryButton>
                         <PrimaryButton
                             v-if="canSubmitForApproval"
                             type="button"
-                            :disabled="busy || isLoading || currentStatus === 'publishing' || currentStatus === 'published' || currentStatus === 'pending_approval'"
+                            :disabled="isLoading || isEditDisabled"
                             @click="submitApprovalRequest"
                         >
                             {{ t('social.composer_manager.actions.submit_for_approval') }}
                         </PrimaryButton>
                         <PrimaryButton
-                            v-if="canPublish && currentStatus !== 'pending_approval'"
+                            v-if="canRetryPublication"
+                            type="button"
+                            :disabled="busy || isLoading"
+                            @click="retryPublication"
+                        >
+                            {{ retrying
+                                ? t('social.composer_manager.actions.retrying_post')
+                                : t('social.composer_manager.actions.retry_post') }}
+                        </PrimaryButton>
+                        <PrimaryButton
+                            v-else-if="canPublish && currentStatus !== 'pending_approval' && !isFailedPublication"
                             type="button"
                             :disabled="busy || isLoading || currentStatus === 'publishing' || currentStatus === 'published' || (isQueuedPublication && currentStatus === 'scheduled')"
                             @click="publishDraft('publish')"
@@ -1389,7 +1580,7 @@ const resolveApproval = async (decision) => {
                             {{ t('social.composer_manager.actions.publish_now') }}
                         </PrimaryButton>
                         <SecondaryButton
-                            v-if="canPublish && currentStatus !== 'pending_approval'"
+                            v-if="canPublish && currentStatus !== 'pending_approval' && !isFailedPublication"
                             type="button"
                             :disabled="busy || isLoading || currentStatus === 'publishing' || currentStatus === 'published' || (!form.scheduled_for && currentStatus !== 'scheduled') || (isQueuedPublication && currentStatus === 'scheduled')"
                             @click="publishDraft('schedule')"
@@ -1461,7 +1652,7 @@ const resolveApproval = async (decision) => {
                                     <div class="mt-4">
                                         <SecondaryButton
                                             type="button"
-                                            :disabled="busy || !canManage || isApprovalLocked"
+                                            :disabled="isEditDisabled"
                                             @click="applyCaptionSuggestion(caption)"
                                         >
                                             {{ t('social.composer_manager.actions.apply_caption') }}
@@ -1485,7 +1676,7 @@ const resolveApproval = async (decision) => {
 
                                     <SecondaryButton
                                         type="button"
-                                        :disabled="busy || !canManage || isApprovalLocked || !suggestions.hashtags.length"
+                                        :disabled="isEditDisabled || !suggestions.hashtags.length"
                                         @click="appendHashtagsToText"
                                     >
                                         {{ t('social.composer_manager.actions.append_hashtags') }}
@@ -1502,7 +1693,7 @@ const resolveApproval = async (decision) => {
                                         <button
                                             type="button"
                                             class="text-stone-400 transition hover:text-rose-500 dark:text-neutral-500 dark:hover:text-rose-300"
-                                            :disabled="!canManage || isApprovalLocked"
+                                            :disabled="isEditDisabled"
                                             @click="removeHashtag(hashtag)"
                                         >
                                             ×
@@ -1517,7 +1708,7 @@ const resolveApproval = async (decision) => {
                                         :disabled="isEditDisabled"
                                     />
 
-                                    <SecondaryButton type="button" :disabled="busy || !canManage || isApprovalLocked" @click="addCustomHashtag">
+                                    <SecondaryButton type="button" :disabled="isEditDisabled" @click="addCustomHashtag">
                                         {{ t('social.composer_manager.actions.add_hashtag') }}
                                     </SecondaryButton>
                                 </div>
@@ -1548,7 +1739,7 @@ const resolveApproval = async (decision) => {
                                         <div class="mt-4">
                                             <SecondaryButton
                                                 type="button"
-                                                :disabled="busy || !canManage || isApprovalLocked"
+                                                :disabled="isEditDisabled"
                                                 @click="applyCtaSuggestion(cta)"
                                             >
                                                 {{ t('social.composer_manager.actions.append_cta') }}
@@ -1593,7 +1784,7 @@ const resolveApproval = async (decision) => {
                             :disabled="isEditDisabled"
                         />
 
-                        <PrimaryButton type="button" :disabled="busy || !canManage || isApprovalLocked" @click="saveAsTemplate">
+                        <PrimaryButton type="button" :disabled="isEditDisabled" @click="saveAsTemplate">
                             {{ t('social.composer_manager.actions.save_as_template') }}
                         </PrimaryButton>
                     </div>
@@ -1664,7 +1855,8 @@ const resolveApproval = async (decision) => {
                             :class="form.target_connection_ids.includes(Number(account.id))
                                 ? 'border-sky-600 bg-sky-50 dark:border-sky-500 dark:bg-sky-500/10'
                                 : 'border-stone-200 bg-stone-50 hover:border-sky-300 dark:border-neutral-700 dark:bg-neutral-800/70 dark:hover:border-sky-500/40'"
-                            :disabled="!canManage || busy || isApprovalLocked"
+                            :aria-pressed="form.target_connection_ids.includes(Number(account.id))"
+                            :disabled="isEditDisabled"
                             @click="toggleTarget(account.id)"
                         >
                             <div class="flex items-start justify-between gap-3">
@@ -1725,6 +1917,7 @@ const resolveApproval = async (decision) => {
                             :key="draft.id"
                             type="button"
                             class="w-full rounded-3xl border border-stone-200 bg-stone-50 p-4 text-left transition hover:border-sky-300 dark:border-neutral-700 dark:bg-neutral-800/60 dark:hover:border-sky-500/40"
+                            :aria-pressed="Number(activeDraftId) === Number(draft.id)"
                             @click="openDraft(draft)"
                         >
                             <div class="flex flex-wrap items-start justify-between gap-3">
@@ -1772,6 +1965,28 @@ const resolveApproval = async (decision) => {
                         {{ previewStatus }}
                     </span>
                 </div>
+
+                <dl
+                    v-if="activeStatusAxes.length"
+                    class="flex flex-wrap gap-2 rounded-3xl border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+                    :aria-label="t('social.delivery_axes.summary_label')"
+                >
+                    <div
+                        v-for="axis in activeStatusAxes"
+                        :key="axis.key"
+                        class="inline-flex items-center gap-1.5"
+                    >
+                        <dt class="text-xs text-stone-500 dark:text-neutral-400">
+                            {{ statusAxisLabel(axis) }}
+                        </dt>
+                        <dd
+                            class="inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold"
+                            :class="socialStatusToneClass(axis.value)"
+                        >
+                            {{ statusAxisValueLabel(axis) }}
+                        </dd>
+                    </div>
+                </dl>
 
                 <SocialPostQualityPanel
                     :text="form.text"

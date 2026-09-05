@@ -50,11 +50,12 @@
         text-align: right;
       }
       .logo {
-        width: 44px;
-        height: 44px;
-        object-fit: cover;
-        border-radius: var(--malikia-radius);
-        border: 1px solid #dcdcdc;
+        display: block;
+        max-width: 140px;
+        max-height: 48px;
+        width: auto;
+        height: auto;
+        object-fit: contain;
       }
       .eyebrow {
         font-size: 10px;
@@ -242,21 +243,24 @@
   </head>
   <body>
     @php
-      $companyName = $company?->company_name ?: config('app.name');
-      $companyLogo = $company?->company_logo_url;
+      $companyBranding = app(\App\Services\TenantBrandingResolver::class)->forAccountOwner($company);
+      $companyName = $companyBranding['name'];
+      $companyLogo = $companyBranding['custom_logo_url'];
       $companyLogoUrl = null;
       if (! empty($companyLogo)) {
           $companyLogoUrl = str_starts_with($companyLogo, '/') ? url($companyLogo) : $companyLogo;
       }
 
+      $customerSnapshot = is_array($invoice->customer_snapshot ?? null) ? $invoice->customer_snapshot : [];
       $customerLabel = $customer?->company_name
         ?: trim(($customer?->first_name ?? '') . ' ' . ($customer?->last_name ?? ''));
+      $customerLabel = $customerLabel ?: ($customerSnapshot['name'] ?? $customerSnapshot['company_name'] ?? null);
       $customerLabel = $customerLabel ?: 'Client';
 
       $contactName = trim(($customer?->first_name ?? '') . ' ' . ($customer?->last_name ?? ''));
-      $contactName = $contactName ?: ($customer?->company_name ?: '-');
-      $contactEmail = $customer?->email ?: '-';
-      $contactPhone = $customer?->phone ?: '-';
+      $contactName = $contactName ?: ($customer?->company_name ?: ($customerSnapshot['name'] ?? '-'));
+      $contactEmail = $customer?->email ?: ($customerSnapshot['email'] ?? '-');
+      $contactPhone = $customer?->phone ?: ($customerSnapshot['phone'] ?? '-');
 
       $companyLocationParts = array_values(array_filter([
           $company?->company_city,
@@ -353,7 +357,7 @@
               break;
       }
 
-      $jobTitle = $work?->job_title ?: 'Intervention';
+      $jobTitle = $work?->job_title ?: ($productItems->first()['title'] ?? 'Service');
       $property = $work?->quote?->property;
       if (! $property && $customer && $customer->relationLoaded('properties')) {
           $property = $customer->properties->firstWhere('is_default', true) ?? $customer->properties->first();
@@ -381,16 +385,14 @@
           }
       }
 
-      $invoiceSubtotal = $subtotal;
-      if (! $isTaskBased && $work && $work->subtotal !== null) {
-          $invoiceSubtotal = (float) $work->subtotal;
-      }
-
-      $invoiceTotal = (float) ($invoice->total ?? 0);
-      $totalPaid = (float) $invoice->amount_paid;
+      $invoiceSubtotal = (float) ($invoiceSubtotal ?? $subtotal);
+      $invoiceTotal = (float) ($invoiceTotal ?? $invoice->total ?? 0);
+      $taxTotal = (float) ($taxTotal ?? max(0, $invoiceTotal - $invoiceSubtotal));
+      $totalPaid = (float) ($totalPaid ?? $invoice->amount_paid);
+      $tipTotal = (float) ($tipTotal ?? 0);
+      $chargedTotal = (float) ($chargedTotal ?? ($totalPaid + $tipTotal));
       $balanceDue = (float) $invoice->balance_due;
-      $taxOrAdjustments = round(max(0, $invoiceTotal - (float) $invoiceSubtotal), 2);
-      $paymentRows = $invoice->payments
+      $paymentRows = $paymentRows ?? $invoice->payments
           ->whereIn('status', \App\Models\Payment::settledStatuses())
           ->sortByDesc('paid_at');
     @endphp
@@ -403,7 +405,7 @@
           <td class="hero-left">
             @if(! empty($companyLogoUrl))
               <div style="margin-bottom: 10px;">
-                <img src="{{ $companyLogoUrl }}" alt="Logo" class="logo">
+                <img src="{{ $companyLogoUrl }}" alt="{{ $companyName }}" class="logo">
               </div>
             @endif
             <div class="eyebrow">{{ $companyName }}</div>
@@ -552,7 +554,12 @@
                   <tbody>
                     @foreach($paymentRows as $payment)
                       <tr>
-                        <td>{{ $formatMoney($payment->amount) }}</td>
+                        <td>
+                          {{ $formatMoney($payment->amount) }}
+                          @if($payment->tip_net_amount > 0)
+                            <div class="muted">Tip {{ $formatMoney($payment->tip_net_amount) }} · Charged {{ $formatMoney($payment->charged_net_amount) }}</div>
+                          @endif
+                        </td>
                         <td>{{ $payment->method ?: '-' }}</td>
                         <td>{{ $formatDate($payment->paid_at) }}</td>
                         <td class="text-right">{{ $payment->status ?: '-' }}</td>
@@ -571,20 +578,28 @@
                   <td class="totals-label">Sub total</td>
                   <td class="totals-value">{{ $formatMoney($invoiceSubtotal) }}</td>
                 </tr>
-                @if($taxOrAdjustments > 0)
-                  <tr>
-                    <td class="totals-label">Taxes / adjustments</td>
-                    <td class="totals-value">{{ $formatMoney($taxOrAdjustments) }}</td>
-                  </tr>
-                @endif
                 <tr class="divider">
-                  <td class="totals-label">Paid</td>
-                  <td class="totals-value">{{ $formatMoney($totalPaid) }}</td>
+                  <td class="totals-label">Taxes</td>
+                  <td class="totals-value">{{ $formatMoney($taxTotal) }}</td>
                 </tr>
                 <tr class="divider">
-                  <td class="totals-label">Grand total</td>
+                  <td class="totals-label">Invoice total</td>
                   <td class="totals-value">{{ $formatMoney($invoiceTotal) }}</td>
                 </tr>
+                <tr class="divider">
+                  <td class="totals-label">Paid toward invoice</td>
+                  <td class="totals-value">{{ $formatMoney($totalPaid) }}</td>
+                </tr>
+                @if($paymentRows->isNotEmpty())
+                  <tr class="divider">
+                    <td class="totals-label">Tips</td>
+                    <td class="totals-value">{{ $formatMoney($tipTotal) }}</td>
+                  </tr>
+                  <tr class="divider">
+                    <td class="totals-label">Charged total</td>
+                    <td class="totals-value">{{ $formatMoney($chargedTotal) }}</td>
+                  </tr>
+                @endif
               </table>
 
               <div class="due">

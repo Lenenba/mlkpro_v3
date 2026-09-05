@@ -28,12 +28,12 @@
     },
     "kpi": {
       "total_tips": "Total tips",
-      "average_tip_per_reservation": "Average tip per reservation",
+      "average_tip_per_reservation": "Avg. tip / booking",
       "top_members": "Top 3 team members",
       "top_collectors": "Top collectors",
       "current_month_tips": "Current month tips",
       "period_total": "Period total",
-      "average_tip_per_service": "Average tip per service"
+      "average_tip_per_service": "Avg. tip / service"
     },
     "table": {
       "datetime": "Date and time",

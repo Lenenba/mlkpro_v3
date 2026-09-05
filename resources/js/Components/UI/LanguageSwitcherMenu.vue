@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, ref } from 'vue';
 import { router, usePage } from '@inertiajs/vue3';
 import LocaleFlag from '@/Components/UI/LocaleFlag.vue';
+import { preloadI18nPageMessages } from '@/i18n';
 
 defineProps({
     buttonClass: {
@@ -25,10 +26,19 @@ const menuRef = ref(null);
 const menuStyle = ref({});
 let listenersBound = false;
 
-const setLocale = (locale) => {
+const setLocale = async (locale) => {
     if (locale === currentLocale.value) {
         return;
     }
+
+    try {
+        await preloadI18nPageMessages(locale, page.component);
+    } catch (error) {
+        if (import.meta.env.DEV) {
+            console.warn('[i18n] locale preloading failed', error);
+        }
+    }
+
     router.post(route('locale.update'), { locale }, { preserveScroll: true });
     closeMenu();
 };
@@ -112,6 +122,7 @@ onBeforeUnmount(() => {
         <button
             ref="toggleRef"
             type="button"
+            data-testid="language-switcher-toggle"
             :class="buttonClass"
             :aria-label="$t('account.language')"
             :aria-expanded="isOpen ? 'true' : 'false'"
@@ -146,6 +157,7 @@ onBeforeUnmount(() => {
                         :key="locale"
                         type="button"
                         role="menuitemradio"
+                        :data-locale="locale"
                         :aria-checked="currentLocale === locale"
                         class="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-stone-700 hover:bg-stone-100 dark:text-neutral-200 dark:hover:bg-neutral-800"
                         @click="setLocale(locale)"

@@ -7,6 +7,8 @@ import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
+import ModuleKpiSection from '@/Components/Dashboard/ModuleKpiSection.vue';
 import Modal from '@/Components/Modal.vue';
 import { humanizeDate } from '@/utils/date';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
@@ -44,6 +46,14 @@ const { t } = useI18n();
 const formatNumber = (value) =>
     Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
 const formatDate = (value) => humanizeDate(value);
+const supportMetrics = computed(() => [
+    { key: 'total', label: t('support_portal.stats.total'), value: formatNumber(props.stats.total), tone: 'emerald' },
+    { key: 'open', label: t('support_portal.stats.open'), value: formatNumber(props.stats.open), tone: 'green' },
+    { key: 'assigned', label: t('support_portal.stats.assigned'), value: formatNumber(props.stats.assigned), tone: 'indigo' },
+    { key: 'pending', label: t('support_portal.stats.pending'), value: formatNumber(props.stats.pending), tone: 'amber' },
+    { key: 'resolved', label: t('support_portal.stats.resolved'), value: formatNumber(props.stats.resolved), tone: 'sky' },
+    { key: 'closed', label: t('support_portal.stats.closed'), value: formatNumber(props.stats.closed), tone: 'stone' },
+]);
 
 const statusOptions = computed(() =>
     (props.statuses || []).map((status) => ({
@@ -274,56 +284,9 @@ const ticketLinks = computed(() => props.tickets?.links || []);
                 </div>
             </section>
 
-            <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2 md:gap-3 lg:gap-5">
-                <div class="p-4 bg-white border border-t-4 border-t-emerald-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('support_portal.stats.total') }}
-                    </p>
-                    <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
-                        {{ formatNumber(stats.total) }}
-                    </p>
-                </div>
-                <div class="p-4 bg-white border border-t-4 border-t-emerald-500 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('support_portal.stats.open') }}
-                    </p>
-                    <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
-                        {{ formatNumber(stats.open) }}
-                    </p>
-                </div>
-                <div class="p-4 bg-white border border-t-4 border-t-indigo-500 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('support_portal.stats.assigned') }}
-                    </p>
-                    <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
-                        {{ formatNumber(stats.assigned) }}
-                    </p>
-                </div>
-                <div class="p-4 bg-white border border-t-4 border-t-amber-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('support_portal.stats.pending') }}
-                    </p>
-                    <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
-                        {{ formatNumber(stats.pending) }}
-                    </p>
-                </div>
-                <div class="p-4 bg-white border border-t-4 border-t-sky-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('support_portal.stats.resolved') }}
-                    </p>
-                    <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
-                        {{ formatNumber(stats.resolved) }}
-                    </p>
-                </div>
-                <div class="p-4 bg-white border border-t-4 border-t-stone-400 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('support_portal.stats.closed') }}
-                    </p>
-                    <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
-                        {{ formatNumber(stats.closed) }}
-                    </p>
-                </div>
-            </div>
+            <ModuleKpiSection module-key="support">
+                <KpiMetricGrid :metrics="supportMetrics" />
+            </ModuleKpiSection>
 
             <div
                 class="p-5 space-y-4 flex flex-col border-t-4 border-t-zinc-600 bg-white border border-stone-200 shadow-sm rounded-sm dark:border-neutral-700 dark:bg-neutral-800">

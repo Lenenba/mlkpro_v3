@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
+import ModuleKpiSection from '@/Components/Dashboard/ModuleKpiSection.vue';
 import SalesStats from '@/Components/UI/SalesStats.vue';
 import SalesTable from '@/Pages/Sales/UI/SalesTable.vue';
 
@@ -38,7 +39,9 @@ const statusOptions = computed(() => [
         <Head :title="$t('sales.index.title')" />
 
         <div class="space-y-4">
-            <SalesStats :stats="stats" />
+            <ModuleKpiSection module-key="sales">
+                <SalesStats :stats="stats" />
+            </ModuleKpiSection>
 
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div class="space-y-1">

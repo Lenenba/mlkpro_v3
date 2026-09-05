@@ -5,6 +5,7 @@ namespace App\Notifications;
 use App\Models\Request as LeadRequest;
 use App\Models\Task;
 use App\Services\NotificationPreferenceService;
+use App\Services\TenantBrandingResolver;
 use App\Support\LocalePreference;
 use App\Support\QueueWorkload;
 use Illuminate\Bus\Queueable;
@@ -47,11 +48,14 @@ class ProspectFollowUpReminderNotification extends Notification implements Shoul
     {
         $lead = $this->lead();
         $owner = $lead?->user ?: $this->task->account;
-        $locale = LocalePreference::forNotifiable($notifiable, $owner);
+        $brandingResolver = app(TenantBrandingResolver::class);
+        $accountOwner = $owner
+            ? ($brandingResolver->resolveAccountOwner($owner) ?: $owner)
+            : null;
+        $branding = $brandingResolver->forAccountOwner($accountOwner);
+        $locale = LocalePreference::forNotifiable($notifiable, $accountOwner);
         $isFr = str_starts_with($locale, 'fr');
         $title = $this->title($isFr);
-        $companyName = $owner?->company_name ?: config('app.name');
-        $companyLogo = $owner?->company_logo_url;
 
         return (new MailMessage)
             ->subject($title)
@@ -62,8 +66,8 @@ class ProspectFollowUpReminderNotification extends Notification implements Shoul
                 'actionUrl' => $this->actionUrl(),
                 'actionLabel' => $isFr ? 'Ouvrir le prospect' : 'Open prospect',
                 'note' => $this->note($isFr),
-                'companyName' => $companyName,
-                'companyLogo' => $companyLogo,
+                'companyName' => $branding['name'],
+                'companyLogo' => $branding['custom_logo_url'],
             ]);
     }
 

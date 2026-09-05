@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import axios from 'axios';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
+import AdminDataTableActions from '@/Components/DataTable/AdminDataTableActions.vue';
 import AdminDataTableBulkBar from '@/Components/DataTable/AdminDataTableBulkBar.vue';
 import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
 import SavedSegmentBar from '@/Components/CRM/SavedSegmentBar.vue';
@@ -459,6 +460,8 @@ const exportPayload = computed(() => compactObject({
 
 const exportHref = computed(() => route('prospects.export', exportPayload.value));
 
+const tableReloadProps = ['requests', 'filters', 'stats'];
+
 let filterTimeout;
 const autoFilter = () => {
     if (filterTimeout) {
@@ -467,7 +470,7 @@ const autoFilter = () => {
     filterTimeout = setTimeout(() => {
         isLoading.value = true;
         router.get(route('prospects.index'), filterPayload(), {
-            only: ['requests', 'filters', 'stats', 'analytics'],
+            only: tableReloadProps,
             preserveState: true,
             preserveScroll: true,
             replace: true,
@@ -1024,7 +1027,7 @@ const runQuickLeadUpdate = (lead, payload, options = {}) => {
 
     router.put(route('prospects.update', lead.id), payload, {
         preserveScroll: true,
-        only: ['requests', 'stats', 'flash'],
+        only: ['requests', 'stats', 'analytics', 'flash'],
         ...options,
         onFinish: (...args) => {
             processingId.value = null;
@@ -1828,6 +1831,7 @@ const submitImport = async (ignoreDuplicates = false) => {
             embedded
             :rows="requestTableRows"
             :links="requestLinks"
+            :pagination-only="tableReloadProps"
             :show-pagination="tableRows.length > 0"
             show-per-page
             :per-page="currentPerPage"
@@ -1963,38 +1967,45 @@ const submitImport = async (ignoreDuplicates = false) => {
                         </td>
                         <td class="px-5 py-3">
                             <div class="flex flex-col items-start gap-1.5">
-                                <div class="hs-dropdown [--auto-close:inside] [--placement:bottom-left] relative inline-flex">
+                                <AdminDataTableActions
+                                    :label="statusLabel(lead.status)"
+                                    menu-align="start"
+                                    menu-width-class="w-40"
+                                    :menu-test-id="`request-status-menu-${lead.id}`"
+                                >
+                                    <template #trigger="{ toggle, open, menuId, keydown }">
+                                        <button
+                                            type="button"
+                                            class="inline-flex items-center gap-1 rounded-sm px-2 py-0.5 text-xs font-medium"
+                                            :class="statusClass(lead.status)"
+                                            :disabled="processingId === lead.id || isArchivedLead(lead)"
+                                            :data-testid="`request-status-trigger-${lead.id}`"
+                                            aria-haspopup="menu"
+                                            :aria-controls="menuId"
+                                            :aria-expanded="open"
+                                            @click="toggle"
+                                            @keydown="keydown"
+                                        >
+                                            {{ statusLabel(lead.status) }}
+                                            <svg class="size-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                                stroke-linejoin="round">
+                                                <path d="m6 9 6 6 6-6" />
+                                            </svg>
+                                        </button>
+                                    </template>
                                     <button
+                                        v-for="option in statusActionOptions"
+                                        :key="option.id"
                                         type="button"
-                                        class="inline-flex items-center gap-1 rounded-sm px-2 py-0.5 text-xs font-medium"
-                                        :class="statusClass(lead.status)"
-                                        :disabled="processingId === lead.id || isArchivedLead(lead)"
-                                        :data-testid="`request-status-trigger-${lead.id}`"
+                                        class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                                        :class="option.id === lead.status ? 'text-emerald-600 dark:text-emerald-400' : ''"
+                                        :data-testid="`request-status-option-${lead.id}-${option.id}`"
+                                        @click="setLeadStatus(lead, option.id)"
                                     >
-                                        {{ statusLabel(lead.status) }}
-                                        <svg class="size-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                            stroke-linejoin="round">
-                                            <path d="m6 9 6 6 6-6" />
-                                        </svg>
+                                        {{ option.name }}
                                     </button>
-                                    <div class="hs-dropdown-menu hs-dropdown-open:opacity-100 w-40 transition-[opacity,margin] duration opacity-0 hidden z-10 bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)] dark:bg-neutral-900"
-                                        role="menu" aria-orientation="vertical">
-                                        <div class="p-1">
-                                            <button
-                                                v-for="option in statusActionOptions"
-                                                :key="option.id"
-                                                type="button"
-                                                class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
-                                                :class="option.id === lead.status ? 'text-emerald-600 dark:text-emerald-400' : ''"
-                                                :data-testid="`request-status-option-${lead.id}-${option.id}`"
-                                                @click="setLeadStatus(lead, option.id)"
-                                            >
-                                                {{ option.name }}
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
+                                </AdminDataTableActions>
                                 <span
                                     v-if="lead.triage_queue"
                                     class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"

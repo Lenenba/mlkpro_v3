@@ -3,6 +3,39 @@
     "title": "Reservas",
     "subtitle": "Revise, confirme o rechace reservas asignadas a su equipo.",
     "empty": "Aún no hay reservas.",
+    "calendar": {
+      "loading": "Cargando reservas..."
+    },
+    "outcome_review": {
+      "badge": "Revisar",
+      "title": "Confirme el resultado de la reserva",
+      "description": "Esta reserva pasada no tiene un estado final fiable. Seleccione manualmente Completada, Ausencia o Cancelada según lo que ocurrió."
+    },
+    "list": {
+      "title": "Vista general",
+      "subtitle": "Consulte rápidamente los servicios, los clientes y los miembros del equipo.",
+      "count": "{count} reservas",
+      "timezone": "Hora local · {timezone}",
+      "reference": "Reserva n.º {id}",
+      "unavailable": "No disponible",
+      "unassigned": "Sin asignar",
+      "open": "Abrir {service} para {client}",
+      "actions_for": "Acciones para {reference}",
+      "service_image_alt": "Vista previa de {service}",
+      "loading": "Actualizando las reservas…",
+      "error_title": "No se pudo actualizar la lista",
+      "retry": "Reintentar",
+      "mobile_controls": "Visualización de la lista",
+      "sort_by": "Ordenar por",
+      "sort_direction": "Dirección del orden",
+      "sort_ascending": "Orden ascendente",
+      "sort_descending": "Orden descendente",
+      "rows_per_page": "Por página",
+      "empty_title": "No hay reservas para mostrar",
+      "empty_description": "Las próximas reservas aparecerán aquí con su servicio, cliente y estado.",
+      "empty_filtered": "Ninguna reserva coincide con los criterios activos.",
+      "empty_filtered_title": "Sin resultados"
+    },
     "owner_only": {
       "staff_notice": "El crecimiento individual mantiene las reservas en modo limitado: vea las reservas existentes, administre la lista de espera y configure ajustes globales, pero las reservas basadas en el personal permanecen deshabilitadas.",
       "client_notice": "Este espacio de trabajo en solitario aún no ofrece espacios para citas en vivo. Únase a la lista de espera y la empresa podrá realizar un seguimiento manual.",
@@ -19,14 +52,14 @@
     "performance": {
       "title": "Rendimiento (últimos {days} días)",
       "occupancy_rate": "Tasa de ocupación",
-      "no_show_rate": "Tarifa de no presentación",
-      "reschedule_rate": "Tarifa de reprogramación",
+      "no_show_rate": "Inasistencias",
+      "reschedule_rate": "Reprogramación",
       "completion_rate": "Tasa de finalización",
-      "avg_service_value": "Valor promedio del servicio",
-      "tip_rate": "tasa de propina",
+      "avg_service_value": "Valor del servicio",
+      "tip_rate": "Tasa de propina",
       "resource_reservation_rate": "Uso de recursos",
       "table_turnover": "Rotación de mesa",
-      "party_size_avg": "Tamaño promedio del grupo"
+      "party_size_avg": "Tamaño del grupo"
     },
     "filters": {
       "search": "Buscar",
@@ -35,17 +68,25 @@
       "sort": "ordenar",
       "all_statuses": "Todos los estados",
       "date_from": "De",
-      "date_to": "a"
+      "date_to": "a",
+      "active": "Filtros activos",
+      "active_hint": "Estos filtros limitan las reservas que se muestran en la lista y el calendario.",
+      "remove": "Quitar el filtro {filter}"
     },
     "scope": {
       "mine": "Mis reservas",
       "all": "Todas las reservas"
     },
     "quick": {
+      "label": "Vistas rápidas de reservas",
+      "all": "Todas",
       "pending": "Pendiente",
       "today": "hoy",
       "upcoming": "Próximo",
-      "past": "Pasado"
+      "past": "Pasado",
+      "completed": "Completadas",
+      "no_show": "Ausencias",
+      "cancelled": "Canceladas"
     },
     "sort": {
       "date_asc": "Fecha (la más antigua primero)",
@@ -68,13 +109,54 @@
       "view": "Ver",
       "reschedule": "Reprogramar",
       "filters": "Filtros",
-      "clear_filters": "Limpiar filtros",
-      "delete_confirm": "¿Eliminar esta reserva?"
+      "clear_filters": "Borrar filtros",
+      "delete_confirm": "¿Eliminar esta reserva?",
+      "cancel_confirm": "¿Cancelar la reserva {reference}?",
+      "clear": "Borrar"
     },
     "form": {
       "create_title": "Crear reserva",
+      "create_subtitle": "Elija el cliente y luego indique el servicio y el horario.",
       "edit_title": "Editar reserva",
+      "edit_subtitle": "Actualice el cliente, el servicio o el horario de esta reserva.",
       "customer": "Cliente",
+      "customer_choice": "Selección del cliente",
+      "customer_section_title": "Cliente",
+      "customer_section_hint": "Seleccione un cliente existente o cree su ficha sin salir de esta reserva.",
+      "existing_customer": "Cliente existente",
+      "existing_customer_hint": "Buscar en su lista de clientes",
+      "new_customer": "Nuevo cliente",
+      "new_customer_choice_hint": "Crear su ficha ahora",
+      "new_customer_title": "Crear un cliente",
+      "new_customer_hint": "Introduzca los datos de contacto esenciales. El cliente se seleccionará automáticamente después de crearlo.",
+      "create_customer": "Crear y seleccionar cliente",
+      "search_customer": "Buscar por nombre, correo o teléfono",
+      "no_customer": "Sin cliente",
+      "no_customer_hint": "Reserva no vinculada a una ficha de cliente",
+      "no_customer_results": "Ningún cliente coincide con esta búsqueda.",
+      "selected_customer": "Cliente seleccionado",
+      "selected_customer_hint": "Esta reserva se añadirá a su ficha.",
+      "no_customer_selected_hint": "La reserva se creará sin vincularla a una ficha de cliente.",
+      "rebooking": {
+        "title": "Reservar de nuevo",
+        "loading": "Cargando los hábitos de reserva del cliente…",
+        "load_error": "No se pudo cargar el historial de este cliente.",
+        "retry": "Reintentar",
+        "empty": "Aún no hay historial de reservas",
+        "empty_hint": "Cree la reserva normalmente. Los servicios realizados aparecerán aquí.",
+        "recent_reservations": "Reservas recientes",
+        "frequent_services": "Servicios habituales",
+        "duration": "{count} min",
+        "reservation_count": "Reservado {count} veces",
+        "last_booked": "Última reserva: {date}",
+        "service_unavailable": "Servicio no disponible",
+        "team_member_unavailable": "no disponible — elija otro empleado",
+        "choose_another_service": "Este servicio ya no está disponible. Elija otro.",
+        "action": "Reservar de nuevo",
+        "action_aria": "Reservar {service} de nuevo"
+      },
+      "reservation_section_title": "Detalles de la reserva",
+      "reservation_section_hint": "Defina el servicio, la persona asignada y el horario.",
       "item": "Producto o servicio",
       "status": "Estado",
       "title": "Título",
@@ -94,6 +176,7 @@
       "when": "Fecha/hora",
       "customer": "Cliente",
       "item": "Producto/servicio",
+      "source": "Origen",
       "status": "Estado",
       "size_qty": "Tamaño / Cantidad",
       "contact": "Contacto",
@@ -128,6 +211,31 @@
       "title": "Cola híbrida",
       "subtitle": "Opere visitas sin cita previa y citas en una sola cola.",
       "empty": "No hay elementos en cola en este momento.",
+      "view": {
+        "label": "Modo de visualización de la cola",
+        "table": "Tabla",
+        "cards": "Tarjetas"
+      },
+      "filters": {
+        "label": "Filtrar la cola por etapa",
+        "all": "Todos",
+        "not_arrived": "Próximos",
+        "waiting": "En espera",
+        "called": "Llamados",
+        "in_service": "En servicio",
+        "awaiting_payment": "Pendiente de pago",
+        "done": "Completados",
+        "empty": "Ningún elemento de la cola coincide con este filtro.",
+        "clear": "Mostrar toda la cola"
+      },
+      "details": {
+        "schedule": "Horario",
+        "check_in": "Llegada",
+        "duration": "Duración estimada",
+        "call_deadline": "Fin de la llamada",
+        "view_reservation": "Ver reserva",
+        "view_reservation_for": "Ver la reserva de {client}"
+      },
       "cards": {
         "waiting": "esperando",
         "called": "llamado",
@@ -157,6 +265,7 @@
         "called": "llamado",
         "skipped": "Saltado",
         "in_service": "en servicio",
+        "awaiting_payment": "Pendiente de pago",
         "done": "Hecho",
         "no_show": "No presentarse",
         "cancelled": "Cancelado",
@@ -168,11 +277,74 @@
         "call": "llamar",
         "start": "Empezar",
         "done": "Hecho",
+        "finish_checkout": "Cobrar y terminar",
+        "checkout": "Cobrar",
+        "done_without_payment": "Terminar sin pago",
         "skip": "Saltar",
         "call_next": "Llamar siguiente",
         "updated": "Elemento de la cola actualizado.",
         "update_error": "No se puede actualizar el elemento de la cola.",
         "call_next_empty": "No hay ningún elemento de cola invocable disponible en este momento."
+      },
+      "availability_confirmation": {
+        "title": "Confirmar disponibilidad",
+        "description": "{teamMember} figura como ocupado, pero no se detectó ningún servicio activo.",
+        "hint": "Confirme la disponibilidad solo si esta persona está realmente libre. Después se volverá a intentar la prellamada o la llamada.",
+        "still_busy": "Sigue ocupado",
+        "available_continue": "Disponible, continuar",
+        "continuing": "Comprobando...",
+        "fallback_member": "Este miembro del equipo"
+      },
+      "checkout": {
+        "title": "Cobrar el servicio",
+        "subtitle": "El servicio ha terminado. Registre el pago para cerrar este ticket.",
+        "walk_in_customer": "Cliente sin cita",
+        "service_total": "Servicio",
+        "subtotal": "Subtotal del servicio",
+        "taxes": "Impuestos",
+        "taxes_with_rate": "Impuestos ({rate} %)",
+        "invoice_total": "Total de la factura",
+        "total_to_collect": "Total a cobrar",
+        "payment_method": "Metodo de pago",
+        "tip_title": "Propina",
+        "tip_hint": "La propina se asigna al empleado que realizó el servicio.",
+        "tip_on": "Anadida",
+        "tip_off": "Anadir",
+        "percent": "Porcentaje",
+        "fixed": "Importe fijo",
+        "custom_percent": "Porcentaje personalizado",
+        "custom_amount": "Importe personalizado",
+        "tip_amount": "Propina",
+        "reference": "Referencia (opcional)",
+        "notes": "Nota (opcional)",
+        "cancel": "Cancelar",
+        "submit": "Cobrar y terminar",
+        "submit_card": "Continuar con Stripe",
+        "processing": "Cobrando...",
+        "completed": "Pago registrado y servicio completado.",
+        "free_completed": "Servicio completado.",
+        "open_error": "No se puede preparar el cobro.",
+        "submit_error": "No se puede registrar el pago.",
+        "stripe_return": {
+          "success": "Pago de Stripe confirmado. La factura y el recibo están listos.",
+          "pending": "El pago de Stripe aún se está confirmando. Esta cola se actualizará automáticamente.",
+          "cancelled": "El pago de Stripe fue cancelado. El servicio sigue pendiente de cobro.",
+          "error": "No se pudo verificar el retorno de Stripe. No se registró ningún pago."
+        },
+        "receipt": {
+          "label": "Enviar recibo",
+          "hint": "El recibo se envía después de confirmar el pago. El SMS contiene un enlace seguro.",
+          "none": "No enviar ahora",
+          "email": "Por correo (PDF)",
+          "sms": "Por SMS (enlace seguro)",
+          "view": "Abrir recibo"
+        },
+        "methods": {
+          "cash": "Efectivo",
+          "card": "Tarjeta",
+          "bank_transfer": "Transferencia bancaria",
+          "check": "Cheque"
+        }
       },
       "client": {
         "title": "Cola sin cita previa",
@@ -234,6 +406,11 @@
         "disabled": "El modo de cola híbrida está deshabilitado. Habilítelo en la configuración de reservas."
       }
     },
+    "public_navigation": {
+      "aria_label": "Navegación pública de reservas",
+      "book": "Reservar en línea",
+      "kiosk": "Abrir el quiosco"
+    },
     "kiosk": {
       "title": "Quiosco de salón",
       "subtitle": "Tome un boleto sin cita previa, regístrese como cliente existente o realice un seguimiento de su boleto.",
@@ -256,6 +433,28 @@
         "searching": "Buscando...",
         "creating": "Creando...",
         "clear": "Borrar"
+      },
+      "guided": {
+        "progress": "Progreso del recorrido",
+        "continue": "Continuar",
+        "back": "Atrás",
+        "restart": "Empezar de nuevo",
+        "finish": "Terminar",
+        "confirmation": "Confirmación",
+        "waiting": "En espera",
+        "in_service": "En servicio",
+        "position": "Posición",
+        "eta": "Espera estimada",
+        "ticket_title": "Su boleto está listo",
+        "arrival_title": "Su llegada",
+        "tracking_title": "Su boleto en directo",
+        "result_help": "Tenga este número a mano. Le indicaremos qué hacer cuando se acerque su turno.",
+        "next_action_help": "Revise la información siguiente para completar su llegada.",
+        "client_not_found_title": "Todavía no encontramos su perfil",
+        "client_not_found_help": "Puede continuar sin cita previa con el mismo número de teléfono.",
+        "take_ticket": "Tomar un boleto",
+        "identified_client": "Cliente identificado",
+        "auto_reset": "Por su privacidad, esta pantalla se reinicia automáticamente después de 60 segundos."
       },
       "preview": {
         "label": "VISTA PREVIA",
@@ -338,6 +537,7 @@
       "showing": "{from} - {to}"
     },
     "view": {
+      "calendar": "Calendario",
       "list": "Lista"
     },
     "status": {
@@ -362,6 +562,7 @@
     },
     "errors": {
       "load_events": "No se pueden cargar eventos de reserva.",
+      "load_list": "No se puede actualizar la lista de reservas.",
       "load_slots": "No se pueden cargar los espacios disponibles.",
       "cancel": "No se puede cancelar esta reserva.",
       "create": "No se puede crear la reserva.",
@@ -373,6 +574,144 @@
       "service": "Servicio",
       "product": "Producto"
     },
+    "details": {
+      "eyebrow": "Ficha de la reserva",
+      "title": "Detalles de la reserva",
+      "subtitle": "Consulte la cita, las personas involucradas y su progreso.",
+      "description": "Consulte la cita, las personas involucradas y su progreso.",
+      "reference": "Reserva n.º {id}",
+      "close": "Cerrar los detalles de la reserva",
+      "sections": {
+        "schedule": "Horario",
+        "client": "Cliente",
+        "team_member": "Miembro del equipo",
+        "service": "Servicio",
+        "notes": "Notas",
+        "resources": "Recursos",
+        "milestones": "Seguimiento",
+        "payment": "Pago"
+      },
+      "schedule": "Horario",
+      "client": "Cliente",
+      "customer": "Cliente",
+      "people": "Personas",
+      "team_member": "Miembro del equipo",
+      "assigned_team_member": "Miembro asignado",
+      "service": "Servicio",
+      "date": "Fecha",
+      "time": "Hora",
+      "duration": "Duración",
+      "minutes": "{count} min",
+      "party_size_value": "Personas: {count}",
+      "catalog_price": "Precio de catálogo",
+      "catalogue_price": "Precio de catálogo",
+      "notes": "Notas",
+      "client_notes": "Notas del cliente",
+      "internal_notes": "Notas internas",
+      "no_notes": "No hay notas para esta reserva.",
+      "no_contact": "No hay datos de contacto disponibles.",
+      "unavailable": "No disponible",
+      "resources": "Recursos",
+      "resource_quantity": "Cantidad: {count}",
+      "landmarks": "Seguimiento",
+      "milestones": {
+        "created": "Creada",
+        "scheduled": "Programada",
+        "cancelled": "Cancelada",
+        "auto_closed": "Cerrada automáticamente"
+      },
+      "created_at": "Creada el",
+      "scheduled_for": "Programada para",
+      "cancelled_at": "Cancelada el",
+      "auto_closed_at": "Cerrada automáticamente el",
+      "created_by": "Creada por {name}",
+      "cancelled_by": "Cancelada por {name}",
+      "cancellation_reason": "Motivo: {reason}",
+      "auto_closed_reason": "Motivo: {reason}",
+      "source": "Origen: {source}",
+      "sources": {
+        "staff": "Equipo",
+        "client": "Portal del cliente",
+        "api": "API",
+        "public_booking": "Reserva pública",
+        "unknown": "No especificado"
+      },
+      "vip": "Cliente VIP",
+      "loading": "Cargando los detalles de la reserva...",
+      "error": "No se pueden cargar los detalles de esta reserva.",
+      "error_title": "Detalles no disponibles",
+      "error_description": "No se pueden cargar los detalles de esta reserva.",
+      "retry": "Reintentar",
+      "labels": {
+        "contact": "Datos de contacto",
+        "category": "Categoría",
+        "resource": "Recurso"
+      },
+      "media": {
+        "service_alt": "Imagen de {service}",
+        "client_alt": "Foto de {client}",
+        "team_member_alt": "Foto de {team_member}",
+        "service_fallback": "Sin imagen del servicio"
+      },
+      "service_fallback": "Servicio",
+      "service_image_alt": "Imagen del servicio {service}",
+      "customer_fallback": "Cliente",
+      "team_member_fallback": "Miembro del equipo",
+      "payment": "Pago",
+      "deposit": "Depósito",
+      "no_show_fee": "Cargo por ausencia",
+      "payment_status": "Estado del pago",
+      "no_payment": "No hay ninguna política de pago asociada a esta reserva.",
+      "payment_states": {
+        "required": "Requerido",
+        "not_required": "No requerido",
+        "due_on_invoice": "Pendiente en la factura",
+        "forfeited": "Retenido",
+        "refundable": "Reembolsable",
+        "refunded": "Reembolsado",
+        "not_applied": "No aplicado",
+        "not_applicable": "No aplicable",
+        "charge_required": "Pago requerido",
+        "waived": "Exonerado",
+        "paid": "Pagado"
+      },
+      "conversion": {
+        "public_booking_title": "Reserva pública",
+        "public_booking_description": "Datos de contacto enviados con la reserva pública.",
+        "title": "Conversión en cliente",
+        "description": "Compruebe si hay duplicados antes de crear un nuevo cliente.",
+        "fields": {
+          "name": "Nombre del cliente",
+          "client_name": "Nombre del cliente",
+          "email": "Correo electrónico",
+          "phone": "Teléfono",
+          "company": "Empresa (opcional)"
+        },
+        "actions": {
+          "check": "Comprobar",
+          "checking": "Comprobando...",
+          "link": "Vincular",
+          "linking": "Vinculando...",
+          "create": "Crear cliente",
+          "creating": "Convirtiendo..."
+        },
+        "states": {
+          "loading": "Cargando las opciones de conversión...",
+          "converting": "Convirtiendo...",
+          "no_matches": "No se encontró ningún cliente existente que coincida.",
+          "ready": "La información está lista para comprobarse.",
+          "already_converted": "Esta reserva ya está vinculada a un cliente."
+        },
+        "success": {
+          "converted": "El prospecto se convirtió en cliente."
+        },
+        "errors": {
+          "load": "No se pueden cargar las opciones de conversión.",
+          "convert": "No se puede convertir este prospecto.",
+          "validation": "Compruebe los datos del cliente antes de continuar."
+        }
+      }
+    },
     "payment_policy": {
       "title": "Resumen de la política de pagos",
       "deposit": "Depósito",
@@ -381,8 +720,8 @@
     },
     "client": {
       "book": {
-        "title": "Reserva de libros",
-        "subtitle": "Elija la ranura que mejor se adapte a sus necesidades.",
+        "title": "Reservar",
+        "subtitle": "Reserve en pocos pasos: indique lo que necesita, elija un horario y revise los detalles.",
         "my_reservations": "Mis reservas",
         "summary_title": "Detalles de la reserva",
         "selected_slot": "Ranura seleccionada",
@@ -394,9 +733,80 @@
         "select_slot_error": "Seleccione un espacio disponible para continuar.",
         "deposit_notice": "Depósito de reserva requerido: {amount}",
         "no_show_notice": "Política de tarifas por no presentarse: {amount}",
+        "slot_conflict_error": "Este horario ya no está disponible. Elija otro.",
+        "generic_service": "Reserva general",
+        "generic_service_description": "Continúe sin elegir un servicio específico.",
+        "service_fallback_description": "Servicio disponible con reserva.",
+        "service_search_hint": "Escriba algunas letras para filtrar automáticamente los servicios disponibles.",
+        "follow_up_title": "Después de su reserva",
+        "stepper": {
+          "aria_label": "Pasos de la reserva",
+          "progress": "Paso {current} de {total}",
+          "step_label": "Paso {current} de {total}: {label}",
+          "completed": "Paso completado"
+        },
+        "steps": {
+          "preferences": {
+            "label": "Sus necesidades",
+            "short": "Necesidades",
+            "eyebrow": "Paso 1",
+            "title": "Prepare su solicitud",
+            "description": "Elija el servicio, el profesional de su preferencia y el número de personas."
+          },
+          "slot": {
+            "label": "Su horario",
+            "short": "Horario",
+            "eyebrow": "Paso 2",
+            "title": "Elija un horario disponible",
+            "description": "Elija primero un día y después la hora que más le convenga.",
+            "week": "Semana",
+            "previous_week": "Ver la semana anterior",
+            "next_week": "Ver la semana siguiente",
+            "day_availability": "{date}, {count} horario(s) disponible(s)",
+            "available_count": "{count} disponible(s)",
+            "unavailable": "Completo",
+            "times_for": "Horarios para {date}",
+            "time_hint": "Seleccione una hora para continuar.",
+            "slot_label": "{time}, con {member}",
+            "no_slots_for_day": "No hay horarios disponibles ese día. Elija otro día."
+          },
+          "review": {
+            "label": "Revisión",
+            "short": "Revisar",
+            "eyebrow": "Paso 3",
+            "title": "Revise su reserva",
+            "description": "Confirme sus datos de contacto y los detalles antes de enviar la solicitud."
+          },
+          "done": {
+            "label": "Confirmación",
+            "short": "Listo"
+          }
+        },
+        "summary": {
+          "service": "Servicio",
+          "slot": "Fecha y hora",
+          "party_size": "Número de personas",
+          "contact": "Datos de contacto",
+          "contact_hint": "Los datos de contacto de su cuenta ya están completados.",
+          "not_selected": "Pendiente de selección",
+          "not_provided": "No indicado"
+        },
+        "states": {
+          "unavailable_title": "Reserva programada no disponible",
+          "unavailable_description": "Esta empresa no acepta reservas programadas desde el portal en este momento.",
+          "no_services": "No hay servicios específicos disponibles. Puede continuar con una reserva general.",
+          "no_service_match": "Ningún servicio coincide con su búsqueda."
+        },
+        "success": {
+          "title": "Su solicitud fue enviada",
+          "description": "La empresa recibió su solicitud de reserva. Ahora puede seguirla en Mis reservas.",
+          "description_book_only": "La empresa recibió su solicitud de reserva."
+        },
         "fields": {
           "team_member": "Miembro del equipo",
           "service": "Servicio",
+          "service_search": "Buscar un servicio",
+          "service_search_placeholder": "Nombre o descripción del servicio",
           "duration": "Duración (minutos)",
           "party_size": "Tamaño del grupo",
           "contact_name": "Nombre de contacto",
@@ -407,10 +817,16 @@
         "actions": {
           "submit": "Enviar reserva",
           "submitting": "Enviando...",
-          "submitted": "Solicitud de reserva enviada."
+          "submitted": "Solicitud de reserva enviada.",
+          "continue": "Continuar",
+          "back": "Volver",
+          "show_service_suggestions": "Mostrar sugerencias de servicios",
+          "start_over": "Hacer otra reserva",
+          "view_reservations": "Ver mis reservas",
+          "back_to_dashboard": "Volver al tablero"
         },
         "waitlist": {
-          "title": "Únete a la lista de espera",
+          "title": "Lista de espera",
           "description": "No hay ningún espacio coincidente en este momento. Únase a la lista de espera y obtenga prioridad cuando se libere un espacio.",
           "join_button": "Unirse a la lista de espera",
           "created": "Solicitud de lista de espera enviada.",
@@ -459,6 +875,33 @@
           }
         }
       }
+    },
+    "filter_summary": {
+      "title": "Resumen de filtros",
+      "results": "{count} reserva(s)",
+      "updating": "Actualizando…",
+      "active_count": "{count} criterio(s) activo(s)",
+      "mode_label": "Modo de combinación de filtros rápidos",
+      "modes": {
+        "all": "Todos los criterios",
+        "any": "Al menos un criterio"
+      },
+      "quick_filters_label": "Filtros rápidos de reservas",
+      "search_badge": "Búsqueda: {value}",
+      "filter_badge": "{label}: {value}",
+      "remove": "Quitar {label}",
+      "clear_all": "Borrar filtros"
+    },
+    "advanced_filters": {
+      "title": "Filtros avanzados",
+      "close": "Cerrar filtros avanzados",
+      "reset": "Restablecer",
+      "apply": "Aplicar filtros",
+      "trigger_active": "Filtros ({count})",
+      "draft_count": "{count} criterio(s) en borrador",
+      "current_results": "{count} resultado(s) actual(es)",
+      "description": "Filtra las reservas por estado, servicio, miembro del equipo o periodo.",
+      "period": "Periodo"
     }
   }
 }

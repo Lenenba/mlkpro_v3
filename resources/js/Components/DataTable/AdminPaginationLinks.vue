@@ -7,6 +7,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    only: {
+        type: Array,
+        default: () => [],
+    },
 });
 
 const normalizedLinks = computed(() => (Array.isArray(props.links) ? props.links : []));
@@ -35,6 +39,7 @@ const paginationItems = computed(() => normalizedLinks.value.map((link, index) =
             <Link
                 v-else
                 :href="item.url"
+                :only="only"
                 v-html="item.rawLabel"
                 class="inline-flex min-w-8 items-center justify-center rounded-sm border px-2.5 py-1.5 text-center text-xs font-medium transition-colors duration-150"
                 :class="item.active

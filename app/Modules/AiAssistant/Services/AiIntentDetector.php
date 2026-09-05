@@ -46,10 +46,10 @@ class AiIntentDetector
 
     private function detectLanguage(string $message, ?string $fallbackLanguage): string
     {
-        if ($this->containsAny($message, [
+        if ($this->containsLanguageCue($message, [
             'bonjour',
             'salut',
-            'reservation',
+            'une reservation',
             'reserver',
             'rendez vous',
             'rdv',
@@ -59,13 +59,15 @@ class AiIntentDetector
             'creneau',
             'je veux',
             'je veu',
+            'je voudrais',
+            'je souhaite',
             'j veux',
             'mappel',
         ])) {
             return 'fr';
         }
 
-        if ($this->containsAny($message, [
+        if ($this->containsLanguageCue($message, [
             'hello',
             'hi',
             'book',
@@ -73,12 +75,28 @@ class AiIntentDetector
             'tomorrow',
             'thanks',
             'available',
-            'service',
+            'i want',
+            'i would like',
+            'thank you',
         ])) {
             return 'en';
         }
 
         return $fallbackLanguage ?: 'fr';
+    }
+
+    /**
+     * @param  array<int, string>  $cues
+     */
+    private function containsLanguageCue(string $message, array $cues): bool
+    {
+        foreach ($cues as $cue) {
+            if (Str::contains(' '.$message.' ', ' '.$cue.' ')) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function normalize(string $message): string

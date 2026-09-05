@@ -20,7 +20,10 @@
       "month": "Month",
       "week": "Week",
       "day": "Day",
-      "year": "Year"
+      "year": "Year",
+      "previous": "Previous period",
+      "next": "Next period",
+      "open_day": "Open {date}"
     },
     "preview": {
       "empty": "No shifts",

@@ -1,18 +1,54 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, defineAsyncComponent, defineComponent, h, onBeforeUnmount, onMounted, ref } from 'vue';
 import axios from 'axios';
+import { usePage } from '@inertiajs/vue3';
 import Modal from '@/Components/UI/Modal.vue';
-import ProductQuickForm from '@/Components/QuickCreate/ProductQuickForm.vue';
-import ServiceQuickForm from '@/Components/QuickCreate/ServiceQuickForm.vue';
-import CustomerQuickForm from '@/Components/QuickCreate/CustomerQuickForm.vue';
-import QuoteQuickDialog from '@/Components/QuickCreate/QuoteQuickDialog.vue';
-import RequestQuickForm from '@/Components/QuickCreate/RequestQuickForm.vue';
+import AsyncQuickFormPlaceholder from '@/Components/QuickCreate/AsyncQuickFormPlaceholder.vue';
 import { useI18n } from 'vue-i18n';
 import { useAccountFeatures } from '@/Composables/useAccountFeatures';
+import { usePermissions } from '@/Composables/usePermissions';
+import { createQuickFormLoader } from '@/utils/quickFormLoader';
+
+const asyncForm = (formName, loader) => {
+    const retryLoad = ref(null);
+
+    return defineAsyncComponent({
+        loader: createQuickFormLoader(formName, loader),
+        loadingComponent: defineComponent({
+            setup: () => () => h(AsyncQuickFormPlaceholder, {
+                failed: Boolean(retryLoad.value),
+                onRetry: () => {
+                    const retry = retryLoad.value;
+                    retryLoad.value = null;
+                    retry?.();
+                },
+            }),
+        }),
+        delay: 0,
+        onError: (_error, retry) => {
+            retryLoad.value = retry;
+        },
+    });
+};
+const ProductQuickForm = asyncForm('ProductQuickForm', () => import('@/Components/QuickCreate/ProductQuickForm.vue'));
+const ServiceQuickForm = asyncForm('ServiceQuickForm', () => import('@/Components/QuickCreate/ServiceQuickForm.vue'));
+const CustomerQuickForm = asyncForm('CustomerQuickForm', () => import('@/Components/QuickCreate/CustomerQuickForm.vue'));
+const QuoteQuickDialog = asyncForm('QuoteQuickDialog', () => import('@/Components/QuickCreate/QuoteQuickDialog.vue'));
+const RequestQuickForm = asyncForm('RequestQuickForm', () => import('@/Components/QuickCreate/RequestQuickForm.vue'));
 
 const { hasFeature } = useAccountFeatures();
-const canProducts = computed(() => hasFeature('products'));
-const canServices = computed(() => hasFeature('services'));
+const { hasModuleAccess, hasPermission } = usePermissions();
+const page = usePage();
+const isOwner = computed(() => Boolean(page.props.auth?.account?.is_owner));
+const canCreateCustomer = computed(() => (
+    hasModuleAccess('customers') && hasPermission('customers.create')
+));
+const canProducts = computed(() => (
+    hasFeature('products')
+    && hasModuleAccess('products')
+    && hasPermission('products.create')
+));
+const canServices = computed(() => isOwner.value && hasFeature('services'));
 const canQuotes = computed(() => hasFeature('quotes'));
 const canRequests = computed(() => hasFeature('requests'));
 const canSales = computed(() => hasFeature('sales'));
@@ -31,18 +67,46 @@ const requestCustomers = ref([]);
 const requestProspects = ref([]);
 const quoteCustomers = ref([]);
 const categories = ref([]);
+const materialProducts = ref([]);
 const loadingRequestCustomers = ref(false);
 const loadingRequestProspects = ref(false);
 const loadingQuoteCustomers = ref(false);
 const loadingCategories = ref(false);
+const loadingServiceOptions = ref(false);
 const requestCustomerError = ref('');
 const requestProspectError = ref('');
 const quoteCustomerError = ref('');
 const categoryError = ref('');
+const serviceOptionsError = ref('');
 const requestCustomersLoaded = ref(false);
 const requestProspectsLoaded = ref(false);
 const quoteCustomersLoaded = ref(false);
 const categoriesLoaded = ref(false);
+const serviceOptionsLoaded = ref(false);
+const customerModalOpened = ref(false);
+const productModalOpened = ref(false);
+const serviceModalOpened = ref(false);
+const quoteModalOpened = ref(false);
+const requestModalOpened = ref(false);
+const requestPrefill = ref(null);
+
+const handleRequestPrefill = (event) => {
+    if (canRequests.value) {
+        requestPrefill.value = { customerId: event?.detail?.customerId };
+    }
+};
+
+onMounted(() => {
+    if (typeof window !== 'undefined') {
+        window.addEventListener('quick-create-request', handleRequestPrefill);
+    }
+});
+
+onBeforeUnmount(() => {
+    if (typeof window !== 'undefined') {
+        window.removeEventListener('quick-create-request', handleRequestPrefill);
+    }
+});
 
 const { t } = useI18n();
 
@@ -129,6 +193,29 @@ const fetchCategories = async () => {
     }
 };
 
+const fetchServiceOptions = async () => {
+    if (loadingServiceOptions.value) {
+        return;
+    }
+
+    loadingServiceOptions.value = true;
+    serviceOptionsError.value = '';
+
+    try {
+        const response = await axios.get(route('service.options'));
+        categories.value = Array.isArray(response.data?.categories) ? response.data.categories : [];
+        materialProducts.value = Array.isArray(response.data?.material_products)
+            ? response.data.material_products
+            : [];
+        categoriesLoaded.value = true;
+        serviceOptionsLoaded.value = true;
+    } catch (error) {
+        serviceOptionsError.value = t('quick_create.errors.load_categories');
+    } finally {
+        loadingServiceOptions.value = false;
+    }
+};
+
 const fetchProspects = async () => {
     if (prospectScopeState.loading.value) {
         return;
@@ -184,6 +271,14 @@ const ensureCategoriesLoaded = async () => {
     }
 
     await fetchCategories();
+};
+
+const ensureServiceOptionsLoaded = async () => {
+    if (serviceOptionsLoaded.value || !canServices.value) {
+        return;
+    }
+
+    await fetchServiceOptions();
 };
 
 const buildRequestCustomer = (payload) => {
@@ -298,11 +393,36 @@ const handleCategoryCreated = (category) => {
 
     categoriesLoaded.value = true;
 };
+
+const handleCustomerModalOpen = () => {
+    customerModalOpened.value = true;
+};
+
+const handleProductModalOpen = () => {
+    productModalOpened.value = true;
+    ensureCategoriesLoaded();
+};
+
+const handleServiceModalOpen = () => {
+    serviceModalOpened.value = true;
+    ensureServiceOptionsLoaded();
+};
+
+const handleQuoteModalOpen = () => {
+    quoteModalOpened.value = true;
+    ensureQuoteCustomersLoaded();
+};
+
+const handleRequestModalOpen = () => {
+    requestModalOpened.value = true;
+    ensureRequestRelationsLoaded();
+};
 </script>
 
 <template>
-    <Modal :title="$t('quick_create.new_customer')" :id="'hs-quick-create-customer'">
+    <Modal v-if="canCreateCustomer" :title="$t('quick_create.new_customer')" :id="'hs-quick-create-customer'" @open="handleCustomerModalOpen">
         <CustomerQuickForm
+            v-if="customerModalOpened"
             :overlay-id="'#hs-quick-create-customer'"
             :submit-label="$t('quick_create.create_customer')"
             :close-on-success="true"
@@ -310,7 +430,7 @@ const handleCategoryCreated = (category) => {
         />
     </Modal>
 
-    <Modal v-if="canProducts" :title="$t('quick_create.new_product')" :id="'hs-quick-create-product'" @open="ensureCategoriesLoaded">
+    <Modal v-if="canProducts" :title="$t('quick_create.new_product')" :id="'hs-quick-create-product'" @open="handleProductModalOpen">
         <div v-if="loadingCategories" class="text-sm text-stone-500 dark:text-neutral-400">
             {{ $t('quick_create.loading_categories') }}
         </div>
@@ -319,6 +439,7 @@ const handleCategoryCreated = (category) => {
         </div>
         <div v-else>
             <ProductQuickForm
+                v-if="productModalOpened"
                 :categories="categories"
                 :overlay-id="'#hs-quick-create-product'"
                 @category-created="handleCategoryCreated"
@@ -326,27 +447,30 @@ const handleCategoryCreated = (category) => {
         </div>
     </Modal>
 
-    <Modal v-if="canServices" :title="$t('quick_create.new_service')" :id="'hs-quick-create-service'" @open="ensureCategoriesLoaded">
-        <div v-if="loadingCategories" class="text-sm text-stone-500 dark:text-neutral-400">
+    <Modal v-if="canServices" :title="$t('quick_create.new_service')" :id="'hs-quick-create-service'" @open="handleServiceModalOpen">
+        <div v-if="loadingServiceOptions" class="text-sm text-stone-500 dark:text-neutral-400">
             {{ $t('quick_create.loading_categories') }}
         </div>
-        <div v-else-if="categoryError" class="text-sm text-red-600">
-            {{ categoryError }}
+        <div v-else-if="serviceOptionsError" class="text-sm text-red-600">
+            {{ serviceOptionsError }}
         </div>
         <div v-else>
             <ServiceQuickForm
+                v-if="serviceModalOpened"
                 :categories="categories"
+                :material-products="materialProducts"
                 :overlay-id="'#hs-quick-create-service'"
                 @category-created="handleCategoryCreated"
             />
         </div>
     </Modal>
 
-    <Modal v-if="canQuotes" :title="$t('quick_create.new_quote')" :id="'hs-quick-create-quote'" @open="ensureQuoteCustomersLoaded">
+    <Modal v-if="canQuotes" :title="$t('quick_create.new_quote')" :id="'hs-quick-create-quote'" @open="handleQuoteModalOpen">
         <div v-if="quoteCustomerError" class="mb-3 text-sm text-red-600">
             {{ quoteCustomerError }}
         </div>
         <QuoteQuickDialog
+            v-if="quoteModalOpened"
             :customers="quoteCustomers"
             :loading="loadingQuoteCustomers"
             :overlay-id="'#hs-quick-create-quote'"
@@ -354,7 +478,7 @@ const handleCategoryCreated = (category) => {
         />
     </Modal>
 
-    <Modal v-if="canRequests" :title="$t('quick_create.new_request')" :id="'hs-quick-create-request'" @open="ensureRequestRelationsLoaded">
+    <Modal v-if="canRequests" :title="$t('quick_create.new_request')" :id="'hs-quick-create-request'" @open="handleRequestModalOpen">
         <div v-if="requestCustomerError" class="mb-3 text-sm text-red-600">
             {{ requestCustomerError }}
         </div>
@@ -362,6 +486,8 @@ const handleCategoryCreated = (category) => {
             {{ requestProspectError }}
         </div>
         <RequestQuickForm
+            v-if="requestModalOpened"
+            :prefill="requestPrefill"
             :customers="requestCustomers"
             :prospects="requestProspects"
             :loading-customers="loadingRequestCustomers"

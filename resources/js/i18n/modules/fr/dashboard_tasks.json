@@ -4,11 +4,12 @@
     "subtitle_admin": "Bienvenue {name}. Voici la vue d'ensemble des taches de l'equipe.",
     "subtitle_member": "Bienvenue {name}. Voici vos taches a venir.",
     "kpi": {
-      "total": "Total taches"
+      "total": "Total taches",
+      "group_label": "Indicateurs de taches"
     },
     "announcements": {
       "title": "Annonces",
-      "subtitle": "Dernieres nouvelles pour votre equipe."
+      "subtitle": "Dernières nouvelles pour votre équipe."
     },
     "timeline": {
       "title": "Planning du jour",

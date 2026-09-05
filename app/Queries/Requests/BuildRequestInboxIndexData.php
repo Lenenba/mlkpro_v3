@@ -47,28 +47,33 @@ class BuildRequestInboxIndexData
         $baseQuery = $this->baseQuery($accountId, $filters);
         $referenceTime = now();
 
-        $classifiedItems = $this->classifyInboxItems(
-            (clone $baseQuery)->with([
-                'customer:id,company_name,first_name,last_name,email,phone',
-                'quote:id,number,status,customer_id,request_id',
-                'assignee:id,user_id,account_id',
-                'assignee.user:id,name',
-            ])->get(),
-            $referenceTime
-        );
-        $stats = $this->statsForClassifiedItems($classifiedItems);
-        $sortedItems = $this->sortInboxItems(
-            $this->applyCollectionFilters(
-                $this->filterInboxItems($classifiedItems, $filters['queue']),
-                $filters,
+        $classifiedItems = null;
+        $resolveClassifiedItems = function () use ($baseQuery, $referenceTime, &$classifiedItems): Collection {
+            return $classifiedItems ??= $this->classifyInboxItems(
+                (clone $baseQuery)->with([
+                    'customer:id,company_name,first_name,last_name,email,phone',
+                    'quote:id,number,status,customer_id,request_id',
+                    'assignee:id,user_id,account_id',
+                    'assignee.user:id,name',
+                ])->get(),
                 $referenceTime
-            )
-        );
+            );
+        };
 
         return [
-            'requests' => $this->paginateInboxItems($sortedItems, $request, $filters),
+            'requests' => function () use ($resolveClassifiedItems, $filters, $referenceTime, $request): LengthAwarePaginator {
+                $sortedItems = $this->sortInboxItems(
+                    $this->applyCollectionFilters(
+                        $this->filterInboxItems($resolveClassifiedItems(), $filters['queue']),
+                        $filters,
+                        $referenceTime
+                    )
+                );
+
+                return $this->paginateInboxItems($sortedItems, $request, $filters);
+            },
             'filters' => $filters,
-            'stats' => $stats,
+            'stats' => fn (): array => $this->statsForClassifiedItems($resolveClassifiedItems()),
         ];
     }
 

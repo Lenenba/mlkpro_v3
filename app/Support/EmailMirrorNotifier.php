@@ -24,8 +24,12 @@ class EmailMirrorNotifier
 
     private static function record(Notification $notification, object $notifiable, string $status, bool $returnRecipients = false): array
     {
+        if (method_exists($notification, 'shouldMirrorInApp') && ! $notification->shouldMirrorInApp()) {
+            return ['payload' => null, 'recipients' => collect()];
+        }
+
         $channels = method_exists($notification, 'via') ? $notification->via($notifiable) : [];
-        if (!in_array('mail', $channels, true)) {
+        if (! in_array('mail', $channels, true)) {
             return ['payload' => null, 'recipients' => collect()];
         }
 
@@ -35,7 +39,7 @@ class EmailMirrorNotifier
         }
 
         $payload = self::buildPayload($notification, $notifiable, $status);
-        if (!$payload) {
+        if (! $payload) {
             return ['payload' => null, 'recipients' => collect()];
         }
 
@@ -45,20 +49,27 @@ class EmailMirrorNotifier
         foreach ($recipients as $user) {
             $category = (string) ($payload['category'] ?? NotificationPreferenceService::CATEGORY_EMAILS_MIRROR);
             $preferences = app(NotificationPreferenceService::class);
-            if (!$preferences->shouldNotify($user, $category, NotificationPreferenceService::CHANNEL_IN_APP)) {
-                continue;
-            }
+            $shouldNotify = $preferences->shouldNotify(
+                $user,
+                $category,
+                NotificationPreferenceService::CHANNEL_IN_APP
+            );
             if ($status !== 'queued') {
                 $existingQueued = $dedupeKey !== '' ? self::findQueuedNotification($user, $dedupeKey) : null;
                 if ($existingQueued) {
                     $data = $existingQueued->data ?? [];
-                    $data['email_status'] = $status;
+                    data_set($data, 'data.email_status', $status);
                     $existingQueued->forceFill(['data' => $data])->save();
-                    if ($returnRecipients) {
+                    if ($returnRecipients && $shouldNotify) {
                         $pushRecipients->push($user);
                     }
+
                     continue;
                 }
+            }
+
+            if (! $shouldNotify) {
+                continue;
             }
 
             if ($dedupeKey !== '' && self::shouldSkipDuplicate($user, $dedupeKey)) {
@@ -148,7 +159,7 @@ class EmailMirrorNotifier
         return $user->notifications()
             ->where('type', EmailMirrorNotification::class)
             ->where('created_at', '>=', now()->subMinutes(2))
-            ->where('data->dedupe_key', $dedupeKey)
+            ->where('data->data->dedupe_key', $dedupeKey)
             ->exists();
     }
 
@@ -157,20 +168,20 @@ class EmailMirrorNotifier
         return $user->notifications()
             ->where('type', EmailMirrorNotification::class)
             ->where('created_at', '>=', now()->subDay())
-            ->where('data->dedupe_key', $dedupeKey)
-            ->where('data->email_status', 'queued')
+            ->where('data->data->dedupe_key', $dedupeKey)
+            ->where('data->data->email_status', 'queued')
             ->latest()
             ->first();
     }
 
     private static function resolveMailMessage(Notification $notification, object $notifiable): ?MailMessage
     {
-        if (!method_exists($notification, 'toMail')) {
+        if (! method_exists($notification, 'toMail')) {
             return null;
         }
 
         $mailMessage = $notification->toMail($notifiable);
-        if (!$mailMessage instanceof MailMessage) {
+        if (! $mailMessage instanceof MailMessage) {
             return null;
         }
 

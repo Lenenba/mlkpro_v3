@@ -8,6 +8,7 @@ use App\Models\ServiceRequest;
 use App\Models\Task;
 use App\Models\TeamMember;
 use App\Models\User;
+use App\Services\Rbac\CompanyModuleAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -37,7 +38,7 @@ class GlobalSearchController extends Controller
         $can = fn (string $permission): bool => Gate::forUser($user)
             ->allows('company-permission', [$permission, $accountId]);
 
-        if ($can('customers.view')) {
+        if (app(CompanyModuleAccess::class)->allows($user, 'customers', (int) $accountId)) {
             $customers = Customer::query()
                 ->byUser($accountId)
                 ->where(function ($customerQuery) use ($like) {

@@ -6,7 +6,9 @@ use App\Actions\Invoices\CreateInvoicePaymentAction;
 use App\Models\Invoice;
 use App\Models\User;
 use App\Notifications\ActionEmailNotification;
+use App\Services\Portal\PortalCapabilityService;
 use App\Services\StripeInvoiceService;
+use App\Services\TenantBrandingResolver;
 use App\Services\TenantPaymentMethodGuardService;
 use App\Support\NotificationDispatcher;
 use App\Support\TenantPaymentMethodsResolver;
@@ -24,6 +26,10 @@ class PublicInvoiceController extends Controller
 {
     private const LINK_TTL_DAYS = 7;
 
+    public function __construct(
+        private readonly PortalCapabilityService $portalCapabilities,
+    ) {}
+
     public function show(Request $request, Invoice $invoice): Response
     {
         $invoice->load([
@@ -34,23 +40,27 @@ class PublicInvoiceController extends Controller
             'items',
             'payments.tipAssignee:id,name',
         ]);
+        $customer = $invoice->customer;
+        $owner = User::find($invoice->user_id);
+        $capabilities = $owner
+            ? $this->portalCapabilities->forOwner($owner, $customer)
+            : [];
 
         $sessionId = $request->query('session_id');
-        if ($sessionId) {
+        if ($sessionId && data_get($capabilities, 'invoices.pay') === true) {
             $stripeService = app(StripeInvoiceService::class);
             if ($stripeService->isConfigured()) {
                 $connectAccountId = $stripeService->resolveConnectedAccountId($invoice);
-                $payment = $stripeService->syncFromCheckoutSessionId($sessionId, $connectAccountId);
+                $payment = $stripeService->syncFromCheckoutSessionId($sessionId, $connectAccountId, $invoice);
                 if ($payment && $payment->invoice_id === $invoice->id) {
                     $invoice->refresh();
                 }
             }
         }
 
-        $owner = User::find($invoice->user_id);
-        $customer = $invoice->customer;
+        $tenantBranding = app(TenantBrandingResolver::class)->forAccountOwner($owner);
 
-        [$canPay, $paymentMessage] = $this->resolvePaymentAvailability($invoice, $customer);
+        [$canPay, $paymentMessage] = $this->resolvePaymentAvailability($invoice, $customer, $capabilities);
 
         $expiresAt = $this->resolveExpiry($request);
         $paymentUrl = URL::temporarySignedRoute(
@@ -113,8 +123,10 @@ class PublicInvoiceController extends Controller
                     }),
             ],
             'company' => [
-                'name' => $owner?->company_name ?: config('app.name'),
-                'logo_url' => $owner?->company_logo_url,
+                'name' => $tenantBranding['name'],
+                'logo_url' => $tenantBranding['custom_logo_url'],
+                'custom_logo_url' => $tenantBranding['custom_logo_url'],
+                'has_custom_logo' => $tenantBranding['has_custom_logo'],
                 'currency_code' => $owner?->businessCurrencyCode(),
             ],
             'allowPayment' => $canPay,
@@ -128,17 +140,22 @@ class PublicInvoiceController extends Controller
 
     public function storePayment(Request $request, Invoice $invoice)
     {
+        $capabilities = $this->authorizeCapability($invoice, 'invoices.pay');
         $invoice->load('customer');
         $customer = $invoice->customer;
 
-        [$canPay, $message] = $this->resolvePaymentAvailability($invoice, $customer);
+        [$canPay, $message] = $this->resolvePaymentAvailability($invoice, $customer, $capabilities, allowPaid: true);
         if (! $canPay) {
             return redirect()->back()->withErrors([
                 'status' => $message,
             ]);
         }
 
+        $request->merge([
+            'idempotency_key' => $request->input('idempotency_key', $request->header('Idempotency-Key')),
+        ]);
         $validated = $request->validate([
+            'idempotency_key' => 'nullable|string|max:128',
             'amount' => 'required|numeric|min:0.01',
             'tip_enabled' => 'nullable|boolean',
             'tip_mode' => ['nullable', Rule::in(['none', 'percent', 'fixed'])],
@@ -168,37 +185,32 @@ class PublicInvoiceController extends Controller
             ]);
         }
 
-        $amount = (float) $validated['amount'];
-        if ($amount > (float) $invoice->balance_due) {
-            return redirect()->back()->withErrors([
-                'amount' => __('public.invoice.messages.amount_exceeds_balance_due'),
-            ]);
-        }
         $result = app(CreateInvoicePaymentAction::class)->execute(
             $invoice,
             $validated,
             (string) ($methodDecision['canonical_method'] ?? 'cash'),
             null,
             (int) $invoice->user_id,
-            'Payment recorded by client (public link)'
+            'Payment recorded by client (public link)',
+            clientInitiated: true,
         );
 
         $payment = $result['payment'];
         $invoice = $result['invoice'];
-        $isCashPayment = $result['is_cash_payment'];
+        $isPending = $result['pending_confirmation'];
 
         $owner = User::find($invoice->user_id);
-        if ($owner && $owner->email) {
+        if ($owner && $owner->email && ! $result['replayed']) {
             $customerLabel = $customer?->company_name
                 ?: trim(($customer?->first_name ?? '').' '.($customer?->last_name ?? ''));
             $tipAmount = (float) ($payment->tip_amount ?? 0);
-            $notificationTitle = $isCashPayment
-                ? 'Cash payment pending collection'
+            $notificationTitle = $isPending
+                ? 'Payment pending confirmation'
                 : 'Payment received from client';
-            $notificationMessage = $isCashPayment
+            $notificationMessage = $isPending
                 ? ($customerLabel
-                    ? $customerLabel.' recorded a cash payment pending collection.'
-                    : 'A client recorded a cash payment pending collection.')
+                    ? $customerLabel.' declared a payment pending confirmation by the company.'
+                    : 'A client declared a payment pending confirmation by the company.')
                 : ($customerLabel
                     ? $customerLabel.' recorded a payment.'
                     : 'A client recorded a payment.');
@@ -231,10 +243,11 @@ class PublicInvoiceController extends Controller
 
     public function createStripeCheckout(Request $request, Invoice $invoice)
     {
+        $capabilities = $this->authorizeCapability($invoice, 'invoices.pay');
         $invoice->load('customer');
         $customer = $invoice->customer;
 
-        [$canPay, $message] = $this->resolvePaymentAvailability($invoice, $customer);
+        [$canPay, $message] = $this->resolvePaymentAvailability($invoice, $customer, $capabilities);
         if (! $canPay) {
             return redirect()->back()->with('error', $message);
         }
@@ -321,13 +334,37 @@ class PublicInvoiceController extends Controller
         return now()->addDays(self::LINK_TTL_DAYS);
     }
 
-    private function resolvePaymentAvailability(Invoice $invoice, $customer = null): array
+    /**
+     * @return array<string, mixed>
+     */
+    private function authorizeCapability(Invoice $invoice, string $capability): array
     {
+        $invoice->loadMissing('customer');
+        $owner = User::query()->find($invoice->user_id);
+        $capabilities = $owner
+            ? $this->portalCapabilities->forOwner($owner, $invoice->customer)
+            : [];
+
+        abort_unless(
+            data_get($capabilities, $capability) === true,
+            403,
+            __('ui.portal.capability_unavailable')
+        );
+
+        return $capabilities;
+    }
+
+    private function resolvePaymentAvailability(Invoice $invoice, $customer = null, array $capabilities = [], bool $allowPaid = false): array
+    {
+        if (data_get($capabilities, 'invoices.pay') !== true) {
+            return [false, __('ui.portal.capability_unavailable')];
+        }
+
         if ($invoice->status === 'void' || $invoice->status === 'draft') {
             return [false, __('public.invoice.messages.cannot_pay')];
         }
 
-        if ($invoice->balance_due <= 0) {
+        if (! $allowPaid && $invoice->balance_due <= 0) {
             return [false, __('public.invoice.messages.already_paid')];
         }
 

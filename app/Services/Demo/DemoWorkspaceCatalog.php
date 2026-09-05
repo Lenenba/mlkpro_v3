@@ -2,12 +2,30 @@
 
 namespace App\Services\Demo;
 
+use App\Enums\DemoDataVolume;
 use App\Models\MarketingSetting;
+use App\Services\Demo\Scenarios\BorealProprete\BorealPropreteBlueprint;
+use App\Services\Demo\Scenarios\StudioNaya\StudioNayaBlueprint;
 use App\Support\LocalePreference;
 use Illuminate\Support\Arr;
 
 class DemoWorkspaceCatalog
 {
+    /**
+     * Modules that do not belong in the default salon experience.
+     *
+     * @var array<int, string>
+     */
+    private const SALON_DEFAULT_DISABLED_MODULES = [
+        'requests',
+        'quotes',
+        'plan_scans',
+        'jobs',
+        'tasks',
+        'products',
+        'sales_crm',
+    ];
+
     /**
      * @return array<int, array<string, mixed>>
      */
@@ -28,6 +46,7 @@ class DemoWorkspaceCatalog
             ['value' => 'salon', 'label' => 'Salon / beauty'],
             ['value' => 'wellness', 'label' => 'Wellness / spa'],
             ['value' => 'restaurant', 'label' => 'Restaurant / hospitality'],
+            ['value' => 'nettoyage', 'label' => 'Nettoyage professionnel'],
             ['value' => 'field_services', 'label' => 'Field services'],
             ['value' => 'professional_services', 'label' => 'Professional services'],
             ['value' => 'retail', 'label' => 'Retail'],
@@ -93,6 +112,179 @@ class DemoWorkspaceCatalog
                 ],
             ],
         ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function dataVolumes(): array
+    {
+        return [
+            [
+                'value' => DemoDataVolume::Small->value,
+                'label' => 'Small',
+                'description' => 'A fast, compact dataset for smoke tests and short walkthroughs.',
+                'counts' => (array) config('demo_scenarios.volumes.small', []),
+            ],
+            [
+                'value' => DemoDataVolume::Medium->value,
+                'label' => 'Medium',
+                'description' => 'The standard narrative dataset with enough history for reporting.',
+                'counts' => (array) config('demo_scenarios.volumes.medium', []),
+            ],
+            [
+                'value' => DemoDataVolume::Large->value,
+                'label' => 'Large',
+                'description' => 'A high-volume dataset intended for advanced demos and performance checks.',
+                'counts' => (array) config('demo_scenarios.volumes.large', []),
+            ],
+        ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function dataVolumeKeys(): array
+    {
+        return array_column($this->dataVolumes(), 'value');
+    }
+
+    /**
+     * Scenario engines are intentionally distinct from the lightweight walkthrough packs.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function scenarioDefinitions(): array
+    {
+        return collect((array) config('demo_scenarios.scenarios', []))
+            ->map(function (mixed $configuration, string $key): ?array {
+                $configuration = is_array($configuration) ? $configuration : [];
+                $blueprintClass = $configuration['blueprint'] ?? null;
+
+                if (! is_string($blueprintClass)
+                    || ! class_exists($blueprintClass)
+                    || ! method_exists($blueprintClass, 'definition')) {
+                    return null;
+                }
+
+                $definition = (array) $blueprintClass::definition();
+                $identity = (array) ($definition['identity'] ?? []);
+                $scenarioKey = strtolower(trim((string) ($definition['key'] ?? $key)));
+
+                if ($scenarioKey === '') {
+                    return null;
+                }
+
+                $availableVolumes = array_values(array_unique(array_filter(array_map(
+                    'strval',
+                    (array) ($configuration['available_volumes'] ?? $this->dataVolumeKeys()),
+                ))));
+                $previewMetrics = array_values(array_unique(array_filter(array_map(
+                    'strval',
+                    (array) ($configuration['preview_metrics'] ?? []),
+                ))));
+
+                return [
+                    'key' => $scenarioKey,
+                    'label' => (string) ($configuration['label'] ?? $identity['name'] ?? $scenarioKey),
+                    'description' => (string) ($configuration['description']
+                        ?? ($scenarioKey === StudioNayaBlueprint::KEY
+                            ? 'An 18-month Montreal salon story with linked appointments, billing, inventory, expenses, and notifications.'
+                            : 'A deterministic, resettable business narrative.')),
+                    'version' => (int) ($definition['version'] ?? 1),
+                    'company_type' => (string) ($configuration['company_type'] ?? $identity['company_type'] ?? 'services'),
+                    'company_sector' => (string) ($configuration['company_sector'] ?? $identity['company_sector'] ?? ''),
+                    'seed_profile' => (string) ($configuration['seed_profile'] ?? 'immersive'),
+                    'default_volume' => (string) ($configuration['default_volume'] ?? $definition['default_volume'] ?? DemoDataVolume::Medium->value),
+                    'available_volumes' => $availableVolumes,
+                    'preview_metrics' => $previewMetrics,
+                    'data_volumes' => $this->scenarioDataVolumes(
+                        $blueprintClass,
+                        $availableVolumes,
+                        $previewMetrics,
+                    ),
+                    'required_modules' => array_values(array_unique(array_map(
+                        'strval',
+                        (array) ($configuration['required_modules'] ?? $definition['required_modules'] ?? [])
+                    ))),
+                    'history_months' => (int) ($configuration['history_months'] ?? $definition['history_months'] ?? 0),
+                    'future_weeks' => (int) ($configuration['future_weeks'] ?? $definition['future_weeks'] ?? 0),
+                    'reference_timezone' => (string) ($configuration['reference_timezone'] ?? $identity['timezone'] ?? 'UTC'),
+                ];
+            })
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  class-string  $blueprintClass
+     * @param  array<int, string>  $availableVolumes
+     * @param  array<int, string>  $previewMetrics
+     * @return array<int, array{value:string, label:string, description:string, counts:array<string, int>}>
+     */
+    private function scenarioDataVolumes(
+        string $blueprintClass,
+        array $availableVolumes,
+        array $previewMetrics,
+    ): array {
+        if ($previewMetrics === []) {
+            return [];
+        }
+
+        $catalogVolumes = collect($this->dataVolumes())->keyBy('value');
+
+        return collect($availableVolumes)
+            ->map(function (string $volume) use ($blueprintClass, $previewMetrics, $catalogVolumes): array {
+                $fallback = (array) $catalogVolumes->get($volume, []);
+                $targets = method_exists($blueprintClass, 'targetsForVolume')
+                    ? (array) $blueprintClass::targetsForVolume($volume)
+                    : (array) ($fallback['counts'] ?? []);
+
+                return [
+                    'value' => $volume,
+                    'label' => (string) ($fallback['label'] ?? ucfirst($volume)),
+                    'description' => (string) ($fallback['description'] ?? ''),
+                    'counts' => Arr::only($targets, $previewMetrics),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function scenarioKeys(): array
+    {
+        return array_column($this->scenarioDefinitions(), 'key');
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function scenarioDefinition(?string $key): ?array
+    {
+        $key = strtolower(trim((string) $key));
+
+        if ($key === '') {
+            return null;
+        }
+
+        return collect($this->scenarioDefinitions())->firstWhere('key', $key);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function requiredModulesForScenario(?string $key): array
+    {
+        $definition = $this->scenarioDefinition($key);
+
+        return array_values(array_intersect(
+            array_map('strval', (array) ($definition['required_modules'] ?? [])),
+            $this->moduleKeys(),
+        ));
     }
 
     /**
@@ -195,6 +387,13 @@ class DemoWorkspaceCatalog
                 'category' => 'Revenue',
                 'company_types' => ['services', 'products'],
             ],
+            'sales_crm' => [
+                'key' => 'sales_crm',
+                'label' => 'Advanced sales CRM',
+                'description' => 'Next actions, sales inbox, and manager pipeline dashboard.',
+                'category' => 'Pipeline',
+                'company_types' => ['services'],
+            ],
             'promotions' => [
                 'key' => 'promotions',
                 'label' => 'Promotions',
@@ -241,6 +440,13 @@ class DemoWorkspaceCatalog
                 'key' => 'campaigns',
                 'label' => 'Campaigns',
                 'description' => 'Marketing workspace with lists and draft campaigns.',
+                'category' => 'Growth',
+                'company_types' => ['services', 'products'],
+            ],
+            'social' => [
+                'key' => 'social',
+                'label' => 'Social',
+                'description' => 'Social content planning, approval, and publishing workflows.',
                 'category' => 'Growth',
                 'company_types' => ['services', 'products'],
             ],
@@ -315,6 +521,10 @@ class DemoWorkspaceCatalog
             $base[] = 'products';
         }
 
+        if ($companyType === 'services' && $sector === 'salon') {
+            $base = array_diff($base, self::SALON_DEFAULT_DISABLED_MODULES);
+        }
+
         return array_values(array_unique($base));
     }
 
@@ -327,6 +537,44 @@ class DemoWorkspaceCatalog
         $serviceOpsScenarios = $this->defaultScenarioPacks('services', 'field_services', $serviceOpsModules);
         $salonModules = $this->defaultModules('services', 'salon');
         $salonScenarios = $this->defaultScenarioPacks('services', 'salon', $salonModules);
+        $salonEclatModules = [
+            'services',
+            'reservations',
+            'planning',
+            'presence',
+            'invoices',
+            'expenses',
+            'accounting',
+            'team_members',
+            'performance',
+            'products',
+            'sales',
+            'promotions',
+            'loyalty',
+            'campaigns',
+            'assistant',
+            'social',
+        ];
+        $salonEclatScenarios = [
+            'salon_queue',
+            'reservation_to_service',
+            'salon_eclat_complete',
+        ];
+        $studioNayaModules = array_values(array_unique([
+            ...$this->requiredModulesForScenario(StudioNayaBlueprint::KEY),
+            'promotions',
+            'assistant',
+            'social',
+        ]));
+        $studioNayaScenarios = [
+            'salon_queue',
+            'reservation_to_service',
+            'studio_naya_complete',
+        ];
+        $borealPropreteModules = $this->requiredModulesForScenario(BorealPropreteBlueprint::KEY);
+        $borealPropreteScenarios = [
+            'boreal_proprete_complete',
+        ];
         $commerceModules = $this->defaultModules('products', 'retail');
         $commerceScenarios = $this->defaultScenarioPacks('products', 'retail', $commerceModules);
 
@@ -356,6 +604,116 @@ class DemoWorkspaceCatalog
                 'extra_access_roles' => $this->defaultExtraAccessRoles('services', 'salon'),
                 'suggested_flow' => $this->suggestedFlowFromScenarioPacks($salonScenarios)
                     ?: $this->suggestedFlow('services', 'salon', $salonModules),
+            ],
+            [
+                'key' => 'salon_eclat_complete',
+                'label' => 'Salon Éclat - immersive',
+                'description' => 'A complete salon day from booking and service to checkout, retail, loyalty, and marketing.',
+                'company_type' => 'services',
+                'company_sector' => 'salon',
+                'company_name' => 'Salon Éclat',
+                'prospect_name' => 'Amina Diallo',
+                'prospect_email' => 'amina.diallo@example.test',
+                'prospect_company' => 'Salon Éclat',
+                'seed_profile' => 'immersive',
+                'team_size' => 3,
+                'locale' => 'fr',
+                'timezone' => 'America/Toronto',
+                'desired_outcome' => 'Présenter une journée complète au salon, de la réservation au reçu, puis à la fidélisation.',
+                'modules' => $salonEclatModules,
+                'scenario_packs' => $salonEclatScenarios,
+                'branding_profile' => $this->brandingProfileDefaults('services', 'salon', 'Salon Éclat'),
+                'extra_access_roles' => ['front_desk', 'staff'],
+                'suggested_flow' => $this->suggestedFlowFromScenarioPacks($salonEclatScenarios),
+            ],
+            [
+                'key' => 'studio_naya_coiffure',
+                'label' => 'Studio Naya - narrative scenario',
+                'description' => 'A deterministic, resettable salon workspace with 18 months of connected operating history.',
+                'company_type' => 'services',
+                'company_sector' => 'salon',
+                'company_name' => 'Studio Naya Coiffure',
+                'prospect_name' => 'Maya Koné',
+                'prospect_email' => 'maya.kone@studio-naya.example.test',
+                'prospect_company' => 'Studio Naya Coiffure',
+                'seed_profile' => 'immersive',
+                'scenario_key' => StudioNayaBlueprint::KEY,
+                'data_volume' => StudioNayaBlueprint::DEFAULT_VOLUME,
+                'reference_date' => now('America/Toronto')->toDateString(),
+                'random_seed' => (int) config('demo_scenarios.default_seed', 26082026),
+                'scenario_version' => 1,
+                'team_size' => 5,
+                'locale' => 'fr',
+                'timezone' => 'America/Toronto',
+                'desired_outcome' => 'Présenter une entreprise de coiffure crédible à travers ses opérations, ses finances et ses relations clientes sur 18 mois.',
+                'modules' => $studioNayaModules,
+                'scenario_packs' => $studioNayaScenarios,
+                'branding_profile' => array_replace(
+                    $this->brandingProfileDefaults('services', 'salon', 'Studio Naya Coiffure'),
+                    [
+                        'name' => 'Studio Naya Coiffure',
+                        'tagline' => 'Textures, couleurs et soins sur mesure.',
+                        'description' => 'Salon de quartier montréalais spécialisé en cheveux texturés, coloration et soins.',
+                        'contact_email' => 'bonjour@studio-naya.example',
+                        'phone' => '+1 514 555 0148',
+                        'address_line_1' => '4827, rue de l’Aurore',
+                        'city' => 'Montréal',
+                        'province' => 'QC',
+                        'country' => 'Canada',
+                        'postal_code' => 'H2T 2M4',
+                        'primary_color' => '#5B3A70',
+                        'secondary_color' => '#2F2535',
+                        'accent_color' => '#D89B6B',
+                        'surface_color' => '#FFF8F0',
+                    ],
+                ),
+                'extra_access_roles' => ['manager', 'front_desk', 'staff'],
+                'suggested_flow' => $this->suggestedFlowFromScenarioPacks($studioNayaScenarios),
+            ],
+            [
+                'key' => BorealPropreteBlueprint::KEY,
+                'label' => 'Boréal Propreté - scénario terrain',
+                'description' => 'Une démonstration immersive de douze mois reliant demandes, devis, sites, interventions, qualité, facturation et stock.',
+                'company_type' => 'services',
+                'company_sector' => 'nettoyage',
+                'company_name' => 'Boréal Propreté Services',
+                'prospect_name' => 'Amélie Gagnon',
+                'prospect_email' => 'amelie.gagnon@boreal-proprete.example',
+                'prospect_company' => 'Boréal Propreté Services',
+                'seed_profile' => 'immersive',
+                'scenario_key' => BorealPropreteBlueprint::KEY,
+                'data_volume' => BorealPropreteBlueprint::DEFAULT_VOLUME,
+                'reference_date' => now('America/Toronto')->toDateString(),
+                'random_seed' => (int) config('demo_scenarios.default_seed', 26082026),
+                'scenario_version' => 1,
+                'team_size' => 7,
+                'locale' => 'fr',
+                'timezone' => 'America/Toronto',
+                'desired_outcome' => 'Présenter une entreprise de nettoyage crédible, de la demande initiale à la preuve de passage, au contrôle qualité et au paiement.',
+                'modules' => $borealPropreteModules,
+                'scenario_packs' => $borealPropreteScenarios,
+                'branding_profile' => array_replace(
+                    $this->brandingProfileDefaults('services', 'nettoyage', 'Boréal Propreté Services'),
+                    [
+                        'name' => 'Boréal Propreté Services',
+                        'logo_url' => '/images/presets/company-3.svg',
+                        'tagline' => 'Des espaces impeccables, des passages prouvés.',
+                        'description' => 'Nettoyage résidentiel et commercial sur la Rive-Sud et le Grand Montréal.',
+                        'contact_email' => 'bonjour@boreal-proprete.example',
+                        'phone' => '+1 438 555 0196',
+                        'address_line_1' => '482, rue des Érables',
+                        'city' => 'Longueuil',
+                        'province' => 'QC',
+                        'country' => 'Canada',
+                        'postal_code' => 'J4K 2V1',
+                        'primary_color' => '#0F766E',
+                        'secondary_color' => '#164E63',
+                        'accent_color' => '#38BDF8',
+                        'surface_color' => '#F0FDFA',
+                    ],
+                ),
+                'extra_access_roles' => ['manager', 'staff'],
+                'suggested_flow' => $this->suggestedFlowFromScenarioPacks($borealPropreteScenarios),
             ],
             [
                 'key' => 'commerce',
@@ -399,6 +757,11 @@ class DemoWorkspaceCatalog
             'suggested_flow' => $this->suggestedFlowFromScenarioPacks($scenarioPacks)
                 ?: $this->suggestedFlow($companyType, $sector, $selectedModules),
             'seed_profile' => 'standard',
+            'scenario_key' => null,
+            'data_volume' => DemoDataVolume::Medium->value,
+            'reference_date' => now('America/Toronto')->toDateString(),
+            'random_seed' => (int) config('demo_scenarios.default_seed', 26082026),
+            'scenario_version' => null,
             'team_size' => 3,
             'selected_modules' => $selectedModules,
             'scenario_packs' => $scenarioPacks,
@@ -518,6 +881,134 @@ class DemoWorkspaceCatalog
                 'required_modules' => ['reservations'],
             ],
             [
+                'key' => 'salon_eclat_complete',
+                'label' => 'Salon Éclat complete day',
+                'description' => 'Run an immersive salon journey from booking to checkout and customer retention.',
+                'business_objective' => 'Show how Salon Éclat connects front desk, stylists, checkout, retail, loyalty, and marketing in one customer history.',
+                'ordered_actions' => [
+                    'Open Amina Diallo\'s dashboard and review the Salon Éclat day plan.',
+                    'Confirm a reservation, check the client in, and move the visit through the live queue.',
+                    'Start and complete the assigned service with the stylist.',
+                    'Complete the service checkout with taxes and a tip, then open the generated invoice and receipt.',
+                    'Review a separate retail sale and the promotion prepared for the salon.',
+                    'Review loyalty progress, then open the retention campaign and social content prepared for the salon.',
+                ],
+                'expected_results' => [
+                    'The reservation, service, payment, invoice, taxes, tip, and receipt form one traceable journey.',
+                    'Product sales and promotions remain visible in the customer and revenue history.',
+                    'Loyalty, campaign, assistant, and social screens provide a credible next action after the visit.',
+                ],
+                'key_screens' => [
+                    'Dashboard',
+                    'Reservations board and live queue',
+                    'Service checkout',
+                    'Invoices and payment history',
+                    'Accounting journal and tax summary',
+                    'Point of sale',
+                    'Loyalty',
+                    'Campaigns',
+                    'Social',
+                ],
+                'company_types' => ['services'],
+                'sectors' => ['salon'],
+                'required_modules' => [
+                    'services',
+                    'reservations',
+                    'invoices',
+                    'products',
+                    'sales',
+                    'promotions',
+                    'loyalty',
+                    'campaigns',
+                    'assistant',
+                    'social',
+                ],
+            ],
+            [
+                'key' => 'studio_naya_complete',
+                'label' => 'Studio Naya complete story',
+                'description' => 'Explore 18 months of connected salon activity and several named customer journeys.',
+                'business_objective' => 'Demonstrate that daily salon operations, customer history, revenue, stock, and management signals tell one coherent story.',
+                'ordered_actions' => [
+                    'Review the twelve-month dashboard and current salon alerts.',
+                    'Open a named customer and follow appointments, invoices, payments, notes, and preferences.',
+                    'Move to the reservation calendar and compare team schedules and service demand.',
+                    'Review retail stock movements, operating expenses, and accounting results.',
+                    'Reset the workspace and verify that the same reference scenario is restored.',
+                ],
+                'expected_results' => [
+                    'Operational and financial screens are populated from linked records.',
+                    'Named customer journeys remain coherent across the application.',
+                    'The saved seed, volume, and reference date reproduce the same business story.',
+                ],
+                'key_screens' => [
+                    'Dashboard',
+                    'Customer profile',
+                    'Reservation calendar',
+                    'Invoices and payments',
+                    'Inventory and expenses',
+                ],
+                'company_types' => ['services'],
+                'sectors' => ['salon'],
+                'required_modules' => [
+                    'services',
+                    'reservations',
+                    'planning',
+                    'invoices',
+                    'products',
+                    'sales',
+                    'expenses',
+                    'team_members',
+                    'performance',
+                ],
+            ],
+            [
+                'key' => 'boreal_proprete_complete',
+                'label' => 'Boréal Propreté - parcours terrain complet',
+                'description' => 'Suivre une année de nettoyage résidentiel et commercial, du besoin client au contrôle qualité et au paiement.',
+                'business_objective' => 'Montrer comment Boréal Propreté relie ses demandes, devis, sites, équipes, preuves d’exécution, finances et actions correctives.',
+                'ordered_actions' => [
+                    'Ouvrir le tableau de bord et repérer les interventions, alertes qualité et paiements à suivre.',
+                    'Consulter Groupe Lavoie Immeubles, ses sites récurrents, l’incident documenté et la reprise qualité complétée.',
+                    'Ouvrir le devis accepté de Construction Horizon, son acompte, le chantier et les tâches assignées à l’équipe.',
+                    'Vérifier les checklists et les photos de passage liées à une intervention terminée.',
+                    'Comparer le planning de jour et de soir, puis la présence des membres de l’équipe.',
+                    'Terminer avec les factures, paiements, dépenses, mouvements de stock et écritures comptables reliés.',
+                ],
+                'expected_results' => [
+                    'Chaque demande importante demeure reliée à son client, son site, son devis et son intervention.',
+                    'Les tâches, checklists, photos et reprises qualité rendent l’exécution vérifiable.',
+                    'La facturation, les paiements, les dépenses et le stock racontent la même année d’activité.',
+                    'Les histoires nommées restent cohérentes après une réinitialisation déterministe du scénario.',
+                ],
+                'key_screens' => [
+                    'Tableau de bord',
+                    'Clients et sites',
+                    'Demandes et devis',
+                    'Interventions et tâches',
+                    'Planning et présence',
+                    'Factures et paiements',
+                    'Dépenses, comptabilité et stock',
+                ],
+                'company_types' => ['services'],
+                'sectors' => ['nettoyage'],
+                'required_modules' => [
+                    'requests',
+                    'quotes',
+                    'services',
+                    'jobs',
+                    'tasks',
+                    'planning',
+                    'presence',
+                    'invoices',
+                    'expenses',
+                    'accounting',
+                    'team_members',
+                    'performance',
+                    'products',
+                ],
+            ],
+            [
                 'key' => 'service_quote_to_invoice',
                 'label' => 'Service quote to invoice',
                 'description' => 'Start from a lead, turn it into work, then finish on billing.',
@@ -539,7 +1030,7 @@ class DemoWorkspaceCatalog
                     'Invoices',
                 ],
                 'company_types' => ['services'],
-                'sectors' => ['field_services', 'professional_services', 'other'],
+                'sectors' => ['field_services', 'professional_services', 'nettoyage', 'other'],
                 'required_modules' => ['quotes', 'jobs', 'invoices'],
             ],
             [
@@ -681,6 +1172,12 @@ class DemoWorkspaceCatalog
                 'accent_color' => '#F59E0B',
                 'surface_color' => '#ECFDF5',
             ],
+            $sector === 'nettoyage' => [
+                'primary_color' => '#0F766E',
+                'secondary_color' => '#164E63',
+                'accent_color' => '#38BDF8',
+                'surface_color' => '#F0FDFA',
+            ],
             default => [
                 'primary_color' => '#0F766E',
                 'secondary_color' => '#0F172A',
@@ -695,11 +1192,13 @@ class DemoWorkspaceCatalog
             'tagline' => match (true) {
                 $companyType === 'products' => 'Retail demo experience',
                 in_array($sector, ['salon', 'wellness'], true) => 'Appointments, queue, and service flow',
+                $sector === 'nettoyage' => 'Des équipes terrain aux passages vérifiables',
                 default => 'Operational demo environment',
             },
             'description' => match (true) {
                 $companyType === 'products' => 'A polished commerce demo with catalog, checkout, loyalty, and campaigns.',
                 in_array($sector, ['salon', 'wellness'], true) => 'A branded service demo focused on reservations, live queue, and customer follow-up.',
+                $sector === 'nettoyage' => 'Une démonstration terrain reliant sites, interventions, qualité, facturation et consommables.',
                 default => 'A realistic business demo prepared for discovery, operations, and revenue walkthroughs.',
             },
         ]);
@@ -711,7 +1210,7 @@ class DemoWorkspaceCatalog
             $companyType === 'products',
             $sector === 'retail' => '/images/presets/company-4.svg',
             $sector === 'restaurant' => '/images/presets/company-2.svg',
-            in_array($sector, ['field_services', 'professional_services'], true) => '/images/presets/company-3.svg',
+            in_array($sector, ['field_services', 'professional_services', 'nettoyage'], true) => '/images/presets/company-3.svg',
             default => '/images/presets/company-1.svg',
         };
     }

@@ -3,18 +3,32 @@
 namespace App\Services\Social;
 
 use App\Models\SocialAccountConnection;
+use App\Models\SocialDeliveryOutbox;
+use App\Models\SocialTransportCutoverMapping;
 use App\Models\User;
 use App\Services\Social\Contracts\PlatformPublisherInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class SocialAccountConnectionService
 {
+    private const OAUTH_CALLBACK_CLAIM_PREFIX = 'callback:';
+
+    private const OAUTH_CALLBACK_CLAIM_TTL_SECONDS = 120;
+
+    /** @var array<int, int> */
+    private array $deliveryMutationLockDepth = [];
+
     public function __construct(
         private readonly SocialProviderRegistry $registry,
+        private readonly SocialLogicalDestinationKeyService $logicalDestinationKeys,
+        private readonly SocialConnectionDeliveryMutex $deliveryMutex,
     ) {}
 
     /**
@@ -48,9 +62,72 @@ class SocialAccountConnectionService
     /**
      * @return array<int, array<string, mixed>>
      */
+    public function directManagementDefinitions(): array
+    {
+        return $this->bufferOnlyModeEnabled() ? [] : $this->definitions();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
     public function listPayloads(User $owner): array
     {
+        if ($this->bufferOnlyModeEnabled()) {
+            return $this->listPublishingPayloads($owner);
+        }
+
         return $this->listForOwner($owner)
+            ->map(fn (SocialAccountConnection $connection) => $this->payload($connection))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function listPublishingPayloads(User $owner): array
+    {
+        $connections = $this->listForOwner($owner);
+
+        if ($this->bufferOnlyModeEnabled()) {
+            $connections = $connections
+                ->filter(fn (SocialAccountConnection $connection): bool => $connection->isImportedFromBuffer());
+        }
+
+        return $connections
+            ->map(fn (SocialAccountConnection $connection) => $this->payload($connection))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function listBufferManagementPayloads(User $owner): array
+    {
+        return $this->listForOwner($owner)
+            ->filter(fn (SocialAccountConnection $connection): bool => $connection->isImportedFromBuffer())
+            ->map(fn (SocialAccountConnection $connection): array => $this->payload($connection))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Buffer catalog imports have their own read-only manager until delivery is enabled.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function listDirectManagementPayloads(User $owner): array
+    {
+        if ($this->bufferOnlyModeEnabled()) {
+            return [];
+        }
+
+        return $this->listForOwner($owner)
+            ->reject(fn (SocialAccountConnection $connection): bool => (
+                (string) $connection->delivery_provider === SocialAccountConnection::DELIVERY_PROVIDER_BUFFER
+                || (bool) data_get($connection->metadata, 'buffer.catalog_only', false)
+            ))
             ->map(fn (SocialAccountConnection $connection) => $this->payload($connection))
             ->values()
             ->all();
@@ -62,6 +139,12 @@ class SocialAccountConnectionService
     public function summaryForOwner(User $owner): array
     {
         $connections = $this->listForOwner($owner);
+
+        if ($this->bufferOnlyModeEnabled()) {
+            $connections = $connections
+                ->filter(fn (SocialAccountConnection $connection): bool => $connection->isImportedFromBuffer());
+        }
+
         $statusCounts = collect(SocialAccountConnection::allowedStatuses())
             ->mapWithKeys(fn (string $status) => [$status => 0])
             ->all();
@@ -78,8 +161,9 @@ class SocialAccountConnectionService
         return [
             'configured' => $connections->count(),
             'connected' => $connections
-                ->filter(fn (SocialAccountConnection $connection) => $connection->is_active
-                    && $connection->status === SocialAccountConnection::STATUS_CONNECTED)
+                ->filter(fn (SocialAccountConnection $connection): bool => (
+                    $this->isConnectedForPublishing($connection)
+                ))
                 ->count(),
             'inactive' => $connections
                 ->filter(fn (SocialAccountConnection $connection) => ! $connection->is_active)
@@ -87,13 +171,15 @@ class SocialAccountConnectionService
             'attention' => collect([
                 SocialAccountConnection::STATUS_DRAFT,
                 SocialAccountConnection::STATUS_PENDING,
+                SocialAccountConnection::STATUS_AUTHORIZING,
                 SocialAccountConnection::STATUS_ERROR,
                 SocialAccountConnection::STATUS_RECONNECT_REQUIRED,
                 SocialAccountConnection::STATUS_EXPIRED,
             ])->sum(fn (string $status) => (int) ($statusCounts[$status] ?? 0)),
             'available_platforms' => $connections
-                ->filter(fn (SocialAccountConnection $connection) => $connection->is_active
-                    && $connection->status === SocialAccountConnection::STATUS_CONNECTED)
+                ->filter(fn (SocialAccountConnection $connection): bool => (
+                    $this->isConnectedForPublishing($connection)
+                ))
                 ->pluck('platform')
                 ->unique()
                 ->values()
@@ -106,6 +192,19 @@ class SocialAccountConnectionService
      * @param  array<string, mixed>  $payload
      */
     public function create(User $owner, array $payload): SocialAccountConnection
+    {
+        $this->assertDirectManagementEnabled();
+
+        return $this->withTenantMutationLock(
+            (int) $owner->id,
+            fn (): SocialAccountConnection => $this->createUnderTenantLock($owner, $payload),
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function createUnderTenantLock(User $owner, array $payload): SocialAccountConnection
     {
         $platform = strtolower(trim((string) ($payload['platform'] ?? '')));
         $publisher = $this->registry->publisher($platform);
@@ -120,6 +219,9 @@ class SocialAccountConnectionService
             'display_name' => $this->nullableString($payload, 'display_name'),
             'account_handle' => $this->nullableString($payload, 'account_handle'),
             'external_account_id' => $externalAccountId,
+            'delivery_provider' => null,
+            'transport_generation' => null,
+            'logical_destination_key' => null,
             'auth_method' => (string) ($publisher->definition()['auth_method'] ?? SocialAccountConnection::AUTH_METHOD_OAUTH),
             'permissions' => [],
             'status' => SocialAccountConnection::STATUS_DRAFT,
@@ -127,7 +229,6 @@ class SocialAccountConnectionService
             'metadata' => $this->mergedMetadata(new SocialAccountConnection, $publisher, [
                 'connection_flow' => 'oauth_scaffold',
                 'oauth_ready' => false,
-                'oauth_code_verifier' => null,
                 'requested_scopes' => array_values($publisher->definition()['scopes'] ?? []),
             ]),
         ])->fresh();
@@ -138,6 +239,42 @@ class SocialAccountConnectionService
      */
     public function createTestConnection(User $owner, array $payload): SocialAccountConnection
     {
+        $this->assertDirectManagementEnabled();
+
+        return $this->withTenantMutationLock(
+            (int) $owner->id,
+            function () use ($owner, $payload): SocialAccountConnection {
+                $platform = strtolower(trim((string) ($payload['platform'] ?? '')));
+                $externalAccountId = $this->nullableString($payload, 'external_account_id')
+                    ?? sprintf('pulse-test-%d-%s', $owner->id, $platform);
+                $connectionId = SocialAccountConnection::query()
+                    ->byUser((int) $owner->id)
+                    ->where('platform', $platform)
+                    ->where('external_account_id', $externalAccountId)
+                    ->value('id');
+
+                if (is_numeric($connectionId)) {
+                    return $this->withDeliveryMutationLock(
+                        (int) $connectionId,
+                        fn (): SocialAccountConnection => $this->createTestConnectionUnderTenantLock(
+                            $owner,
+                            $payload,
+                        ),
+                    );
+                }
+
+                return $this->createTestConnectionUnderTenantLock($owner, $payload);
+            },
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function createTestConnectionUnderTenantLock(
+        User $owner,
+        array $payload,
+    ): SocialAccountConnection {
         if (! $this->testConnectionsEnabled()) {
             throw ValidationException::withMessages([
                 'platform' => 'Pulse test connections are only available in local or testing environments.',
@@ -147,57 +284,86 @@ class SocialAccountConnectionService
         $platform = strtolower(trim((string) ($payload['platform'] ?? '')));
         $publisher = $this->registry->publisher($platform);
         $externalAccountId = $this->nullableString($payload, 'external_account_id')
-            ?: sprintf('pulse-test-%d-%s', $owner->id, $platform);
+            ?? sprintf('pulse-test-%d-%s', $owner->id, $platform);
 
-        $connection = SocialAccountConnection::query()
-            ->byUser($owner->id)
-            ->where('platform', $platform)
-            ->where('external_account_id', $externalAccountId)
-            ->first();
+        return DB::transaction(function () use (
+            $externalAccountId,
+            $owner,
+            $payload,
+            $platform,
+            $publisher,
+        ): SocialAccountConnection {
+            User::query()
+                ->whereKey($owner->id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        if (! $connection) {
-            $this->ensureUniqueExternalAccountId($owner->id, $platform, $externalAccountId);
-            $connection = new SocialAccountConnection([
+            $connection = SocialAccountConnection::query()
+                ->byUser($owner->id)
+                ->where('platform', $platform)
+                ->where('external_account_id', $externalAccountId)
+                ->first();
+
+            if ($connection && $this->hasActiveOauthCallbackClaim($connection)) {
+                throw ValidationException::withMessages([
+                    'platform' => 'This social account is still finishing OAuth. Wait before replacing it with a test connection.',
+                ]);
+            }
+
+            if (! $connection) {
+                $this->ensureUniqueExternalAccountId($owner->id, $platform, $externalAccountId);
+                $connection = new SocialAccountConnection([
+                    'user_id' => $owner->id,
+                    'platform' => $platform,
+                ]);
+            }
+
+            $definition = $publisher->definition();
+            $now = Carbon::now();
+            $transportIdentity = $this->directTransportIdentityAttributes(
+                (int) $owner->id,
+                $platform,
+                $externalAccountId,
+                $connection,
+            );
+            $persistedExternalAccountId = $connection->logical_destination_key !== null
+                ? (string) $connection->external_account_id
+                : $externalAccountId;
+
+            $connection->forceFill([
                 'user_id' => $owner->id,
                 'platform' => $platform,
-            ]);
-        }
-
-        $definition = $publisher->definition();
-        $now = Carbon::now();
-
-        $connection->forceFill([
-            'user_id' => $owner->id,
-            'platform' => $platform,
-            'label' => $this->nullableString($payload, 'label') ?: sprintf('%s test account', $publisher->label()),
-            'display_name' => $this->nullableString($payload, 'display_name') ?: sprintf('Pulse test %s', $publisher->label()),
-            'account_handle' => $this->nullableString($payload, 'account_handle') ?: '@pulse-test-'.$platform,
-            'external_account_id' => $externalAccountId,
-            'auth_method' => SocialAccountConnection::AUTH_METHOD_MANUAL,
-            'credentials' => [
-                'access_token' => 'pulse-test-token-'.$platform,
-                'token_type' => 'Bearer',
-            ],
-            'permissions' => array_values($definition['scopes'] ?? []),
-            'status' => SocialAccountConnection::STATUS_CONNECTED,
-            'is_active' => true,
-            'connected_at' => $connection->connected_at ?: $now,
-            'last_synced_at' => $now,
-            'token_expires_at' => $now->copy()->addYear(),
-            'oauth_state' => null,
-            'oauth_state_expires_at' => null,
-            'last_error' => null,
-            'metadata' => $this->mergedMetadata($connection, $publisher, [
-                'connection_flow' => 'local_test_connection',
-                'oauth_ready' => true,
+                'label' => $this->nullableString($payload, 'label') ?: sprintf('%s test account', $publisher->label()),
+                'display_name' => $this->nullableString($payload, 'display_name') ?: sprintf('Pulse test %s', $publisher->label()),
+                'account_handle' => $this->nullableString($payload, 'account_handle') ?: '@pulse-test-'.$platform,
+                'external_account_id' => $persistedExternalAccountId,
+                ...$transportIdentity,
+                'auth_method' => SocialAccountConnection::AUTH_METHOD_MANUAL,
+                'credentials' => [
+                    'access_token' => 'pulse-test-token-'.$platform,
+                    'token_type' => 'Bearer',
+                ],
+                'permissions' => array_values($definition['scopes'] ?? []),
+                'status' => SocialAccountConnection::STATUS_CONNECTED,
+                'is_active' => true,
+                'connected_at' => $connection->connected_at ?: $now,
+                'last_synced_at' => $now,
+                'token_expires_at' => $now->copy()->addYear(),
+                'oauth_state' => null,
                 'oauth_code_verifier' => null,
-                'test_connection' => true,
-                'provider_target_id' => $externalAccountId,
-                'publish_fake_mode' => true,
-            ]),
-        ])->save();
+                'oauth_state_expires_at' => null,
+                'last_error' => null,
+                'metadata' => $this->mergedMetadata($connection, $publisher, [
+                    'connection_flow' => 'local_test_connection',
+                    'oauth_ready' => true,
+                    'test_connection' => true,
+                    'provider_target_id' => $persistedExternalAccountId,
+                    'publish_fake_mode' => true,
+                ]),
+            ])->save();
 
-        return $connection->fresh();
+            return $connection->fresh();
+        }, 3);
     }
 
     /**
@@ -206,11 +372,47 @@ class SocialAccountConnectionService
     public function update(User $owner, SocialAccountConnection $connection, array $payload): SocialAccountConnection
     {
         $this->assertOwnership($owner, $connection);
+        $this->assertDirectManagementConnection($connection);
+
+        return $this->withDeliveryMutationLock(
+            (int) $connection->id,
+            fn (): SocialAccountConnection => $this->updateUnderDeliveryLock(
+                $owner,
+                $connection,
+                $payload,
+            ),
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function updateUnderDeliveryLock(
+        User $owner,
+        SocialAccountConnection $connection,
+        array $payload,
+    ): SocialAccountConnection {
+        $this->assertOwnership($owner, $connection);
+
+        $connection = SocialAccountConnection::query()
+            ->byUser((int) $owner->id)
+            ->whereKey($connection->id)
+            ->firstOrFail();
 
         $publisher = $this->registry->publisher($connection->platform);
         $externalAccountId = array_key_exists('external_account_id', $payload)
             ? $this->nullableString($payload, 'external_account_id')
             : $connection->external_account_id;
+
+        if ($connection->logical_destination_key !== null) {
+            $this->directTransportIdentityAttributes(
+                (int) $owner->id,
+                (string) $connection->platform,
+                $externalAccountId,
+                $connection,
+            );
+            $externalAccountId = $connection->external_account_id;
+        }
 
         $this->ensureUniqueExternalAccountId($owner->id, $connection->platform, $externalAccountId, $connection->id);
 
@@ -244,43 +446,92 @@ class SocialAccountConnectionService
     public function authorize(User $owner, SocialAccountConnection $connection): array
     {
         $this->assertOwnership($owner, $connection);
+        $this->assertDirectManagementConnection($connection);
 
-        $publisher = $this->registry->publisher($connection->platform);
-        $state = Str::random(64);
-        $authorization = $publisher->beginAuthorization($connection, $state);
-        $redirectUrl = trim((string) ($authorization['redirect_url'] ?? ''));
+        return $this->withDeliveryMutationLock(
+            (int) $connection->id,
+            fn (): array => $this->authorizeUnderDeliveryLock($owner, $connection),
+        );
+    }
 
-        if ($redirectUrl === '') {
-            throw ValidationException::withMessages([
-                'platform' => sprintf('%s did not return an authorization URL.', $publisher->label()),
-            ]);
-        }
+    /**
+     * @return array<string, mixed>
+     */
+    private function authorizeUnderDeliveryLock(
+        User $owner,
+        SocialAccountConnection $connection,
+    ): array {
+        $this->assertOwnership($owner, $connection);
 
-        $connection->forceFill([
-            'auth_method' => (string) ($publisher->definition()['auth_method'] ?? SocialAccountConnection::AUTH_METHOD_OAUTH),
-            'status' => SocialAccountConnection::STATUS_PENDING,
-            'is_active' => false,
-            'oauth_state' => $state,
-            'oauth_state_expires_at' => Carbon::now()->addMinutes(15),
-            'last_error' => null,
-            'metadata' => $this->mergedMetadata($connection, $publisher, [
-                'connection_flow' => 'oauth',
-                'oauth_ready' => false,
-                ...((array) ($authorization['metadata'] ?? [])),
-            ]),
-        ])->save();
+        return DB::transaction(function () use ($connection, $owner): array {
+            $lockedConnection = SocialAccountConnection::query()
+                ->byUser((int) $owner->id)
+                ->whereKey($connection->id)
+                ->lockForUpdate()
+                ->firstOrFail();
 
-        return [
-            'flow' => 'redirect',
-            'message' => sprintf('Continue with %s to finish connecting this social account.', $publisher->label()),
-            'redirect_url' => $redirectUrl,
-            'connection' => $this->payload($connection->fresh()),
-        ];
+            if ($this->hasActiveOauthCallbackClaim($lockedConnection)) {
+                throw ValidationException::withMessages([
+                    'platform' => 'This social account is already finishing OAuth. Wait before starting a new authorization.',
+                ]);
+            }
+
+            $publisher = $this->registry->publisher($lockedConnection->platform);
+            $state = Str::random(64);
+            $authorization = $publisher->beginAuthorization($lockedConnection, $state);
+            $redirectUrl = trim((string) ($authorization['redirect_url'] ?? ''));
+
+            if ($redirectUrl === '') {
+                throw ValidationException::withMessages([
+                    'platform' => sprintf('%s did not return an authorization URL.', $publisher->label()),
+                ]);
+            }
+
+            $lockedConnection->forceFill([
+                'auth_method' => (string) ($publisher->definition()['auth_method'] ?? SocialAccountConnection::AUTH_METHOD_OAUTH),
+                'status' => SocialAccountConnection::STATUS_PENDING,
+                'is_active' => false,
+                'oauth_state' => $state,
+                'oauth_code_verifier' => $authorization['oauth_code_verifier'] ?? null,
+                'oauth_state_expires_at' => Carbon::now()->addMinutes(15),
+                'last_error' => null,
+                'metadata' => $this->mergedMetadata($lockedConnection, $publisher, [
+                    'connection_flow' => 'oauth',
+                    'oauth_ready' => false,
+                    ...((array) ($authorization['metadata'] ?? [])),
+                ]),
+            ])->save();
+
+            return [
+                'flow' => 'redirect',
+                'message' => sprintf('Continue with %s to finish connecting this social account.', $publisher->label()),
+                'redirect_url' => $redirectUrl,
+                'connection' => $this->payload($lockedConnection->fresh()),
+            ];
+        }, 3);
     }
 
     public function refresh(User $owner, SocialAccountConnection $connection): SocialAccountConnection
     {
         $this->assertOwnership($owner, $connection);
+        $this->assertDirectManagementConnection($connection);
+
+        return $this->withDeliveryMutationLock(
+            (int) $connection->id,
+            fn (): SocialAccountConnection => $this->refreshUnderDeliveryLock($owner, $connection),
+        );
+    }
+
+    private function refreshUnderDeliveryLock(
+        User $owner,
+        SocialAccountConnection $connection,
+    ): SocialAccountConnection {
+        $this->assertOwnership($owner, $connection);
+
+        $connection = SocialAccountConnection::query()
+            ->byUser((int) $owner->id)
+            ->whereKey($connection->id)
+            ->firstOrFail();
 
         $publisher = $this->registry->publisher($connection->platform);
         $now = Carbon::now();
@@ -296,12 +547,12 @@ class SocialAccountConnectionService
                 'is_active' => false,
                 'last_synced_at' => $now,
                 'oauth_state' => null,
+                'oauth_code_verifier' => null,
                 'oauth_state_expires_at' => null,
                 'last_error' => $message,
                 'metadata' => $this->mergedMetadata($connection, $publisher, [
                     'connection_flow' => 'oauth_refresh_failed',
                     'oauth_ready' => false,
-                    'oauth_code_verifier' => null,
                 ]),
             ])->save();
 
@@ -311,11 +562,13 @@ class SocialAccountConnectionService
                 'status' => SocialAccountConnection::STATUS_ERROR,
                 'is_active' => false,
                 'last_synced_at' => $now,
+                'oauth_state' => null,
+                'oauth_code_verifier' => null,
+                'oauth_state_expires_at' => null,
                 'last_error' => 'The provider could not be reached while refreshing this social account.',
                 'metadata' => $this->mergedMetadata($connection, $publisher, [
                     'connection_flow' => 'oauth_refresh_failed',
                     'oauth_ready' => false,
-                    'oauth_code_verifier' => null,
                 ]),
             ])->save();
 
@@ -339,6 +592,9 @@ class SocialAccountConnectionService
                 ? ($connection->connected_at ?? $now)
                 : null,
             'last_synced_at' => $now,
+            'oauth_state' => null,
+            'oauth_code_verifier' => null,
+            'oauth_state_expires_at' => null,
             'token_expires_at' => $tokenExpiresAt,
             'last_error' => $status === SocialAccountConnection::STATUS_CONNECTED
                 ? null
@@ -346,7 +602,6 @@ class SocialAccountConnectionService
             'metadata' => $this->mergedMetadata($connection, $publisher, [
                 'connection_flow' => 'oauth_connected',
                 'oauth_ready' => $status === SocialAccountConnection::STATUS_CONNECTED,
-                'oauth_code_verifier' => null,
                 ...((array) ($result['metadata'] ?? [])),
             ]),
         ])->save();
@@ -357,28 +612,38 @@ class SocialAccountConnectionService
     public function disconnect(User $owner, SocialAccountConnection $connection): SocialAccountConnection
     {
         $this->assertOwnership($owner, $connection);
+        $this->assertDirectManagementConnection($connection);
 
-        $publisher = $this->registry->publisher($connection->platform);
+        return $this->withDeliveryMutationLock(
+            (int) $connection->id,
+            function () use ($owner, $connection): SocialAccountConnection {
+                $connection = SocialAccountConnection::query()
+                    ->byUser((int) $owner->id)
+                    ->whereKey($connection->id)
+                    ->firstOrFail();
+                $publisher = $this->registry->publisher($connection->platform);
 
-        $connection->forceFill([
-            'credentials' => [],
-            'permissions' => [],
-            'status' => SocialAccountConnection::STATUS_DISCONNECTED,
-            'is_active' => false,
-            'connected_at' => null,
-            'last_synced_at' => null,
-            'token_expires_at' => null,
-            'oauth_state' => null,
-            'oauth_state_expires_at' => null,
-            'last_error' => null,
-            'metadata' => $this->mergedMetadata($connection, $publisher, [
-                'connection_flow' => 'disconnected',
-                'oauth_ready' => false,
-                'oauth_code_verifier' => null,
-            ]),
-        ])->save();
+                $connection->forceFill([
+                    'credentials' => [],
+                    'permissions' => [],
+                    'status' => SocialAccountConnection::STATUS_DISCONNECTED,
+                    'is_active' => false,
+                    'connected_at' => null,
+                    'last_synced_at' => null,
+                    'token_expires_at' => null,
+                    'oauth_state' => null,
+                    'oauth_code_verifier' => null,
+                    'oauth_state_expires_at' => null,
+                    'last_error' => null,
+                    'metadata' => $this->mergedMetadata($connection, $publisher, [
+                        'connection_flow' => 'disconnected',
+                        'oauth_ready' => false,
+                    ]),
+                ])->save();
 
-        return $connection->fresh();
+                return $connection->fresh();
+            },
+        );
     }
 
     /**
@@ -387,6 +652,33 @@ class SocialAccountConnectionService
     public function test(User $owner, SocialAccountConnection $connection): array
     {
         $this->assertOwnership($owner, $connection);
+        $this->assertDirectManagementConnection($connection);
+
+        return $this->withDeliveryMutationLock(
+            (int) $connection->id,
+            fn (): array => $this->testUnderDeliveryLock($owner, $connection),
+        );
+    }
+
+    /**
+     * @return array{success: bool, message: string, connection: SocialAccountConnection}
+     */
+    private function testUnderDeliveryLock(
+        User $owner,
+        SocialAccountConnection $connection,
+    ): array {
+        $this->assertOwnership($owner, $connection);
+
+        $connection = SocialAccountConnection::query()
+            ->byUser((int) $owner->id)
+            ->whereKey($connection->id)
+            ->firstOrFail();
+
+        if ($this->hasActiveOauthCallbackClaim($connection)) {
+            throw ValidationException::withMessages([
+                'connection' => 'This social account is still finishing OAuth and cannot be tested yet.',
+            ]);
+        }
 
         $publisher = $this->registry->publisher($connection->platform);
         $testedAt = Carbon::now();
@@ -466,7 +758,38 @@ class SocialAccountConnectionService
     public function destroy(User $owner, SocialAccountConnection $connection): void
     {
         $this->assertOwnership($owner, $connection);
-        $connection->delete();
+        $this->assertDirectManagementConnection($connection);
+
+        $this->withDeliveryMutationLock((int) $connection->id, function () use ($owner, $connection): void {
+            $connection = SocialAccountConnection::query()
+                ->byUser((int) $owner->id)
+                ->whereKey($connection->id)
+                ->firstOrFail();
+
+            if (SocialDeliveryOutbox::query()
+                ->where('social_provider_connection_id', $connection->id)
+                ->exists()) {
+                throw ValidationException::withMessages([
+                    'connection' => 'This social connection has delivery history and must be disconnected instead of deleted.',
+                ]);
+            }
+
+            if (Schema::hasTable('social_transport_cutover_mappings')
+                && SocialTransportCutoverMapping::query()
+                    ->where('user_id', $owner->id)
+                    ->where(function (Builder $query) use ($connection): void {
+                        $query
+                            ->where('legacy_connection_id', $connection->id)
+                            ->orWhere('replacement_connection_id', $connection->id);
+                    })
+                    ->exists()) {
+                throw ValidationException::withMessages([
+                    'connection' => 'This social connection belongs to an audited transport mapping and must be disconnected instead of deleted.',
+                ]);
+            }
+
+            $connection->delete();
+        });
     }
 
     /**
@@ -474,6 +797,39 @@ class SocialAccountConnectionService
      * @return array<string, mixed>
      */
     public function completeAuthorization(string $platform, array $payload): array
+    {
+        $state = trim((string) ($payload['state'] ?? ''));
+
+        if ($state === '') {
+            throw ValidationException::withMessages([
+                'state' => 'The provider callback is missing its security state token.',
+            ]);
+        }
+
+        $connection = SocialAccountConnection::query()
+            ->where('platform', $platform)
+            ->where('oauth_state', $state)
+            ->first();
+
+        if (! $connection) {
+            throw ValidationException::withMessages([
+                'state' => 'This social account callback is no longer valid. Start the connection again.',
+            ]);
+        }
+
+        $this->assertDirectManagementConnection($connection);
+
+        return $this->withDeliveryMutationLock(
+            (int) $connection->id,
+            fn (): array => $this->completeAuthorizationUnderDeliveryLock($platform, $payload),
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private function completeAuthorizationUnderDeliveryLock(string $platform, array $payload): array
     {
         $publisher = $this->registry->publisher($platform);
         $state = trim((string) ($payload['state'] ?? ''));
@@ -495,25 +851,27 @@ class SocialAccountConnectionService
             ]);
         }
 
+        $claimMarker = $this->claimOauthCallback($connection, $platform, $state);
+
         $owner = $connection->relationLoaded('user')
             ? $connection->user
             : $connection->user()->first();
 
         if (! $owner || ! $owner->hasCompanyFeature('social')) {
-            $message = 'Malikia Pulse is disabled for this workspace. Re-enable the social module before reconnecting this account.';
+            $message = 'Pulse is disabled for this workspace. Re-enable the social module before reconnecting this account.';
 
-            $connection->forceFill([
+            $connection = $this->finalizeOauthCallback($connection, $claimMarker, [
                 'status' => SocialAccountConnection::STATUS_RECONNECT_REQUIRED,
                 'is_active' => false,
                 'oauth_state' => null,
+                'oauth_code_verifier' => null,
                 'oauth_state_expires_at' => null,
                 'last_error' => $message,
                 'metadata' => $this->mergedMetadata($connection, $publisher, [
                     'connection_flow' => 'oauth_blocked_feature_off',
                     'oauth_ready' => false,
-                    'oauth_code_verifier' => null,
                 ]),
-            ])->save();
+            ]);
 
             return [
                 'success' => false,
@@ -524,18 +882,18 @@ class SocialAccountConnectionService
         }
 
         if ($connection->oauth_state_expires_at && $connection->oauth_state_expires_at->isPast()) {
-            $connection->forceFill([
+            $connection = $this->finalizeOauthCallback($connection, $claimMarker, [
                 'status' => SocialAccountConnection::STATUS_RECONNECT_REQUIRED,
                 'is_active' => false,
                 'oauth_state' => null,
+                'oauth_code_verifier' => null,
                 'oauth_state_expires_at' => null,
                 'last_error' => 'The connection request expired before the provider finished authorizing it.',
                 'metadata' => $this->mergedMetadata($connection, $publisher, [
                     'connection_flow' => 'oauth_expired',
                     'oauth_ready' => false,
-                    'oauth_code_verifier' => null,
                 ]),
-            ])->save();
+            ]);
 
             return [
                 'success' => false,
@@ -546,18 +904,18 @@ class SocialAccountConnectionService
 
         $providerErrorMessage = $this->providerCallbackErrorMessage($payload);
         if ($providerErrorMessage !== '') {
-            $connection->forceFill([
+            $connection = $this->finalizeOauthCallback($connection, $claimMarker, [
                 'status' => SocialAccountConnection::STATUS_RECONNECT_REQUIRED,
                 'is_active' => false,
                 'oauth_state' => null,
+                'oauth_code_verifier' => null,
                 'oauth_state_expires_at' => null,
                 'last_error' => $providerErrorMessage,
                 'metadata' => $this->mergedMetadata($connection, $publisher, [
                     'connection_flow' => 'oauth_error',
                     'oauth_ready' => false,
-                    'oauth_code_verifier' => null,
                 ]),
-            ])->save();
+            ]);
 
             return [
                 'success' => false,
@@ -572,18 +930,18 @@ class SocialAccountConnectionService
         } catch (ValidationException $exception) {
             $message = $this->validationMessage($exception, sprintf('%s could not be connected.', $publisher->label()));
 
-            $connection->forceFill([
+            $connection = $this->finalizeOauthCallback($connection, $claimMarker, [
                 'status' => SocialAccountConnection::STATUS_RECONNECT_REQUIRED,
                 'is_active' => false,
                 'oauth_state' => null,
+                'oauth_code_verifier' => null,
                 'oauth_state_expires_at' => null,
                 'last_error' => $message,
                 'metadata' => $this->mergedMetadata($connection, $publisher, [
                     'connection_flow' => 'oauth_error',
                     'oauth_ready' => false,
-                    'oauth_code_verifier' => null,
                 ]),
-            ])->save();
+            ]);
 
             return [
                 'success' => false,
@@ -593,18 +951,18 @@ class SocialAccountConnectionService
         } catch (ConnectionException $exception) {
             $message = 'The provider could not be reached while finishing the social account connection.';
 
-            $connection->forceFill([
+            $connection = $this->finalizeOauthCallback($connection, $claimMarker, [
                 'status' => SocialAccountConnection::STATUS_ERROR,
                 'is_active' => false,
                 'oauth_state' => null,
+                'oauth_code_verifier' => null,
                 'oauth_state_expires_at' => null,
                 'last_error' => $message,
                 'metadata' => $this->mergedMetadata($connection, $publisher, [
                     'connection_flow' => 'oauth_error',
                     'oauth_ready' => false,
-                    'oauth_code_verifier' => null,
                 ]),
-            ])->save();
+            ]);
 
             return [
                 'success' => false,
@@ -613,40 +971,96 @@ class SocialAccountConnectionService
             ];
         }
 
-        $externalAccountId = $this->nullableString($result, 'external_account_id') ?: $connection->external_account_id;
-        $this->ensureUniqueExternalAccountId($connection->user_id, $connection->platform, $externalAccountId, $connection->id);
+        try {
+            $status = (string) ($result['status'] ?? SocialAccountConnection::STATUS_CONNECTED);
+            $now = Carbon::now();
+            $connection = $this->finalizeOauthCallback(
+                $connection,
+                $claimMarker,
+                function (SocialAccountConnection $claimedConnection) use (
+                    $now,
+                    $publisher,
+                    $result,
+                    $status,
+                ): array {
+                    $externalAccountId = $this->nullableString($result, 'external_account_id')
+                        ?? $claimedConnection->external_account_id;
 
-        $now = Carbon::now();
-        $permissions = array_values((array) ($result['permissions'] ?? $connection->permissions ?? []));
+                    if ($status === SocialAccountConnection::STATUS_CONNECTED
+                        && $externalAccountId === null) {
+                        throw ValidationException::withMessages([
+                            'external_account_id' => 'A native social destination identifier is required before this account can be connected.',
+                        ]);
+                    }
 
-        $status = (string) ($result['status'] ?? SocialAccountConnection::STATUS_CONNECTED);
+                    $this->ensureUniqueExternalAccountId(
+                        (int) $claimedConnection->user_id,
+                        (string) $claimedConnection->platform,
+                        $externalAccountId,
+                        (int) $claimedConnection->id,
+                    );
+                    $transportIdentity = $this->directTransportIdentityAttributes(
+                        (int) $claimedConnection->user_id,
+                        (string) $claimedConnection->platform,
+                        $externalAccountId,
+                        $claimedConnection,
+                    );
 
-        $connection->forceFill([
-            'auth_method' => (string) ($publisher->definition()['auth_method'] ?? SocialAccountConnection::AUTH_METHOD_OAUTH),
-            'credentials' => (array) ($result['credentials'] ?? []),
-            'permissions' => $permissions,
-            'status' => $status,
-            'is_active' => $status === SocialAccountConnection::STATUS_CONNECTED,
-            'display_name' => $this->nullableString($result, 'display_name') ?: $connection->display_name,
-            'account_handle' => $this->nullableString($result, 'account_handle') ?: $connection->account_handle,
-            'external_account_id' => $externalAccountId,
-            'connected_at' => $status === SocialAccountConnection::STATUS_CONNECTED
-                ? ($connection->connected_at ?? $now)
-                : null,
-            'last_synced_at' => $now,
-            'token_expires_at' => $result['token_expires_at'] ?? null,
-            'oauth_state' => null,
-            'oauth_state_expires_at' => null,
-            'last_error' => $status === SocialAccountConnection::STATUS_CONNECTED
-                ? null
-                : (string) ($result['message'] ?? 'Social account connection failed.'),
-            'metadata' => $this->mergedMetadata($connection, $publisher, [
-                'connection_flow' => 'oauth_connected',
-                'oauth_ready' => $status === SocialAccountConnection::STATUS_CONNECTED,
-                'oauth_code_verifier' => null,
-                ...((array) ($result['metadata'] ?? [])),
-            ]),
-        ])->save();
+                    if ($claimedConnection->logical_destination_key !== null) {
+                        $externalAccountId = (string) $claimedConnection->external_account_id;
+                    }
+
+                    $permissions = array_values((array) (
+                        $result['permissions'] ?? $claimedConnection->permissions ?? []
+                    ));
+
+                    return [
+                        'auth_method' => (string) ($publisher->definition()['auth_method'] ?? SocialAccountConnection::AUTH_METHOD_OAUTH),
+                        'credentials' => (array) ($result['credentials'] ?? []),
+                        'permissions' => $permissions,
+                        'status' => $status,
+                        'is_active' => $status === SocialAccountConnection::STATUS_CONNECTED,
+                        'display_name' => $this->nullableString($result, 'display_name') ?: $claimedConnection->display_name,
+                        'account_handle' => $this->nullableString($result, 'account_handle') ?: $claimedConnection->account_handle,
+                        'external_account_id' => $externalAccountId,
+                        ...$transportIdentity,
+                        'connected_at' => $status === SocialAccountConnection::STATUS_CONNECTED
+                            ? ($claimedConnection->connected_at ?? $now)
+                            : null,
+                        'last_synced_at' => $now,
+                        'token_expires_at' => $result['token_expires_at'] ?? null,
+                        'last_error' => $status === SocialAccountConnection::STATUS_CONNECTED
+                            ? null
+                            : (string) ($result['message'] ?? 'Social account connection failed.'),
+                        'metadata' => $this->mergedMetadata($claimedConnection, $publisher, [
+                            'connection_flow' => 'oauth_connected',
+                            'oauth_ready' => $status === SocialAccountConnection::STATUS_CONNECTED,
+                            ...((array) ($result['metadata'] ?? [])),
+                        ]),
+                    ];
+                },
+            );
+        } catch (ValidationException $exception) {
+            $message = $this->validationMessage(
+                $exception,
+                sprintf('%s could not be connected.', $publisher->label())
+            );
+            $connection = $this->finalizeOauthCallback($connection, $claimMarker, [
+                'status' => SocialAccountConnection::STATUS_RECONNECT_REQUIRED,
+                'is_active' => false,
+                'last_error' => $message,
+                'metadata' => $this->mergedMetadata($connection, $publisher, [
+                    'connection_flow' => 'oauth_error',
+                    'oauth_ready' => false,
+                ]),
+            ]);
+
+            return [
+                'success' => false,
+                'message' => $message,
+                'connection' => $this->payload($connection),
+            ];
+        }
 
         return [
             'success' => true,
@@ -684,11 +1098,12 @@ class SocialAccountConnectionService
             'permissions' => array_values((array) ($connection->permissions ?? [])),
             'status' => $status,
             'is_active' => (bool) $connection->is_active,
-            'is_connected' => $connection->is_active && $status === SocialAccountConnection::STATUS_CONNECTED,
+            'is_connected' => $this->isConnectedForPublishing($connection),
             'needs_attention' => $this->statusNeedsAttention($status),
             'has_credentials' => $credentials !== [],
             'has_refresh_token' => trim((string) ($credentials['refresh_token'] ?? '')) !== '',
             'oauth_pending' => trim((string) ($connection->oauth_state ?? '')) !== '',
+            'oauth_callback_active' => $this->hasActiveOauthCallbackClaim($connection),
             'oauth_ready' => (bool) (($connection->metadata['oauth_ready'] ?? false)),
             'short_description' => $definition['short_description'] ?? null,
             'connected_at' => optional($connection->connected_at)->toIso8601String(),
@@ -698,8 +1113,94 @@ class SocialAccountConnectionService
             'last_test_status' => data_get($connection->metadata, 'last_test_status'),
             'last_test_message' => data_get($connection->metadata, 'last_test_message'),
             'last_error' => $connection->last_error,
-            'metadata' => (array) ($connection->metadata ?? []),
+            'metadata' => array_filter([
+                'connection_flow' => data_get($connection->metadata, 'connection_flow'),
+                'test_connection' => data_get($connection->metadata, 'test_connection'),
+            ], fn ($value) => $value !== null),
         ];
+    }
+
+    private function claimOauthCallback(
+        SocialAccountConnection $connection,
+        string $platform,
+        string $state
+    ): string {
+        $claimMarker = self::OAUTH_CALLBACK_CLAIM_PREFIX.Str::random(64);
+        $claimed = SocialAccountConnection::query()
+            ->whereKey($connection->id)
+            ->where('platform', $platform)
+            ->where('status', SocialAccountConnection::STATUS_PENDING)
+            ->where('oauth_state', $state)
+            ->update([
+                'status' => SocialAccountConnection::STATUS_AUTHORIZING,
+                'is_active' => false,
+                'oauth_state' => $claimMarker,
+                'oauth_code_verifier' => null,
+                'oauth_state_expires_at' => Carbon::now()->addSeconds(self::OAUTH_CALLBACK_CLAIM_TTL_SECONDS),
+            ]);
+
+        if ($claimed !== 1) {
+            throw ValidationException::withMessages([
+                'state' => 'This social account callback is no longer valid or is already being processed.',
+            ]);
+        }
+
+        return $claimMarker;
+    }
+
+    /**
+     * @param  array<string, mixed>|callable(SocialAccountConnection): array<string, mixed>  $attributes
+     */
+    private function finalizeOauthCallback(
+        SocialAccountConnection $connection,
+        string $claimMarker,
+        array|callable $attributes
+    ): SocialAccountConnection {
+        return DB::transaction(function () use ($attributes, $claimMarker, $connection): SocialAccountConnection {
+            User::query()
+                ->whereKey((int) $connection->user_id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $claimedConnection = SocialAccountConnection::query()
+                ->whereKey($connection->id)
+                ->where('user_id', $connection->user_id)
+                ->where('status', SocialAccountConnection::STATUS_AUTHORIZING)
+                ->where('oauth_state', $claimMarker)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $claimedConnection
+                || ! hash_equals($claimMarker, (string) $claimedConnection->oauth_state)) {
+                throw ValidationException::withMessages([
+                    'state' => 'This social account callback was superseded. Start the connection again if needed.',
+                ]);
+            }
+
+            $resolvedAttributes = is_callable($attributes)
+                ? $attributes($claimedConnection)
+                : $attributes;
+
+            $claimedConnection->forceFill([
+                ...$resolvedAttributes,
+                'oauth_state' => null,
+                'oauth_code_verifier' => null,
+                'oauth_state_expires_at' => null,
+            ])->save();
+
+            return $claimedConnection->fresh();
+        }, 3);
+    }
+
+    private function hasActiveOauthCallbackClaim(SocialAccountConnection $connection): bool
+    {
+        if ((string) $connection->status !== SocialAccountConnection::STATUS_AUTHORIZING
+            || ! str_starts_with((string) $connection->oauth_state, self::OAUTH_CALLBACK_CLAIM_PREFIX)) {
+            return false;
+        }
+
+        return ! $connection->oauth_state_expires_at instanceof Carbon
+            || $connection->oauth_state_expires_at->isFuture();
     }
 
     private function assertOwnership(User $owner, SocialAccountConnection $connection): void
@@ -709,11 +1210,49 @@ class SocialAccountConnectionService
         }
     }
 
+    private function assertDirectManagementConnection(SocialAccountConnection $connection): void
+    {
+        $this->assertDirectManagementEnabled();
+
+        if ((string) $connection->delivery_provider === SocialAccountConnection::DELIVERY_PROVIDER_BUFFER
+            || (string) $connection->transport_generation === SocialAccountConnection::TRANSPORT_GENERATION_BUFFER_V1
+            || (bool) data_get($connection->metadata, 'buffer.catalog_only', false)) {
+            throw ValidationException::withMessages([
+                'connection' => 'Manage this Buffer catalog channel from the local Buffer panel.',
+            ]);
+        }
+    }
+
+    private function assertDirectManagementEnabled(): void
+    {
+        if ($this->bufferOnlyModeEnabled()) {
+            throw ValidationException::withMessages([
+                'connection' => 'Direct social connections are disabled. Manage social channels through Buffer.',
+            ]);
+        }
+    }
+
+    private function bufferOnlyModeEnabled(): bool
+    {
+        return (bool) config('services.buffer.delivery.enabled', false);
+    }
+
+    private function isConnectedForPublishing(SocialAccountConnection $connection): bool
+    {
+        if (! $connection->is_active
+            || (string) $connection->status !== SocialAccountConnection::STATUS_CONNECTED) {
+            return false;
+        }
+
+        return ! $this->bufferOnlyModeEnabled() || $connection->usesBufferPublishingTransport();
+    }
+
     private function statusNeedsAttention(string $status): bool
     {
         return in_array($status, [
             SocialAccountConnection::STATUS_DRAFT,
             SocialAccountConnection::STATUS_PENDING,
+            SocialAccountConnection::STATUS_AUTHORIZING,
             SocialAccountConnection::STATUS_ERROR,
             SocialAccountConnection::STATUS_RECONNECT_REQUIRED,
             SocialAccountConnection::STATUS_EXPIRED,
@@ -764,6 +1303,9 @@ class SocialAccountConnectionService
                 ? ((string) $nextStatus === SocialAccountConnection::STATUS_CONNECTED)
                 : false,
             'last_synced_at' => $success ? $testedAt : $connection->last_synced_at,
+            'oauth_state' => null,
+            'oauth_code_verifier' => null,
+            'oauth_state_expires_at' => null,
             'last_error' => $success ? null : $message,
             'metadata' => $this->mergedMetadata($connection, $publisher, [
                 'last_tested_at' => $testedAt->toIso8601String(),
@@ -808,6 +1350,7 @@ class SocialAccountConnectionService
             'supports' => array_values($definition['supports'] ?? []),
             'requested_scopes' => array_values($definition['scopes'] ?? []),
         ])
+            ->except(['oauth_code_verifier'])
             ->reject(fn ($value) => $value === null)
             ->all();
     }
@@ -873,5 +1416,155 @@ class SocialAccountConnectionService
         throw ValidationException::withMessages([
             'external_account_id' => 'This social account is already connected for the selected platform.',
         ]);
+    }
+
+    /**
+     * @return array{delivery_provider:?string,transport_generation:?string,logical_destination_key:?string}
+     */
+    private function directTransportIdentityAttributes(
+        int $ownerId,
+        string $platform,
+        ?string $externalAccountId,
+        ?SocialAccountConnection $existingConnection = null,
+    ): array {
+        if ($externalAccountId === null) {
+            if ($existingConnection?->logical_destination_key !== null) {
+                throw ValidationException::withMessages([
+                    'external_account_id' => 'Create a new social connection to use a different destination.',
+                ]);
+            }
+
+            return [
+                'delivery_provider' => null,
+                'transport_generation' => null,
+                'logical_destination_key' => null,
+            ];
+        }
+
+        try {
+            $logicalDestinationKey = $this->logicalDestinationKeys->deriveForLegacyConnection(
+                (string) $ownerId,
+                $platform,
+                $externalAccountId,
+            );
+        } catch (\InvalidArgumentException) {
+            throw ValidationException::withMessages([
+                'external_account_id' => 'The social account destination identifier is not valid.',
+            ]);
+        }
+
+        $this->ensureUniqueLogicalDestinationKey(
+            $ownerId,
+            $logicalDestinationKey,
+            $existingConnection?->id,
+        );
+
+        if ($existingConnection?->logical_destination_key !== null) {
+            if ((string) $existingConnection->delivery_provider
+                    !== SocialAccountConnection::DELIVERY_PROVIDER_DIRECT
+                || (string) $existingConnection->transport_generation
+                    !== SocialAccountConnection::TRANSPORT_GENERATION_DIRECT_V1
+                || ! hash_equals(
+                    (string) $existingConnection->logical_destination_key,
+                    $logicalDestinationKey
+                )) {
+                throw ValidationException::withMessages([
+                    'external_account_id' => 'Create a new social connection to use a different destination.',
+                ]);
+            }
+
+            return [
+                'delivery_provider' => (string) $existingConnection->delivery_provider,
+                'transport_generation' => (string) $existingConnection->transport_generation,
+                'logical_destination_key' => (string) $existingConnection->logical_destination_key,
+            ];
+        }
+
+        return [
+            'delivery_provider' => SocialAccountConnection::DELIVERY_PROVIDER_DIRECT,
+            'transport_generation' => SocialAccountConnection::TRANSPORT_GENERATION_DIRECT_V1,
+            'logical_destination_key' => $logicalDestinationKey,
+        ];
+    }
+
+    private function ensureUniqueLogicalDestinationKey(
+        int $ownerId,
+        string $logicalDestinationKey,
+        ?int $ignoreConnectionId = null,
+    ): void {
+        $query = SocialAccountConnection::query()
+            ->byUser($ownerId)
+            ->where('logical_destination_key', $logicalDestinationKey);
+
+        if ($ignoreConnectionId) {
+            $query->whereKeyNot($ignoreConnectionId);
+        }
+
+        if (! $query->exists()) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'external_account_id' => 'This logical social destination is already connected.',
+        ]);
+    }
+
+    /**
+     * @template TResult
+     *
+     * @param  callable(): TResult  $callback
+     * @return TResult
+     */
+    private function withDeliveryMutationLock(int $connectionId, callable $callback): mixed
+    {
+        if (($this->deliveryMutationLockDepth[$connectionId] ?? 0) > 0) {
+            $this->deliveryMutationLockDepth[$connectionId]++;
+
+            try {
+                return $callback();
+            } finally {
+                $this->deliveryMutationLockDepth[$connectionId]--;
+            }
+        }
+
+        $lock = $this->deliveryMutex->acquire($connectionId);
+
+        if ($lock === null) {
+            throw ValidationException::withMessages([
+                'connection' => 'A Pulse delivery is using this social connection. Retry this change shortly.',
+            ]);
+        }
+
+        $this->deliveryMutationLockDepth[$connectionId] = 1;
+
+        try {
+            return $callback();
+        } finally {
+            unset($this->deliveryMutationLockDepth[$connectionId]);
+            $lock->release();
+        }
+    }
+
+    /**
+     * @template TResult
+     *
+     * @param  callable(): TResult  $callback
+     * @return TResult
+     */
+    private function withTenantMutationLock(int $tenantId, callable $callback): mixed
+    {
+        $lock = $this->deliveryMutex->acquireTenant($tenantId);
+
+        if ($lock === null) {
+            throw ValidationException::withMessages([
+                'connection' => 'This Pulse workspace is changing its social connections. Retry shortly.',
+            ]);
+        }
+
+        try {
+            return $callback();
+        } finally {
+            $lock->release();
+        }
     }
 }

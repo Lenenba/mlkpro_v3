@@ -16,7 +16,7 @@ interface PlatformPublisherInterface
     public function definition(): array;
 
     /**
-     * @return array{redirect_url: string, metadata?: array<string, mixed>}
+     * @return array{redirect_url: string, metadata?: array<string, mixed>, oauth_code_verifier?: string}
      */
     public function beginAuthorization(SocialAccountConnection $connection, string $state): array;
 

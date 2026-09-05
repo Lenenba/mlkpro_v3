@@ -3,6 +3,8 @@ import { computed, reactive } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
+import ModuleKpiSection from '@/Components/Dashboard/ModuleKpiSection.vue';
 import { humanizeDate } from '@/utils/date';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import { useI18n } from 'vue-i18n';
@@ -102,6 +104,21 @@ const clearFilters = () => {
 const exportUrl = computed(() => route('payments.tips.export', sanitizedFilters.value));
 
 const { formatCurrency } = useCurrencyFormatter();
+
+const kpiMetrics = computed(() => [
+    {
+        key: 'total_tips',
+        label: t('tips_reports.kpi.total_tips'),
+        value: formatCurrency(props.stats.total_tips),
+        tone: 'emerald',
+    },
+    {
+        key: 'average_tip_per_reservation',
+        label: t('tips_reports.kpi.average_tip_per_reservation'),
+        value: formatCurrency(props.stats.average_tip_per_reservation),
+        tone: 'sky',
+    },
+]);
 
 const formatDateTime = (value) => {
     const formatted = humanizeDate(value);
@@ -253,18 +270,9 @@ const paymentPageIndicator = computed(() => t('datatable.shared.page_indicator',
             </section>
 
             <section class="grid grid-cols-1 gap-3 md:grid-cols-3">
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('tips_reports.kpi.total_tips') }}</div>
-                    <div class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
-                        {{ formatCurrency(stats.total_tips) }}
-                    </div>
-                </div>
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('tips_reports.kpi.average_tip_per_reservation') }}</div>
-                    <div class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
-                        {{ formatCurrency(stats.average_tip_per_reservation) }}
-                    </div>
-                </div>
+                <ModuleKpiSection class="md:col-span-2" module-key="tips">
+                    <KpiMetricGrid :metrics="kpiMetrics" />
+                </ModuleKpiSection>
                 <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                     <div class="text-xs text-stone-500 dark:text-neutral-400">{{ topCollectorsLabel }}</div>
                     <div class="mt-2 space-y-1">

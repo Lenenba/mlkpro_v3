@@ -1,44 +1,47 @@
 <template>
     <!-- Timepicker with Floating Label and Click-Outside Detection -->
-    <div ref="containerRef" class="relative w-full">
+    <div ref="containerRef" class="relative w-full min-w-0">
       <!-- Read-only input used as the peer element for the floating label -->
       <input
         :id="inputId"
         type="text"
         readonly
+        :disabled="disabled"
+        :required="required"
         :value="timeValue"
         @click="togglePicker"
+        @keydown.enter.prevent="togglePicker"
+        @keydown.space.prevent="togglePicker"
+        @keydown.esc.prevent="showPicker = false"
         placeholder=" "
-        class="peer p-4 block w-full border border-stone-300 rounded-sm text-sm text-stone-700 bg-white shadow-sm
-               focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500
-               dark:bg-neutral-800 dark:border-neutral-700 dark:text-white dark:focus:ring-green-500
-               placeholder-transparent
-               focus:pt-6 focus:pb-2
-               [&:not(:placeholder-shown)]:pt-6 [&:not(:placeholder-shown)]:pb-2"
+        class="app-field-control peer cursor-pointer truncate"
+        aria-haspopup="dialog"
+        :aria-expanded="showPicker ? 'true' : 'false'"
+        :aria-required="required ? 'true' : undefined"
       />
       <!-- Floating label -->
       <label
             :for="inputId"
-            class="absolute top-0 left-0 p-4 h-full text-sm truncate pointer-events-none transition ease-in-out duration-100 origin-[0_0] dark:text-white peer-disabled:opacity-50 peer-disabled:pointer-events-none
+            :title="label"
+            class="app-floating-label
                 scale-90
                 translate-x-0.5
                 -translate-y-1.5
-                text-stone-500 dark:text-neutral-500
                 peer-placeholder-shown:scale-100
                 peer-placeholder-shown:translate-x-0
                 peer-placeholder-shown:translate-y-0
-                peer-placeholder-shown:text-stone-500 dark:peer-placeholder-shown:text-neutral-500
                 peer-focus:scale-90
                 peer-focus:translate-x-0.5
-                peer-focus:-translate-y-1.5
-                peer-focus:text-stone-500 dark:peer-focus:text-neutral-500">
-            {{ label }}
+                peer-focus:-translate-y-1.5">
+            <span class="app-floating-label-content">
+              {{ label }}<span v-if="required" class="text-red-500 dark:text-red-400"> *</span>
+            </span>
         </label>
 
       <!-- Time Picker Dropdown -->
       <div
         v-if="showPicker"
-        class="absolute left-0 mt-2 w-80 bg-white border border-stone-200 rounded-sm shadow-lg dark:bg-neutral-900 dark:border-neutral-700 z-50"
+        class="absolute start-0 z-50 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-sm border border-stone-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-900"
       >
         <div class="p-3">
           <!-- Hours Section -->
@@ -95,6 +98,14 @@
     label: {
       type: String,
       required: true
+    },
+    required: {
+      type: Boolean,
+      default: false
+    },
+    disabled: {
+      type: Boolean,
+      default: false
     },
     placeholder: {
       type: String,
@@ -178,6 +189,9 @@
 
   // Toggle the visibility of the time picker dropdown
   const togglePicker = () => {
+    if (props.disabled) {
+      return;
+    }
     showPicker.value = !showPicker.value;
   };
 
@@ -208,6 +222,9 @@
           selectedHour.value = parts[0];
           selectedMinute.value = parts[1];
         }
+      } else {
+        selectedHour.value = null;
+        selectedMinute.value = null;
       }
     }
   );

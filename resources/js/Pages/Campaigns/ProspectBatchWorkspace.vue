@@ -6,6 +6,7 @@ import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 
@@ -154,6 +155,68 @@ const activeProspectMeta = computed(() => {
         total: Number(pagination?.total || activeProspectRows.value.length || 0),
     };
 });
+
+const batchSummaryMetrics = computed(() => ([
+    {
+        key: 'total',
+        label: t('marketing.campaign_wizard.prospecting.summary.total_batches'),
+        value: prospectingBatchSummary.value?.total_batches || 0,
+        tone: 'stone',
+    },
+    {
+        key: 'analyzed',
+        label: t('marketing.campaign_wizard.prospecting.summary.analyzed_batches'),
+        value: prospectingBatchSummary.value?.analyzed_batches || 0,
+        tone: 'sky',
+    },
+    {
+        key: 'approved',
+        label: t('marketing.campaign_wizard.prospecting.summary.approved_batches'),
+        value: prospectingBatchSummary.value?.approved_batches || 0,
+        tone: 'emerald',
+    },
+    {
+        key: 'canceled',
+        label: t('marketing.campaign_wizard.prospecting.summary.canceled_batches'),
+        value: prospectingBatchSummary.value?.canceled_batches || 0,
+        tone: 'rose',
+    },
+]));
+
+const activeBatchMetrics = computed(() => ([
+    {
+        key: 'accepted',
+        label: t('marketing.campaign_wizard.prospecting.kpis.accepted'),
+        value: activeProspectBatch.value?.accepted_count || 0,
+        tone: 'emerald',
+    },
+    {
+        key: 'duplicates',
+        label: t('marketing.campaign_wizard.prospecting.kpis.duplicates'),
+        value: activeProspectBatch.value?.duplicate_count || 0,
+        tone: 'amber',
+    },
+    {
+        key: 'blocked',
+        label: t('marketing.campaign_wizard.prospecting.kpis.blocked'),
+        value: activeProspectBatch.value?.blocked_count || 0,
+        tone: 'red',
+    },
+    {
+        key: 'rejected',
+        label: t('marketing.campaign_wizard.prospecting.kpis.rejected'),
+        value: activeProspectBatch.value?.rejected_count || 0,
+        tone: 'rose',
+    },
+    {
+        key: 'review-required',
+        label: t('marketing.campaign_wizard.prospecting.kpis.review_required'),
+        value: activeProspectBatch.value?.analysis_summary?.review_required_count
+            ?? activeProspectBatch.value?.accepted_count
+            ?? 0,
+        tone: 'violet',
+    },
+]));
 
 const prospectIdentity = (prospect) => {
     return String(prospect?.contact_name || '').trim()
@@ -766,24 +829,12 @@ const resetProspectFilters = async () => {
                         <div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                             {{ t('marketing.campaign_wizard.prospecting.review_title') }}
                         </div>
-                        <div class="mt-3 grid grid-cols-2 gap-2">
-                            <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-3 text-xs dark:border-neutral-700 dark:bg-neutral-800">
-                                <div class="text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_wizard.prospecting.summary.total_batches') }}</div>
-                                <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ prospectingBatchSummary?.total_batches || 0 }}</div>
-                            </div>
-                            <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-3 text-xs dark:border-neutral-700 dark:bg-neutral-800">
-                                <div class="text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_wizard.prospecting.summary.analyzed_batches') }}</div>
-                                <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ prospectingBatchSummary?.analyzed_batches || 0 }}</div>
-                            </div>
-                            <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-3 text-xs dark:border-neutral-700 dark:bg-neutral-800">
-                                <div class="text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_wizard.prospecting.summary.approved_batches') }}</div>
-                                <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ prospectingBatchSummary?.approved_batches || 0 }}</div>
-                            </div>
-                            <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-3 text-xs dark:border-neutral-700 dark:bg-neutral-800">
-                                <div class="text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_wizard.prospecting.summary.canceled_batches') }}</div>
-                                <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ prospectingBatchSummary?.canceled_batches || 0 }}</div>
-                            </div>
-                        </div>
+                        <KpiMetricGrid
+                            class="mt-3"
+                            :metrics="batchSummaryMetrics"
+                            grid-class="grid-cols-2"
+                            compact
+                        />
                     </section>
 
                     <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
@@ -854,28 +905,7 @@ const resetProspectFilters = async () => {
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-2 xl:grid-cols-5">
-                        <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-3 text-xs dark:border-neutral-700 dark:bg-neutral-800">
-                            <div class="text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_wizard.prospecting.kpis.accepted') }}</div>
-                            <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ activeProspectBatch?.accepted_count || 0 }}</div>
-                        </div>
-                        <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-3 text-xs dark:border-neutral-700 dark:bg-neutral-800">
-                            <div class="text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_wizard.prospecting.kpis.duplicates') }}</div>
-                            <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ activeProspectBatch?.duplicate_count || 0 }}</div>
-                        </div>
-                        <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-3 text-xs dark:border-neutral-700 dark:bg-neutral-800">
-                            <div class="text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_wizard.prospecting.kpis.blocked') }}</div>
-                            <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ activeProspectBatch?.blocked_count || 0 }}</div>
-                        </div>
-                        <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-3 text-xs dark:border-neutral-700 dark:bg-neutral-800">
-                            <div class="text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_wizard.prospecting.kpis.rejected') }}</div>
-                            <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ activeProspectBatch?.rejected_count || 0 }}</div>
-                        </div>
-                        <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-3 text-xs dark:border-neutral-700 dark:bg-neutral-800">
-                            <div class="text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_wizard.prospecting.kpis.review_required') }}</div>
-                            <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ activeProspectBatch?.analysis_summary?.review_required_count ?? activeProspectBatch?.accepted_count ?? 0 }}</div>
-                        </div>
-                    </div>
+                    <KpiMetricGrid :metrics="activeBatchMetrics" />
 
                     <div class="grid grid-cols-1 gap-2 xl:grid-cols-3">
                         <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-3 text-xs dark:border-neutral-700 dark:bg-neutral-800">

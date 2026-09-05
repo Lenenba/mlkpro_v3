@@ -14,11 +14,13 @@ use App\Modules\AiAssistant\Models\AiAssistantSetting;
 use App\Modules\AiAssistant\Models\AiConversation;
 use App\Modules\AiAssistant\Policies\AiAssistantSettingPolicy;
 use App\Modules\AiAssistant\Policies\AiConversationPolicy;
+use App\Notifications\ResetPasswordLinkNotification;
 use App\Observers\PaymentObserver;
 use App\Services\Campaigns\MarketingSettingsService;
 use App\Services\Campaigns\TemplateSeederService;
 use App\Services\Capacity\CapacityOutcomeClassifier;
 use App\Services\Capacity\CapacityRunContextService;
+use App\Services\Demo\DemoScenarioRegistry;
 use App\Services\Observability\ExceptionStatusCodeResolver;
 use App\Services\Observability\ObservabilityCacheStore;
 use App\Services\Observability\ObservabilityLogService;
@@ -29,7 +31,10 @@ use App\Services\Observability\TelemetrySanitizer;
 use App\Services\Observability\TelemetryScope;
 use App\Services\PlatformAdminNotifier;
 use App\Services\Rbac\AccessControl;
-use App\Support\LocalePreference;
+use App\Services\Social\Buffer\BufferDeliveryStatusGateway;
+use App\Services\Social\Buffer\BufferDistributionGateway;
+use App\Services\Social\Contracts\SocialDeliveryStatusGatewayInterface;
+use App\Services\Social\Contracts\SocialDistributionGatewayInterface;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -72,6 +77,25 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(SlowQueryService::class);
         $this->app->singleton(CapacityRunContextService::class);
         $this->app->singleton(CapacityOutcomeClassifier::class);
+        $this->app->singleton(
+            SocialDistributionGatewayInterface::class,
+            BufferDistributionGateway::class,
+        );
+        $this->app->singleton(
+            SocialDeliveryStatusGatewayInterface::class,
+            BufferDeliveryStatusGateway::class,
+        );
+        $this->app->singleton(
+            DemoScenarioRegistry::class,
+            fn ($app): DemoScenarioRegistry => new DemoScenarioRegistry(
+                collect((array) config('demo_scenarios.scenarios', []))
+                    ->pluck('generator')
+                    ->filter(fn (mixed $class): bool => is_string($class) && class_exists($class))
+                    ->map(fn (string $class) => $app->make($class))
+                    ->values()
+                    ->all()
+            )
+        );
     }
 
     /**
@@ -87,24 +111,7 @@ class AppServiceProvider extends ServiceProvider
         Payment::observe(PaymentObserver::class);
 
         ResetPassword::toMailUsing(function ($notifiable, string $token): MailMessage {
-            $locale = LocalePreference::forNotifiable($notifiable);
-            $broker = (string) config('auth.defaults.passwords', 'users');
-            $expires = (int) config("auth.passwords.{$broker}.expire", 60);
-
-            return (new MailMessage)
-                ->subject(LocalePreference::trans('mail.auth.reset_password.subject', locale: $locale))
-                ->view('emails.auth.reset-password', [
-                    'companyName' => config('app.name'),
-                    'companyLogo' => null,
-                    'recipientName' => (string) ($notifiable->name ?? ''),
-                    'resetUrl' => route('password.reset', [
-                        'token' => $token,
-                        'email' => method_exists($notifiable, 'getEmailForPasswordReset')
-                            ? $notifiable->getEmailForPasswordReset()
-                            : (string) ($notifiable->email ?? ''),
-                    ]),
-                    'expiresInMinutes' => $expires,
-                ]);
+            return (new ResetPasswordLinkNotification($token))->toMail($notifiable);
         });
 
         RateLimiter::for('api', function (Request $request) {

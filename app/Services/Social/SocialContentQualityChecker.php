@@ -53,7 +53,17 @@ class SocialContentQualityChecker
                 ];
             }
 
-            if ($connection->token_expires_at instanceof Carbon
+            if ((bool) config('services.buffer.delivery.enabled', false)
+                && ! $connection->usesBufferPublishingTransport()) {
+                return [
+                    'passes' => false,
+                    'message' => 'Pulse automations can only publish through active Buffer channels.',
+                    'connections' => collect(),
+                ];
+            }
+
+            if (! $connection->usesBufferPublishingTransport()
+                && $connection->token_expires_at instanceof Carbon
                 && $connection->token_expires_at->lessThanOrEqualTo($resolvedNow->copy()->addMinutes(5))) {
                 $connection = $this->connectionService->refresh($owner, $connection)->fresh();
             }
@@ -125,6 +135,10 @@ class SocialContentQualityChecker
     {
         if (! $connection->is_active || (string) $connection->status !== SocialAccountConnection::STATUS_CONNECTED) {
             return false;
+        }
+
+        if ($connection->usesBufferPublishingTransport()) {
+            return true;
         }
 
         return ! ($connection->token_expires_at instanceof Carbon && $connection->token_expires_at->lessThanOrEqualTo($now));

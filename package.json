@@ -1,11 +1,22 @@
 {
     "private": true,
     "type": "module",
+    "engines": {
+        "node": ">=20.6.0"
+    },
     "scripts": {
         "build": "node --max_old_space_size=1536 ./node_modules/vite/bin/vite.js build",
+        "codex:mcp": "node scripts/codex-mcp-list.mjs",
         "dev": "vite",
-        "qa:build": "npm run build",
+        "docs:index": "node scripts/generate-doc-index.mjs",
+        "docs:index:check": "node scripts/generate-doc-index.mjs --check",
+        "pulse:buffer:facebook-draft-lifecycle": "node --env-file=.env scripts/spikes/buffer/wp1-facebook-draft-lifecycle.mjs",
+        "pulse:buffer:probe": "node --env-file=.env scripts/spikes/buffer/wp1-read-only-probe.mjs",
+        "qa:build": "php artisan view:clear && npm run build",
         "qa:capacity-runner": "node --test tests/Node/P0006CapacityRunnerTest.mjs",
+        "qa:node": "node --test tests/Node/*.mjs",
+        "qa:frontend-budgets": "node scripts/check-frontend-budgets.mjs",
+        "qa:frontend-budgets:measure": "node scripts/check-frontend-budgets.mjs --measure",
         "qa:e2e": "npm run qa:build && playwright test",
         "qa:e2e:install": "playwright install chromium"
     },

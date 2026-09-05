@@ -4,9 +4,10 @@ import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, useForm, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { resolveContextualCompany } from '@/utils/companyBranding';
 
 const props = defineProps({
     email: {
@@ -29,9 +30,18 @@ const props = defineProps({
         type: String,
         default: '',
     },
+    company: {
+        type: Object,
+        default: null,
+    },
 });
 
 const { t } = useI18n();
+const page = usePage();
+const contextualCompany = computed(() => resolveContextualCompany(
+    page.props.auth?.account,
+    props.company
+));
 
 const form = useForm({
     code: '',
@@ -66,7 +76,7 @@ const resend = () => {
 </script>
 
 <template>
-    <GuestLayout>
+    <GuestLayout :company="contextualCompany">
         <Head :title="t('two_factor.title')" />
 
         <div class="space-y-4">

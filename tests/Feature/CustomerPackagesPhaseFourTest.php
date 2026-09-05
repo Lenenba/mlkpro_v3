@@ -8,12 +8,14 @@ use App\Models\OfferPackage;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\Reservation;
+use App\Models\ReservationStatusTransition;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Notifications\CampaignInAppNotification;
 use App\Services\OfferPackages\CustomerPackageService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Validation\ValidationException;
 
 function customerPackagesPhaseFourOwner(array $overrides = []): User
 {
@@ -147,6 +149,187 @@ it('consumes a matching customer forfait when a reservation is completed', funct
 
     expect($package->fresh()->remaining_quantity)->toBe(4)
         ->and(CustomerPackageUsage::query()->active()->count())->toBe(1);
+
+    Carbon::setTestNow();
+});
+
+it('rolls back completion when forfait consumption fails and can retry once', function () {
+    $this->travelTo(Carbon::parse('2026-05-11 12:00:00', 'UTC'));
+    $owner = customerPackagesPhaseFourOwner();
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    $service = customerPackagesPhaseFourProduct($owner);
+    $offer = customerPackagesPhaseFourOffer($owner, $service);
+    $package = app(CustomerPackageService::class)->assign($owner, $customer, $offer, [
+        'starts_at' => '2026-05-01',
+        'initial_quantity' => 1,
+    ]);
+    $reservation = customerPackagesPhaseFourReservation($owner, $customer, $service);
+    $statusVersion = $reservation->fresh()->status_version;
+    $rejectConsumption = true;
+    ActivityLog::creating(function (ActivityLog $log) use (&$rejectConsumption): void {
+        if ($rejectConsumption && $log->action === 'customer_package_consumed') {
+            throw ValidationException::withMessages(['customer_package_id' => 'Forfait consumption failed.']);
+        }
+    });
+    Notification::fake();
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->patchJson(route('reservation.status', $reservation), ['status' => Reservation::STATUS_COMPLETED])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('customer_package_id');
+
+    $this->assertDatabaseHas('reservations', [
+        'id' => $reservation->id,
+        'status' => Reservation::STATUS_CONFIRMED,
+        'status_version' => $statusVersion,
+    ]);
+    $this->assertDatabaseHas('customer_packages', [
+        'id' => $package->id,
+        'remaining_quantity' => 1,
+        'consumed_quantity' => 0,
+    ]);
+    $this->assertDatabaseMissing('customer_package_usages', ['reservation_id' => $reservation->id]);
+    $this->assertDatabaseMissing('reservation_status_transitions', ['reservation_id' => $reservation->id]);
+    Notification::assertNothingSent();
+
+    $rejectConsumption = false;
+    $this->patchJson(route('reservation.status', $reservation), ['status' => Reservation::STATUS_COMPLETED])
+        ->assertOk();
+    $this->patchJson(route('reservation.status', $reservation), ['status' => Reservation::STATUS_COMPLETED])
+        ->assertOk();
+
+    $this->assertDatabaseHas('customer_packages', [
+        'id' => $package->id,
+        'remaining_quantity' => 0,
+        'consumed_quantity' => 1,
+    ]);
+    expect(CustomerPackageUsage::query()->where('reservation_id', $reservation->id)->count())->toBe(1);
+});
+
+it('rolls back the reservation status and balance when forfait restoration fails', function () {
+    $this->travelTo(Carbon::parse('2026-05-11 12:00:00', 'UTC'));
+    $owner = customerPackagesPhaseFourOwner();
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    $service = customerPackagesPhaseFourProduct($owner);
+    $offer = customerPackagesPhaseFourOffer($owner, $service);
+    $package = app(CustomerPackageService::class)->assign($owner, $customer, $offer, [
+        'starts_at' => '2026-05-01',
+        'initial_quantity' => 1,
+    ]);
+    $reservation = customerPackagesPhaseFourReservation($owner, $customer, $service);
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->patchJson(route('reservation.status', $reservation), ['status' => Reservation::STATUS_COMPLETED])
+        ->assertOk();
+    $statusVersion = $reservation->fresh()->status_version;
+    $transitionCount = ReservationStatusTransition::query()->where('reservation_id', $reservation->id)->count();
+    ActivityLog::creating(function (ActivityLog $log): void {
+        if ($log->action === 'customer_package_usage_restored') {
+            throw ValidationException::withMessages(['customer_package_id' => 'Forfait restoration failed.']);
+        }
+    });
+    Notification::fake();
+
+    $this->patchJson(route('reservation.status', $reservation), ['status' => Reservation::STATUS_NO_SHOW])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('customer_package_id');
+
+    $this->assertDatabaseHas('reservations', [
+        'id' => $reservation->id,
+        'status' => Reservation::STATUS_COMPLETED,
+        'status_version' => $statusVersion,
+    ]);
+    $this->assertDatabaseHas('customer_packages', [
+        'id' => $package->id,
+        'remaining_quantity' => 0,
+        'consumed_quantity' => 1,
+    ]);
+    $this->assertDatabaseHas('customer_package_usages', [
+        'reservation_id' => $reservation->id,
+        'reversed_at' => null,
+    ]);
+    expect(ReservationStatusTransition::query()->where('reservation_id', $reservation->id)->count())
+        ->toBe($transitionCount);
+    expect(data_get($reservation->fresh()->metadata, 'customer_package.status'))->toBe('consumed');
+    Notification::assertNothingSent();
+});
+
+it('does not consume a forfait for a reservation using another service', function () {
+    Carbon::setTestNow(Carbon::parse('2026-05-11 12:00:00', 'UTC'));
+
+    $owner = customerPackagesPhaseFourOwner();
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    $includedService = customerPackagesPhaseFourProduct($owner);
+    $otherService = customerPackagesPhaseFourProduct($owner, ['name' => 'Another reservation service']);
+    $offer = customerPackagesPhaseFourOffer($owner, $includedService);
+
+    $package = app(CustomerPackageService::class)->assign($owner, $customer, $offer, [
+        'starts_at' => '2026-05-01',
+        'initial_quantity' => 5,
+    ]);
+    $reservation = customerPackagesPhaseFourReservation($owner, $customer, $otherService);
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->patchJson(route('reservation.status', $reservation), [
+            'status' => Reservation::STATUS_COMPLETED,
+        ])
+        ->assertOk();
+
+    expect($package->fresh()->remaining_quantity)->toBe(5)
+        ->and(CustomerPackageUsage::query()->active()->count())->toBe(0)
+        ->and(data_get($reservation->fresh()->metadata, 'customer_package.status'))->toBe('skipped')
+        ->and(data_get($reservation->fresh()->metadata, 'customer_package.reason'))->toBe('no_eligible_customer_package');
+
+    Carbon::setTestNow();
+});
+
+it('skips suspended recurring forfaits for reservations but keeps payment due forfaits eligible', function () {
+    Carbon::setTestNow(Carbon::parse('2026-05-11 12:00:00', 'UTC'));
+
+    $owner = customerPackagesPhaseFourOwner();
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    $service = customerPackagesPhaseFourProduct($owner);
+    $offer = customerPackagesPhaseFourOffer($owner, $service);
+    $package = app(CustomerPackageService::class)->assign($owner, $customer, $offer, [
+        'starts_at' => '2026-05-01',
+        'initial_quantity' => 2,
+    ]);
+    $package->forceFill([
+        'is_recurring' => true,
+        'recurrence_status' => CustomerPackage::RECURRENCE_SUSPENDED,
+    ])->save();
+    $suspendedReservation = customerPackagesPhaseFourReservation($owner, $customer, $service);
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->patchJson(route('reservation.status', $suspendedReservation), [
+            'status' => Reservation::STATUS_COMPLETED,
+        ])
+        ->assertOk();
+
+    expect(CustomerPackageUsage::query()->count())->toBe(0)
+        ->and(data_get($suspendedReservation->fresh()->metadata, 'customer_package.reason'))
+        ->toBe('no_eligible_customer_package');
+
+    $package->forceFill([
+        'recurrence_status' => CustomerPackage::RECURRENCE_PAYMENT_DUE,
+    ])->save();
+    $graceReservation = customerPackagesPhaseFourReservation($owner, $customer, $service, [
+        'starts_at' => '2026-05-11 10:30:00',
+    ]);
+
+    $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->patchJson(route('reservation.status', $graceReservation), [
+            'status' => Reservation::STATUS_COMPLETED,
+        ])
+        ->assertOk();
+
+    expect(CustomerPackageUsage::query()->count())->toBe(1)
+        ->and($package->fresh()->remaining_quantity)->toBe(1)
+        ->and(data_get($graceReservation->fresh()->metadata, 'customer_package.status'))->toBe('consumed');
 
     Carbon::setTestNow();
 });

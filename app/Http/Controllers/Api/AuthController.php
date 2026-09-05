@@ -6,7 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\CompanyFeatureService;
+use App\Services\Portal\PortalAccessService;
+use App\Services\Portal\PortalCapabilityService;
+use App\Services\Rbac\PermissionCatalog;
 use App\Services\SecurityEventService;
+use App\Services\TenantBrandingResolver;
 use App\Services\TwoFactorService;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\Request;
@@ -19,31 +23,32 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
+    public function __construct(
+        private readonly PortalAccessService $portalAccessService,
+        private readonly PortalCapabilityService $portalCapabilityService,
+    ) {}
+
     protected function buildMeta(User $user): array
     {
-        $ownerId = $user->accountOwnerId();
-
-        if ($user->isClient()) {
-            $customer = $user->relationLoaded('customerProfile')
-                ? $user->customerProfile
-                : $user->customerProfile()->first();
-
-            if ($customer?->user_id) {
-                $ownerId = $customer->user_id;
-            }
-        }
-
-        $owner = $ownerId === $user->id
-            ? $user
-            : User::query()->find($ownerId);
+        $brandingResolver = app(TenantBrandingResolver::class);
+        $owner = $brandingResolver->resolveAccountOwner($user);
+        $ownerId = $owner?->id ?? $user->accountOwnerId();
+        $tenantBranding = $brandingResolver->forAccountOwner($owner);
 
         $features = $owner ? app(CompanyFeatureService::class)->resolveEnabledFeatures($owner) : [];
+        $portalCapabilities = null;
+        $portalContext = null;
+        if ($user->isClient() && $this->portalAccessService->clientHasPortalAccess($user)) {
+            $portalCapabilities = $this->portalCapabilityService->forUser($user);
+            $portalContext = $this->portalCapabilityService->context($portalCapabilities);
+        }
 
         $teamMembership = null;
         if (! $user->isAccountOwner()) {
             $teamMembership = $user->relationLoaded('teamMembership')
                 ? $user->teamMembership
-                : $user->teamMembership()->first();
+                : $user->teamMembership()->with('companyRole.permissions')->first();
+            $teamMembership?->loadMissing('companyRole.permissions');
         }
 
         $platformAdmin = null;
@@ -51,6 +56,17 @@ class AuthController extends Controller
             $platformAdmin = $user->relationLoaded('platformAdmin')
                 ? $user->platformAdmin
                 : $user->platformAdmin()->first();
+        }
+
+        $teamPermissions = [];
+        if ($teamMembership) {
+            $directPermissions = is_array($teamMembership->permissions)
+                ? $teamMembership->permissions
+                : [];
+            $teamPermissions = array_values(array_unique([
+                ...$directPermissions,
+                ...app(PermissionCatalog::class)->expand($teamMembership->resolvedPermissions()),
+            ]));
         }
 
         return [
@@ -61,12 +77,16 @@ class AuthController extends Controller
             'is_superadmin' => $user->isSuperadmin(),
             'is_platform_admin' => $user->isPlatformAdmin(),
             'company' => $owner ? [
-                'name' => $owner->company_name,
+                'name' => $tenantBranding['name'],
                 'type' => $owner->company_type,
                 'onboarded' => (bool) $owner->onboarding_completed_at,
-                'logo_url' => $owner->company_logo_url,
+                'logo_url' => $tenantBranding['custom_logo_url'],
+                'custom_logo_url' => $tenantBranding['custom_logo_url'],
+                'has_custom_logo' => $tenantBranding['has_custom_logo'],
             ] : null,
             'features' => $features,
+            ...($portalCapabilities !== null ? ['portal_capabilities' => $portalCapabilities] : []),
+            ...($portalContext !== null ? ['portal_context' => $portalContext] : []),
             'platform' => $platformAdmin ? [
                 'role' => $platformAdmin->role,
                 'permissions' => $platformAdmin->permissions ?? [],
@@ -74,7 +94,7 @@ class AuthController extends Controller
             ] : null,
             'team' => $teamMembership ? [
                 'role' => $teamMembership->role,
-                'permissions' => $teamMembership->permissions ?? [],
+                'permissions' => $teamPermissions,
             ] : null,
         ];
     }
@@ -96,6 +116,13 @@ class AuthController extends Controller
 
         if ($user->isSuspended()) {
             return response()->json(['message' => 'Account suspended.'], 403);
+        }
+
+        $user->loadMissing('role');
+        if ($user->isClient() && ! $this->portalAccessService->clientHasPortalAccess($user)) {
+            return response()->json([
+                'message' => __('ui.auth.portal_access_disabled'),
+            ], 403);
         }
 
         $deviceName = $validated['device_name'] ?? '';

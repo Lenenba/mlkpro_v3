@@ -7,6 +7,7 @@ use App\Models\SocialMediaAsset;
 use App\Models\SocialPostTemplate;
 use App\Models\TeamMember;
 use App\Models\User;
+use App\Services\Social\SocialMediaAssetService;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -64,6 +65,7 @@ function pulseTemplateTeamMember(
 }
 
 beforeEach(function () {
+    config()->set('services.buffer.delivery.enabled', false);
     $this->withoutMiddleware(ValidateCsrfToken::class);
     $this->withoutMiddleware(EnsureTwoFactorVerified::class);
 });
@@ -386,9 +388,172 @@ it('lets owners upload local images for pulse templates', function () {
     $updatedPath = data_get($updatedTemplate->media_payload, '0.path');
 
     expect($updatedPath)->toBeString()->not->toBe('');
+    Storage::disk('public')->assertMissing($storedPath);
     Storage::disk('public')->assertExists($updatedPath);
     $update->assertJsonPath('template.image_url', Storage::disk('public')->url($updatedPath));
 });
+
+it('stores multiple uploaded media files for pulse templates', function () {
+    Storage::fake('public');
+
+    $owner = pulseTemplateOwner();
+
+    $response = $this->actingAs($owner)
+        ->post(route('social.templates.store'), [
+            'name' => 'Multi-media template',
+            'text' => 'Reusable content with local media',
+            'media_files' => [
+                UploadedFile::fake()->image('template-cover.png', 1200, 800),
+                UploadedFile::fake()->create('template-demo.webm', 128, 'video/webm'),
+                UploadedFile::fake()->create('template-guide.pdf', 64, 'application/pdf'),
+            ],
+        ]);
+
+    $response->assertCreated()
+        ->assertJsonPath('template.media_assets.0.type', 'image')
+        ->assertJsonPath('template.media_assets.1.type', 'video')
+        ->assertJsonPath('template.media_assets.2.type', 'document');
+
+    $template = SocialPostTemplate::query()->findOrFail((int) $response->json('template.id'));
+    $media = (array) $template->media_payload;
+
+    expect($media)->toHaveCount(3)
+        ->and(array_column($media, 'type'))->toBe(['image', 'video', 'document'])
+        ->and(array_column($media, 'name'))->toBe([
+            'template-cover.png',
+            'template-demo.webm',
+            'template-guide.pdf',
+        ]);
+
+    foreach ($media as $asset) {
+        expect(data_get($asset, 'path'))->toBeString()->not->toBe('');
+        Storage::disk('public')->assertExists((string) data_get($asset, 'path'));
+    }
+});
+
+it('keeps trusted upload metadata when a pulse template is saved unchanged', function () {
+    Storage::fake('public');
+
+    $owner = pulseTemplateOwner();
+    $create = $this->actingAs($owner)
+        ->post(route('social.templates.store'), [
+            'name' => 'Persistent upload',
+            'media_files' => [
+                UploadedFile::fake()->create('persistent-video.mp4', 64, 'video/mp4'),
+            ],
+        ]);
+
+    $create->assertCreated();
+    $templateId = (int) $create->json('template.id');
+    $mediaAsset = (array) $create->json('template.media_assets.0');
+    $storedPath = (string) ($mediaAsset['path'] ?? '');
+
+    $update = $this->actingAs($owner)
+        ->post(route('social.templates.update', $templateId), [
+            '_method' => 'PUT',
+            'name' => 'Persistent upload updated',
+            'media_assets' => json_encode([$mediaAsset], JSON_THROW_ON_ERROR),
+        ]);
+
+    $update->assertOk()
+        ->assertJsonPath('template.media_assets.0.source', 'upload')
+        ->assertJsonPath('template.media_assets.0.disk', 'public')
+        ->assertJsonPath('template.media_assets.0.path', $storedPath)
+        ->assertJsonPath('template.media_assets.0.mime_type', 'video/mp4');
+
+    Storage::disk('public')->assertExists($storedPath);
+});
+
+it('does not trust or delete an upload path owned by another pulse tenant', function () {
+    Storage::fake('public');
+
+    $owner = pulseTemplateOwner();
+    $otherOwner = pulseTemplateOwner();
+    $foreignAsset = app(SocialMediaAssetService::class)->storeUploadedMedia(
+        $otherOwner,
+        UploadedFile::fake()->create('foreign-video.mp4', 64, 'video/mp4'),
+        'templates',
+    );
+    $foreignPath = (string) $foreignAsset['path'];
+    $foreignAsset['url'] = 'https://cdn.example.com/foreign-video.mp4';
+
+    $create = $this->actingAs($owner)
+        ->post(route('social.templates.store'), [
+            'name' => 'Foreign path injection',
+            'media_assets' => json_encode([$foreignAsset], JSON_THROW_ON_ERROR),
+        ]);
+
+    $create->assertCreated()
+        ->assertJsonPath('template.media_assets.0.source', 'url')
+        ->assertJsonMissingPath('template.media_assets.0.disk')
+        ->assertJsonMissingPath('template.media_assets.0.path')
+        ->assertJsonMissingPath('template.media_assets.0.mime_type');
+
+    $this->actingAs($owner)
+        ->deleteJson(route('social.templates.destroy', (int) $create->json('template.id')))
+        ->assertOk();
+
+    Storage::disk('public')->assertExists($foreignPath);
+});
+
+it('keeps a shared pulse upload until its final template reference is deleted', function () {
+    Storage::fake('public');
+
+    $owner = pulseTemplateOwner();
+    $original = $this->actingAs($owner)
+        ->post(route('social.templates.store'), [
+            'name' => 'Original shared upload',
+            'media_files' => [
+                UploadedFile::fake()->create('shared-video.mp4', 64, 'video/mp4'),
+            ],
+        ]);
+
+    $original->assertCreated();
+    $originalId = (int) $original->json('template.id');
+    $sharedAsset = (array) $original->json('template.media_assets.0');
+    $sharedPath = (string) ($sharedAsset['path'] ?? '');
+
+    $copy = $this->actingAs($owner)
+        ->post(route('social.templates.store'), [
+            'name' => 'Copied shared upload',
+            'media_assets' => json_encode([$sharedAsset], JSON_THROW_ON_ERROR),
+        ]);
+
+    $copy->assertCreated()
+        ->assertJsonPath('template.media_assets.0.path', $sharedPath);
+
+    $this->actingAs($owner)
+        ->deleteJson(route('social.templates.destroy', $originalId))
+        ->assertOk();
+    Storage::disk('public')->assertExists($sharedPath);
+
+    $this->actingAs($owner)
+        ->deleteJson(route('social.templates.destroy', (int) $copy->json('template.id')))
+        ->assertOk();
+    Storage::disk('public')->assertMissing($sharedPath);
+});
+
+it('creates safe non-empty PDF titles for pulse uploads', function (string $fileName, string $expectedTitle) {
+    Storage::fake('public');
+
+    $owner = pulseTemplateOwner();
+
+    $response = $this->actingAs($owner)
+        ->post(route('social.templates.store'), [
+            'name' => 'PDF title normalization',
+            'media_files' => [
+                UploadedFile::fake()->create($fileName, 32, 'application/pdf'),
+            ],
+        ]);
+
+    $response->assertCreated()
+        ->assertJsonPath('template.media_assets.0.title', $expectedTitle);
+
+    expect(mb_strlen((string) $response->json('template.media_assets.0.title')))->toBeLessThanOrEqual(200);
+})->with([
+    'empty basename' => ['.pdf', 'Document'],
+    'long basename' => [str_repeat('a', 240).'.pdf', str_repeat('a', 200)],
+]);
 
 it('blocks pulse template routes when the social module is unavailable', function () {
     $owner = pulseTemplateOwner([

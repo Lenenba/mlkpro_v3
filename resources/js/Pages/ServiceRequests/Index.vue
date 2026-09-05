@@ -3,6 +3,8 @@ import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
+import ModuleKpiSection from '@/Components/Dashboard/ModuleKpiSection.vue';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
 import AdminPaginationLinks from '@/Components/DataTable/AdminPaginationLinks.vue';
@@ -145,32 +147,32 @@ const statCards = computed(() => ([
     {
         key: 'total',
         label: t('service_requests.stats.total'),
-        value: props.stats?.total || 0,
-        tone: 'border-stone-200 bg-stone-50 text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200',
+        value: Number(props.stats?.total || 0).toLocaleString(),
+        tone: 'stone',
     },
     {
         key: 'new',
         label: t('service_requests.stats.new'),
-        value: props.stats?.new || 0,
-        tone: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300',
+        value: Number(props.stats?.new || 0).toLocaleString(),
+        tone: 'amber',
     },
     {
         key: 'active',
         label: t('service_requests.stats.active'),
-        value: props.stats?.active || 0,
-        tone: 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-300',
+        value: Number(props.stats?.active || 0).toLocaleString(),
+        tone: 'sky',
     },
     {
         key: 'resolved',
         label: t('service_requests.stats.resolved'),
-        value: props.stats?.resolved || 0,
-        tone: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300',
+        value: Number(props.stats?.resolved || 0).toLocaleString(),
+        tone: 'emerald',
     },
     {
         key: 'closed',
         label: t('service_requests.stats.closed'),
-        value: props.stats?.closed || 0,
-        tone: 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300',
+        value: Number(props.stats?.closed || 0).toLocaleString(),
+        tone: 'rose',
     },
 ]));
 
@@ -183,6 +185,27 @@ const relationBreakdownMap = computed(() => {
 
     return map;
 });
+
+const relationKpis = computed(() => ([
+    {
+        key: 'customer',
+        label: t('service_requests.relations.customer'),
+        value: Number(relationBreakdownMap.value.get('customer') || 0).toLocaleString(),
+        tone: 'emerald',
+    },
+    {
+        key: 'prospect',
+        label: t('service_requests.relations.prospect'),
+        value: Number(relationBreakdownMap.value.get('prospect') || 0).toLocaleString(),
+        tone: 'sky',
+    },
+    {
+        key: 'unlinked',
+        label: t('service_requests.relations.unlinked'),
+        value: Number(relationBreakdownMap.value.get('unlinked') || 0).toLocaleString(),
+        tone: 'stone',
+    },
+]));
 
 const requestDate = (serviceRequest) => serviceRequest?.submitted_at || serviceRequest?.created_at;
 const formatDate = (value) => humanizeDate(value) || '-';
@@ -353,21 +376,12 @@ const setViewMode = (mode) => {
                 </div>
             </section>
 
-            <section class="grid gap-3 sm:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(11rem,1fr))]">
-                <article
-                    v-for="card in statCards"
-                    :key="card.key"
-                    class="rounded-sm border p-3 shadow-sm"
-                    :class="card.tone"
-                >
-                    <div class="text-[11px] font-semibold uppercase tracking-[0.16em]">
-                        {{ card.label }}
-                    </div>
-                    <div class="mt-1.5 text-xl font-semibold lg:text-2xl">
-                        {{ Number(card.value || 0).toLocaleString() }}
-                    </div>
-                </article>
-            </section>
+            <ModuleKpiSection module-key="service-requests">
+                <KpiMetricGrid
+                    :metrics="statCards"
+                    grid-class="sm:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(11rem,1fr))]"
+                />
+            </ModuleKpiSection>
 
             <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
                 <div class="space-y-1">
@@ -821,29 +835,16 @@ const setViewMode = (mode) => {
 
                 <div class="space-y-4">
                     <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
-                        <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                        <h2 id="service-request-relations-title" class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
                             {{ $t('service_requests.side.relations') }}
                         </h2>
-                        <div class="mt-3 space-y-3 text-sm text-stone-600 dark:text-neutral-300">
-                            <div class="flex items-center justify-between">
-                                <span>{{ $t('service_requests.relations.customer') }}</span>
-                                <span class="font-semibold text-stone-800 dark:text-neutral-100">
-                                    {{ Number(relationBreakdownMap.get('customer') || 0).toLocaleString() }}
-                                </span>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <span>{{ $t('service_requests.relations.prospect') }}</span>
-                                <span class="font-semibold text-stone-800 dark:text-neutral-100">
-                                    {{ Number(relationBreakdownMap.get('prospect') || 0).toLocaleString() }}
-                                </span>
-                            </div>
-                            <div class="flex items-center justify-between">
-                                <span>{{ $t('service_requests.relations.unlinked') }}</span>
-                                <span class="font-semibold text-stone-800 dark:text-neutral-100">
-                                    {{ Number(relationBreakdownMap.get('unlinked') || 0).toLocaleString() }}
-                                </span>
-                            </div>
-                        </div>
+                        <KpiMetricGrid
+                            class="mt-3"
+                            :metrics="relationKpis"
+                            grid-class="grid-cols-1"
+                            compact
+                            labelled-by="service-request-relations-title"
+                        />
                     </section>
 
                     <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">

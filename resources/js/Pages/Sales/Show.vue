@@ -8,6 +8,7 @@ import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import { humanizeDate } from '@/utils/date';
 import { useCurrencyFormatter } from '@/utils/currency';
+import CompanyBrandLogo from '@/Components/CompanyBrandLogo.vue';
 
 const props = defineProps({
     sale: {
@@ -28,7 +29,6 @@ const { t } = useI18n();
 
 const page = usePage();
 const companyName = computed(() => page.props.auth?.account?.company?.name || t('sales.show.company_fallback'));
-const companyLogo = computed(() => page.props.auth?.account?.company?.logo_url || null);
 const createdBy = computed(() => props.sale?.created_by || null);
 const sellerName = computed(() => createdBy.value?.name || page.props.auth?.user?.name || t('sales.show.seller_fallback'));
 const sellerEmail = computed(() => createdBy.value?.email || page.props.auth?.user?.email || null);
@@ -111,15 +111,6 @@ const productFallback = (item) => {
     }
     return label.slice(0, 2).toUpperCase();
 };
-
-const companyInitials = computed(() => {
-    const name = companyName.value || '';
-    const parts = name.split(' ').filter(Boolean).slice(0, 2);
-    if (!parts.length) {
-        return t('sales.show.company_initials_fallback');
-    }
-    return parts.map((part) => part[0]).join('').toUpperCase();
-});
 
 const formatDate = (value) => {
     if (!value) {
@@ -431,19 +422,14 @@ const markCashPaymentAsPaid = (paymentId) => {
             <div class="print-card rounded-sm border border-stone-200 bg-stone-50 p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                 <div class="flex flex-wrap items-center justify-between gap-4">
                     <div class="flex items-center gap-3">
-                        <div class="h-12 w-12 overflow-hidden rounded-sm border border-stone-200 bg-white dark:border-neutral-700 dark:bg-neutral-800">
-                            <img
-                                v-if="companyLogo"
-                                :src="companyLogo"
-                                :alt="companyName"
-                                class="h-full w-full object-cover"
-                                loading="lazy"
-                                decoding="async"
-                            >
-                            <div v-else class="flex h-full w-full items-center justify-center text-xs font-semibold text-stone-500 dark:text-neutral-400">
-                                {{ companyInitials }}
-                            </div>
-                        </div>
+                        <CompanyBrandLogo
+                            :company="page.props.auth?.account?.company"
+                            :name="companyName"
+                            :show-fallback-name="false"
+                            container-class="h-12 w-12 p-1"
+                            class="shrink-0 shadow-none"
+                            loading="lazy"
+                        />
                         <div class="space-y-1">
                             <p class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">
                                 {{ companyName }}

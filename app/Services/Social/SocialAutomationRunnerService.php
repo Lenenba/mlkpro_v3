@@ -7,13 +7,16 @@ use App\Models\SocialAutomationRun;
 use App\Models\SocialPost;
 use App\Models\User;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use LogicException;
 
 class SocialAutomationRunnerService
 {
     private const AUTO_PAUSE_FAILURE_THRESHOLD = 3;
+
+    private const EXECUTION_CLAIM_TTL_SECONDS = 600;
 
     public function __construct(
         private readonly SocialContentPlannerService $plannerService,
@@ -22,6 +25,7 @@ class SocialAutomationRunnerService
         private readonly SocialPostService $postService,
         private readonly SocialApprovalService $approvalService,
         private readonly SocialPublishingService $publishingService,
+        private readonly SocialPostRevisionSnapshotService $revisionSnapshots,
     ) {}
 
     /**
@@ -104,17 +108,6 @@ class SocialAutomationRunnerService
             ];
         }
 
-        if (! $owner->hasCompanyFeature('social')) {
-            return $this->skipRuleCycle(
-                $rule,
-                'Malikia Pulse is disabled for this workspace.',
-                $dryRun,
-                $owner,
-                $startedAt,
-                'feature_disabled'
-            );
-        }
-
         if (! $this->plannerService->isDue($rule)) {
             return [
                 'rule_id' => $rule->id,
@@ -123,16 +116,46 @@ class SocialAutomationRunnerService
             ];
         }
 
-        $lock = Cache::lock('social-automation-rule:'.$rule->id, 30);
-        if (! $lock->get()) {
+        $claim = $this->acquireExecutionClaim($rule);
+        if ($claim === null) {
             return [
                 'rule_id' => $rule->id,
                 'status' => 'skipped',
-                'message' => 'This Pulse automation rule is already being processed.',
+                'message' => 'This Pulse automation rule is no longer due or is already being processed.',
+            ];
+        }
+
+        $rule = $claim['rule'];
+        $claimToken = $claim['claim_token'];
+        $expectedPolicy = $claim['policy'];
+        $owner = $rule->user;
+
+        if (! $owner instanceof User) {
+            $this->releaseExecutionClaim((int) $rule->id, $claimToken);
+
+            return [
+                'rule_id' => $rule->id,
+                'status' => 'error',
+                'message' => 'This Pulse automation rule has no valid account owner.',
             ];
         }
 
         try {
+            if (! $owner->hasCompanyFeature('social')) {
+                return $this->skipRuleCycle(
+                    $rule,
+                    'Pulse is disabled for this workspace.',
+                    $dryRun,
+                    $owner,
+                    $startedAt,
+                    'feature_disabled',
+                    false,
+                    [],
+                    $claimToken,
+                    $expectedPolicy,
+                );
+            }
+
             $targetValidation = $this->qualityChecker->validateTargets($owner, $rule);
             if (! $targetValidation['passes']) {
                 return $this->skipRuleCycle(
@@ -142,7 +165,10 @@ class SocialAutomationRunnerService
                     $owner,
                     $startedAt,
                     'targets_unavailable',
-                    true
+                    true,
+                    [],
+                    $claimToken,
+                    $expectedPolicy,
                 );
             }
 
@@ -155,7 +181,10 @@ class SocialAutomationRunnerService
                     $owner,
                     $startedAt,
                     'source_unavailable',
-                    true
+                    true,
+                    [],
+                    $claimToken,
+                    $expectedPolicy,
                 );
             }
 
@@ -173,7 +202,9 @@ class SocialAutomationRunnerService
                     [
                         'selected_source_type' => $selectedSource['source_type'] ?? null,
                         'selected_source_id' => $selectedSource['source_id'] ?? null,
-                    ]
+                    ],
+                    $claimToken,
+                    $expectedPolicy,
                 );
             }
 
@@ -188,20 +219,27 @@ class SocialAutomationRunnerService
                 ];
             }
 
-            $actor = $this->resolveActor($rule, $owner);
             $targetConnections = $targetValidation['connections'];
-            $nextGenerationAt = $this->plannerService->nextGenerationAt($rule, now());
-            $automationMetadata = $this->automationMetadata($rule, $candidate, $selectedSource);
-
-            $post = DB::transaction(function () use (
+            $committed = DB::transaction(function () use (
                 $owner,
-                $actor,
                 $rule,
                 $targetConnections,
                 $candidate,
-                $automationMetadata
-            ): SocialPost {
-                $draft = $this->postService->createAutomationDraft($owner, $actor, $rule, $targetConnections, [
+                $selectedSource,
+                $startedAt,
+                $claimToken,
+                $expectedPolicy,
+            ): array {
+                $claimedRule = $this->claimedRuleForUpdate(
+                    (int) $rule->id,
+                    (int) $owner->id,
+                    $claimToken,
+                    $expectedPolicy,
+                );
+                $actor = $this->resolveActor($claimedRule, $owner);
+                $mode = (string) $claimedRule->approval_mode;
+                $automationMetadata = $this->automationMetadata($claimedRule, $candidate, $selectedSource);
+                $draft = $this->postService->createAutomationDraft($owner, $actor, $claimedRule, $targetConnections, [
                     'source_type' => $candidate['source_type'],
                     'source_id' => $candidate['source_id'],
                     'content_payload' => $candidate['content_payload'],
@@ -218,31 +256,35 @@ class SocialAutomationRunnerService
                     ], fn ($value) => $value !== null),
                 ]);
 
-                return $rule->approval_mode === SocialAutomationRule::APPROVAL_AUTO_PUBLISH
-                    ? $this->publishingService->publishNow($owner, $actor, $draft)
+                $post = $mode === SocialAutomationRule::APPROVAL_AUTO_PUBLISH
+                    ? $this->publishingService->publishNowFromAutopilot(
+                        $owner,
+                        $actor,
+                        $draft,
+                        $claimedRule,
+                        $expectedPolicy,
+                        $claimToken,
+                    )
                     : $this->approvalService->submit($owner, $actor, $draft, [
-                        'note' => sprintf('Generated automatically by Pulse Autopilot rule "%s".', $rule->name),
+                        'note' => sprintf('Generated automatically by Pulse Autopilot rule "%s".', $claimedRule->name),
                     ]);
-            });
 
-            $completedAt = now();
-            $rule->forceFill([
-                'last_generated_at' => $completedAt,
-                'next_generation_at' => $nextGenerationAt,
-                'last_error' => null,
-                'metadata' => $this->markRuleHealthy($rule->metadata, $completedAt),
-            ])->save();
+                $completedAt = now();
+                $claimedRule->forceFill([
+                    'last_generated_at' => $completedAt,
+                    'next_generation_at' => $this->plannerService->nextGenerationAt($claimedRule, $completedAt),
+                    'last_error' => null,
+                    'metadata' => $this->markRuleHealthy($claimedRule->metadata, $completedAt),
+                ])->save();
 
-            $run = null;
-            if (! $dryRun) {
-                $run = $this->recordRun($rule, [
+                $run = $this->recordRun($claimedRule, [
                     'user_id' => $owner->id,
                     'social_post_id' => $post->id,
                     'status' => SocialAutomationRun::STATUS_GENERATED,
-                    'outcome_code' => $rule->approval_mode === SocialAutomationRule::APPROVAL_AUTO_PUBLISH
+                    'outcome_code' => $mode === SocialAutomationRule::APPROVAL_AUTO_PUBLISH
                         ? 'auto_published'
                         : 'queued_for_approval',
-                    'message' => $rule->approval_mode === SocialAutomationRule::APPROVAL_AUTO_PUBLISH
+                    'message' => $mode === SocialAutomationRule::APPROVAL_AUTO_PUBLISH
                         ? 'Pulse automation candidate generated and queued for publication.'
                         : 'Pulse automation candidate generated and submitted for approval.',
                     'source_type' => $selectedSource['source_type'] ?? null,
@@ -256,15 +298,25 @@ class SocialAutomationRunnerService
                     'started_at' => $startedAt,
                     'completed_at' => $completedAt,
                 ]);
-            }
+
+                return [
+                    'mode' => $mode,
+                    'post' => $post,
+                    'run' => $run,
+                ];
+            });
+
+            $post = $committed['post'];
+            $run = $committed['run'];
+            $mode = $committed['mode'];
 
             return [
                 'rule_id' => $rule->id,
                 'post_id' => $post->id,
                 'run_id' => $run?->id,
                 'status' => 'generated',
-                'mode' => $rule->approval_mode,
-                'message' => $rule->approval_mode === SocialAutomationRule::APPROVAL_AUTO_PUBLISH
+                'mode' => $mode,
+                'message' => $mode === SocialAutomationRule::APPROVAL_AUTO_PUBLISH
                     ? 'Pulse automation candidate generated and queued for publication.'
                     : 'Pulse automation candidate generated and submitted for approval.',
                 'source_type' => $selectedSource['source_type'] ?? null,
@@ -277,7 +329,9 @@ class SocialAutomationRunnerService
                 $dryRun,
                 $owner,
                 $startedAt,
-                'validation_error'
+                'validation_error',
+                $claimToken,
+                $expectedPolicy,
             );
         } catch (\Throwable $exception) {
             return $this->errorRuleCycle(
@@ -288,10 +342,12 @@ class SocialAutomationRunnerService
                 $dryRun,
                 $owner,
                 $startedAt,
-                'execution_error'
+                'execution_error',
+                $claimToken,
+                $expectedPolicy,
             );
         } finally {
-            optional($lock)->release();
+            $this->releaseExecutionClaim((int) $rule->id, $claimToken);
         }
     }
 
@@ -449,6 +505,123 @@ class SocialAutomationRunnerService
     }
 
     /**
+     * @return array{
+     *     rule:SocialAutomationRule,
+     *     claim_token:string,
+     *     policy:array{rule_id:int,approval_mode:string,policy_fingerprint:string,rule_updated_at:string}
+     * }|null
+     */
+    private function acquireExecutionClaim(SocialAutomationRule $rule): ?array
+    {
+        return DB::transaction(function () use ($rule): ?array {
+            $claimedAt = now();
+            $claimedRule = SocialAutomationRule::query()
+                ->whereKey($rule->id)
+                ->where('user_id', $rule->user_id)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $claimedRule
+                || ! $claimedRule->is_active
+                || ! $this->plannerService->isDue($claimedRule, $claimedAt)) {
+                return null;
+            }
+
+            $hasActiveClaim = is_string($claimedRule->execution_claim_token)
+                && trim($claimedRule->execution_claim_token) !== ''
+                && $claimedRule->execution_claimed_until instanceof Carbon
+                && $claimedRule->execution_claimed_until->isAfter($claimedAt);
+
+            if ($hasActiveClaim) {
+                return null;
+            }
+
+            $claimToken = (string) Str::uuid();
+            $usesTimestamps = $claimedRule->timestamps;
+            $claimedRule->timestamps = false;
+
+            try {
+                $claimedRule->forceFill([
+                    'execution_claim_token' => $claimToken,
+                    'execution_claimed_until' => $claimedAt->copy()->addSeconds(self::EXECUTION_CLAIM_TTL_SECONDS),
+                ])->save();
+            } finally {
+                $claimedRule->timestamps = $usesTimestamps;
+            }
+
+            $claimedRule->load(['user', 'createdBy']);
+
+            return [
+                'rule' => $claimedRule,
+                'claim_token' => $claimToken,
+                'policy' => $this->revisionSnapshots->autopilotPolicyForRule($claimedRule),
+            ];
+        });
+    }
+
+    /**
+     * @param  array<string, mixed>  $expectedPolicy
+     */
+    private function claimedRuleForUpdate(
+        int $ruleId,
+        int $ownerId,
+        string $claimToken,
+        array $expectedPolicy,
+    ): SocialAutomationRule {
+        $claimedRule = SocialAutomationRule::query()
+            ->whereKey($ruleId)
+            ->where('user_id', $ownerId)
+            ->lockForUpdate()
+            ->first();
+
+        if (! $claimedRule
+            || trim($claimToken) === ''
+            || ! is_string($claimedRule->execution_claim_token)
+            || ! hash_equals($claimedRule->execution_claim_token, $claimToken)
+            || ! $claimedRule->execution_claimed_until instanceof Carbon
+            || ! $claimedRule->execution_claimed_until->isFuture()) {
+            throw new LogicException('The Pulse Autopilot execution claim expired or was replaced before commit.');
+        }
+
+        $currentPolicy = $this->revisionSnapshots->autopilotPolicyForRule($claimedRule);
+        if (! $this->revisionSnapshots->autopilotPoliciesMatch($currentPolicy, $expectedPolicy)) {
+            throw new LogicException('The Pulse Autopilot policy changed after candidate generation.');
+        }
+
+        $claimedRule->load(['user', 'createdBy']);
+
+        return $claimedRule;
+    }
+
+    private function releaseExecutionClaim(int $ruleId, string $claimToken): void
+    {
+        if ($ruleId <= 0 || trim($claimToken) === '') {
+            return;
+        }
+
+        SocialAutomationRule::query()
+            ->whereKey($ruleId)
+            ->where('execution_claim_token', $claimToken)
+            ->toBase()
+            ->update([
+                'execution_claim_token' => null,
+                'execution_claimed_until' => null,
+            ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function staleExecutionResult(SocialAutomationRule $rule): array
+    {
+        return [
+            'rule_id' => $rule->id,
+            'status' => 'skipped',
+            'message' => 'This Pulse automation execution lost its claim or its policy changed before commit.',
+        ];
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function skipRuleCycle(
@@ -459,40 +632,64 @@ class SocialAutomationRunnerService
         ?Carbon $startedAt = null,
         string $outcomeCode = 'skipped',
         bool $countsAsFailure = false,
-        array $context = []
+        array $context = [],
+        string $claimToken = '',
+        array $expectedPolicy = [],
     ): array {
         if (! $dryRun) {
-            $completedAt = now();
-            $metadata = $countsAsFailure
-                ? $this->markRuleFailure($rule->metadata, $message, $outcomeCode, $completedAt)
-                : $this->clearRuleFailureStreak($rule->metadata, $completedAt);
+            try {
+                DB::transaction(function () use (
+                    $rule,
+                    $message,
+                    $owner,
+                    $startedAt,
+                    $outcomeCode,
+                    $countsAsFailure,
+                    $context,
+                    $claimToken,
+                    $expectedPolicy,
+                ): void {
+                    $claimedRule = $this->claimedRuleForUpdate(
+                        (int) $rule->id,
+                        (int) $rule->user_id,
+                        $claimToken,
+                        $expectedPolicy,
+                    );
+                    $completedAt = now();
+                    $metadata = $countsAsFailure
+                        ? $this->markRuleFailure($claimedRule->metadata, $message, $outcomeCode, $completedAt)
+                        : $this->clearRuleFailureStreak($claimedRule->metadata, $completedAt);
+                    $autoPaused = (bool) data_get($metadata, 'health.auto_paused', false);
 
-            $autoPaused = (bool) data_get($metadata, 'health.auto_paused', false);
-            $rule->forceFill([
-                'next_generation_at' => $this->plannerService->nextGenerationAt($rule, now()),
-                'last_error' => $message,
-                'is_active' => $autoPaused ? false : $rule->is_active,
-                'metadata' => $metadata,
-            ])->save();
+                    $claimedRule->forceFill([
+                        'next_generation_at' => $this->plannerService->nextGenerationAt($claimedRule, $completedAt),
+                        'last_error' => $message,
+                        'is_active' => $autoPaused ? false : $claimedRule->is_active,
+                        'metadata' => $metadata,
+                    ])->save();
 
-            if ($owner instanceof User) {
-                $this->recordRun($rule, [
-                    'user_id' => $owner->id,
-                    'status' => SocialAutomationRun::STATUS_SKIPPED,
-                    'outcome_code' => $autoPaused ? 'auto_paused' : $outcomeCode,
-                    'message' => $autoPaused
-                        ? sprintf('%s Pulse Autopilot paused this rule after repeated blocking runs.', $message)
-                        : $message,
-                    'source_type' => $context['selected_source_type'] ?? null,
-                    'source_id' => $context['selected_source_id'] ?? null,
-                    'metadata' => array_filter([
-                        'counts_as_failure' => $countsAsFailure,
-                        'auto_paused' => $autoPaused,
-                        'selected_source_label' => $context['selected_source_label'] ?? null,
-                    ], fn ($value) => $value !== null),
-                    'started_at' => $startedAt ?? $completedAt,
-                    'completed_at' => $completedAt,
-                ]);
+                    if ($owner instanceof User) {
+                        $this->recordRun($claimedRule, [
+                            'user_id' => $owner->id,
+                            'status' => SocialAutomationRun::STATUS_SKIPPED,
+                            'outcome_code' => $autoPaused ? 'auto_paused' : $outcomeCode,
+                            'message' => $autoPaused
+                                ? sprintf('%s Pulse Autopilot paused this rule after repeated blocking runs.', $message)
+                                : $message,
+                            'source_type' => $context['selected_source_type'] ?? null,
+                            'source_id' => $context['selected_source_id'] ?? null,
+                            'metadata' => array_filter([
+                                'counts_as_failure' => $countsAsFailure,
+                                'auto_paused' => $autoPaused,
+                                'selected_source_label' => $context['selected_source_label'] ?? null,
+                            ], fn ($value) => $value !== null),
+                            'started_at' => $startedAt ?? $completedAt,
+                            'completed_at' => $completedAt,
+                        ]);
+                    }
+                });
+            } catch (LogicException) {
+                return $this->staleExecutionResult($rule);
             }
         }
 
@@ -512,34 +709,61 @@ class SocialAutomationRunnerService
         bool $dryRun,
         ?User $owner = null,
         ?Carbon $startedAt = null,
-        string $outcomeCode = 'execution_error'
+        string $outcomeCode = 'execution_error',
+        string $claimToken = '',
+        array $expectedPolicy = [],
     ): array {
         if (! $dryRun) {
-            $completedAt = now();
-            $metadata = $this->markRuleFailure($rule->metadata, $message, $outcomeCode, $completedAt);
-            $autoPaused = (bool) data_get($metadata, 'health.auto_paused', false);
+            try {
+                DB::transaction(function () use (
+                    $rule,
+                    $message,
+                    $owner,
+                    $startedAt,
+                    $outcomeCode,
+                    $claimToken,
+                    $expectedPolicy,
+                ): void {
+                    $claimedRule = $this->claimedRuleForUpdate(
+                        (int) $rule->id,
+                        (int) $rule->user_id,
+                        $claimToken,
+                        $expectedPolicy,
+                    );
+                    $completedAt = now();
+                    $metadata = $this->markRuleFailure(
+                        $claimedRule->metadata,
+                        $message,
+                        $outcomeCode,
+                        $completedAt,
+                    );
+                    $autoPaused = (bool) data_get($metadata, 'health.auto_paused', false);
 
-            $rule->forceFill([
-                'next_generation_at' => $this->plannerService->nextGenerationAt($rule, now()),
-                'last_error' => $message,
-                'is_active' => $autoPaused ? false : $rule->is_active,
-                'metadata' => $metadata,
-            ])->save();
+                    $claimedRule->forceFill([
+                        'next_generation_at' => $this->plannerService->nextGenerationAt($claimedRule, $completedAt),
+                        'last_error' => $message,
+                        'is_active' => $autoPaused ? false : $claimedRule->is_active,
+                        'metadata' => $metadata,
+                    ])->save();
 
-            if ($owner instanceof User) {
-                $this->recordRun($rule, [
-                    'user_id' => $owner->id,
-                    'status' => SocialAutomationRun::STATUS_ERROR,
-                    'outcome_code' => $autoPaused ? 'auto_paused' : $outcomeCode,
-                    'message' => $autoPaused
-                        ? sprintf('%s Pulse Autopilot paused this rule after repeated execution errors.', $message)
-                        : $message,
-                    'metadata' => [
-                        'auto_paused' => $autoPaused,
-                    ],
-                    'started_at' => $startedAt ?? $completedAt,
-                    'completed_at' => $completedAt,
-                ]);
+                    if ($owner instanceof User) {
+                        $this->recordRun($claimedRule, [
+                            'user_id' => $owner->id,
+                            'status' => SocialAutomationRun::STATUS_ERROR,
+                            'outcome_code' => $autoPaused ? 'auto_paused' : $outcomeCode,
+                            'message' => $autoPaused
+                                ? sprintf('%s Pulse Autopilot paused this rule after repeated execution errors.', $message)
+                                : $message,
+                            'metadata' => [
+                                'auto_paused' => $autoPaused,
+                            ],
+                            'started_at' => $startedAt ?? $completedAt,
+                            'completed_at' => $completedAt,
+                        ]);
+                    }
+                });
+            } catch (LogicException) {
+                return $this->staleExecutionResult($rule);
             }
         }
 

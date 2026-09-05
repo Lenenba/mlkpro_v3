@@ -12,9 +12,14 @@ class ReservationSetting extends Model
 {
     use HasFactory;
 
+    public const PAST_RECONCILIATION_MODE_SIGNAL_ONLY = 'signal_only';
+
+    public const ACCOUNT_DEFAULT_MARKER = 1;
+
     protected $fillable = [
         'account_id',
         'team_member_id',
+        'account_default_marker',
         'business_preset',
         'buffer_minutes',
         'slot_interval_minutes',
@@ -37,6 +42,10 @@ class ReservationSetting extends Model
         'currency_code',
         'no_show_fee_enabled',
         'no_show_fee_amount',
+        'past_reservation_reconciliation_enabled',
+        'past_reservation_reconciliation_mode',
+        'past_reservation_grace_minutes',
+        'past_reservation_max_catchup_days',
     ];
 
     protected $casts = [
@@ -62,11 +71,22 @@ class ReservationSetting extends Model
         'currency_code' => 'string',
         'no_show_fee_enabled' => 'boolean',
         'no_show_fee_amount' => 'decimal:2',
+        'past_reservation_reconciliation_enabled' => 'boolean',
+        'past_reservation_reconciliation_mode' => 'string',
+        'past_reservation_grace_minutes' => 'integer',
+        'past_reservation_max_catchup_days' => 'integer',
+        'account_default_marker' => 'integer',
     ];
 
     protected static function booted(): void
     {
-        static::creating(function (self $setting) {
+        static::saving(function (self $setting): void {
+            $setting->account_default_marker = $setting->team_member_id === null
+                ? self::ACCOUNT_DEFAULT_MARKER
+                : null;
+        });
+
+        static::creating(function (self $setting): void {
             if ($setting->currency_code) {
                 return;
             }
@@ -90,5 +110,12 @@ class ReservationSetting extends Model
     public function scopeForAccount(Builder $query, int $accountId): Builder
     {
         return $query->where('account_id', $accountId);
+    }
+
+    public function scopeAccountDefault(Builder $query): Builder
+    {
+        return $query
+            ->whereNull('team_member_id')
+            ->where('account_default_marker', self::ACCOUNT_DEFAULT_MARKER);
     }
 }

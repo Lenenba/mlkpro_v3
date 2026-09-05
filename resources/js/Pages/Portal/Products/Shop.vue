@@ -1,12 +1,14 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import Modal from '@/Components/Modal.vue';
+import ClientPortalNotice from '@/Components/Portal/ClientPortalNotice.vue';
 import ClientPortalTabs from '@/Components/Portal/ClientPortalTabs.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import DateTimePicker from '@/Components/DateTimePicker.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
+import CompanyBrandLogo from '@/Components/CompanyBrandLogo.vue';
 import { useCurrencyFormatter } from '@/utils/currency';
 
 const props = defineProps({
@@ -349,6 +351,10 @@ const openCart = () => {
 };
 
 const closeCart = () => {
+    if (form.processing) {
+        return;
+    }
+
     showCart.value = false;
 };
 
@@ -375,6 +381,14 @@ const form = useForm({
     substitution_notes: '',
     items: [],
 });
+const cartInteractionLocked = computed(() => isLocked.value || form.processing);
+const cartErrorSummary = ref(null);
+const cartErrorMessages = computed(() => (
+    Object.values(form.errors || {})
+        .flatMap((value) => (Array.isArray(value) ? value : [value]))
+        .map((message) => String(message || '').trim())
+        .filter(Boolean)
+));
 const confirmForm = useForm({
     proof: null,
 });
@@ -471,7 +485,7 @@ const overviewTone = {
 };
 
 const selectMethod = (method) => {
-    if (isLocked.value) {
+    if (cartInteractionLocked.value) {
         return;
     }
     form.fulfillment_method = method;
@@ -573,8 +587,13 @@ watch(
     { deep: true }
 );
 
+const focusCartErrorSummary = async () => {
+    await nextTick();
+    cartErrorSummary.value?.$el?.focus?.();
+};
+
 const submitOrder = () => {
-    if (isLocked.value) {
+    if (isLocked.value || form.processing) {
         return;
     }
     form.items = cart.value.map((entry) => ({
@@ -588,6 +607,7 @@ const submitOrder = () => {
             onSuccess: () => {
                 showCart.value = false;
             },
+            onError: focusCartErrorSummary,
         });
         return;
     }
@@ -601,6 +621,7 @@ const submitOrder = () => {
             form.scheduled_for = '';
             showCart.value = false;
         },
+        onError: focusCartErrorSummary,
     });
 };
 
@@ -622,7 +643,7 @@ const submitReceiptConfirm = () => {
 };
 
 const cancelOrder = () => {
-    if (!isEditing.value || !order.value?.id || isLocked.value) {
+    if (!isEditing.value || !order.value?.id || isLocked.value || form.processing) {
         return;
     }
     if (!confirm(t('portal_shop.actions.cancel_confirm'))) {
@@ -630,6 +651,7 @@ const cancelOrder = () => {
     }
     form.delete(route('portal.orders.destroy', order.value.id), {
         preserveScroll: true,
+        onError: focusCartErrorSummary,
     });
 };
 
@@ -658,8 +680,8 @@ const startPayment = (type) => {
     <AuthenticatedLayout>
         <Head :title="pageTitle" />
 
-        <div class="space-y-5">
-            <section class="overflow-hidden rounded-[2rem] border border-stone-200/80 bg-white shadow-[0_30px_80px_-50px_rgba(15,23,42,0.45)] dark:border-neutral-800 dark:bg-neutral-900">
+        <div class="w-full min-w-0 max-w-full space-y-5">
+            <section class="overflow-hidden rounded-sm border border-stone-200/80 bg-white shadow-[0_30px_80px_-50px_rgba(15,23,42,0.45)] dark:border-neutral-800 dark:bg-neutral-900">
                 <div class="grid gap-0 lg:grid-cols-[1.45fr_0.95fr]">
                     <div class="relative overflow-hidden bg-gradient-to-br from-indigo-600 via-violet-500 to-indigo-400 px-6 py-7 text-white sm:px-8">
                         <div class="absolute -right-8 top-8 h-40 w-40 rounded-full bg-white/10 blur-2xl"></div>
@@ -669,23 +691,15 @@ const startPayment = (type) => {
                             <div class="flex items-start justify-between gap-4">
                                 <div class="space-y-4">
                                     <div class="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]">
-                                        <span class="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/16">
-                                            <img
-                                                v-if="company?.logo_url"
-                                                :src="company.logo_url"
-                                                :alt="company?.name || $t('portal_shop.header.logo_alt')"
-                                                class="h-full w-full rounded-full object-cover"
-                                                loading="lazy"
-                                                decoding="async"
-                                            >
-                                            <svg v-else class="size-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <path d="M6 6h15l-1.5 9h-12z" />
-                                                <path d="M6 6 4 3H2" />
-                                                <circle cx="9" cy="20" r="1" />
-                                                <circle cx="18" cy="20" r="1" />
-                                            </svg>
-                                        </span>
-                                        {{ $t('portal_shop.header.section') }}
+                                        <CompanyBrandLogo
+                                            :company="company"
+                                            :name="companyName"
+                                            :show-fallback-name="false"
+                                            container-class="h-8 w-8 p-0.5"
+                                            class="shrink-0 !rounded-full !border-white/30 shadow-none"
+                                            loading="lazy"
+                                        />
+                                        {{ companyName }}
                                     </div>
 
                                     <div>
@@ -698,7 +712,7 @@ const startPayment = (type) => {
                                     </div>
                                 </div>
 
-                                <div class="rounded-[1.35rem] border border-white/20 bg-white/10 px-4 py-3 text-right backdrop-blur">
+                                <div class="rounded-sm border border-white/20 bg-white/10 px-4 py-3 text-right backdrop-blur">
                                     <p class="text-xs uppercase tracking-[0.18em] text-white/70">
                                         {{ $t('portal_shop.search.results', { count: products.length }) }}
                                     </p>
@@ -714,14 +728,14 @@ const startPayment = (type) => {
                             <div class="flex flex-wrap items-center gap-3">
                                 <button
                                     type="button"
-                                    class="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-indigo-700 transition hover:-translate-y-0.5 hover:shadow-md"
+                                    class="inline-flex items-center gap-2 rounded-sm bg-white px-4 py-2 text-sm font-semibold text-indigo-700 transition hover:-translate-y-0.5 hover:shadow-md"
                                     @click="openCart"
                                 >
                                     {{ $t('portal_shop.cart.label', { count: cartItemCount }) }}
                                 </button>
                                 <Link
                                     :href="route('dashboard')"
-                                    class="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white/90 transition hover:bg-white/15"
+                                    class="rounded-sm border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white/90 transition hover:bg-white/15"
                                 >
                                     {{ $t('portal_shop.actions.back_to_dashboard') }}
                                 </Link>
@@ -736,7 +750,7 @@ const startPayment = (type) => {
                             :key="card.key"
                             :href="card.href || null"
                             :type="card.href ? null : 'button'"
-                            class="rounded-[1.4rem] border border-stone-200/80 bg-gradient-to-br px-4 py-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-neutral-800"
+                            class="rounded-sm border border-stone-200/80 bg-gradient-to-br px-4 py-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-neutral-800"
                             :class="overviewTone[card.tone]"
                             @click="card.key === 'cart' ? openCart() : null"
                         >
@@ -756,14 +770,14 @@ const startPayment = (type) => {
 
             <ClientPortalTabs
                 :tabs="productTabs"
-                aria-label="Product client sections"
+                :aria-label="$t('client_orders.portal_navigation')"
                 :columns="2"
             />
 
-            <div v-if="isLocked" class="rounded-[1.5rem] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100">
+            <div v-if="isLocked" class="rounded-sm border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100">
                 {{ $t('portal_shop.locked_notice') }}
             </div>
-            <div v-if="isEditing" class="rounded-[1.75rem] border border-stone-200/80 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+            <div v-if="isEditing" class="rounded-sm border border-stone-200/80 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <p class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ $t('portal_shop.status.order_status') }}</p>
@@ -854,7 +868,7 @@ const startPayment = (type) => {
 
             <div class="grid grid-cols-1 gap-4 lg:grid-cols-[260px_1fr]">
                 <aside class="space-y-4">
-                    <div class="rounded-[1.75rem] border border-stone-200/80 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+                    <div class="rounded-sm border border-stone-200/80 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
                         <div class="flex items-center justify-between">
                             <div class="flex items-center gap-2">
                                 <span class="inline-flex h-7 w-7 items-center justify-center rounded-sm border border-stone-200 bg-stone-50 text-stone-600 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
@@ -942,7 +956,7 @@ const startPayment = (type) => {
                 </aside>
                 <div class="space-y-4">
                     <div v-if="timeline.length || showPickupQr" class="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                        <div v-if="timeline.length" class="rounded-[1.6rem] border border-stone-200/80 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+                        <div v-if="timeline.length" class="rounded-sm border border-stone-200/80 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
                             <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('portal_shop.timeline.title') }}</h2>
                             <div class="mt-3 space-y-3">
                                 <div v-for="event in timeline" :key="event.id" class="flex items-start gap-3 text-sm">
@@ -959,7 +973,7 @@ const startPayment = (type) => {
                             </div>
                         </div>
 
-                        <div v-if="showPickupQr && pickupCode" class="rounded-[1.6rem] border border-stone-200/80 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+                        <div v-if="showPickupQr && pickupCode" class="rounded-sm border border-stone-200/80 bg-white p-4 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
                             <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('portal_shop.timeline.pickup_qr_title') }}</h2>
                             <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
                                 {{ $t('portal_shop.timeline.pickup_qr_note') }}
@@ -979,7 +993,7 @@ const startPayment = (type) => {
                             </div>
                         </div>
                     </div>
-                    <div class="rounded-[1.75rem] border border-stone-200/80 bg-white p-3 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
+                    <div class="rounded-sm border border-stone-200/80 bg-white p-3 shadow-sm dark:border-neutral-800 dark:bg-neutral-900">
                         <div class="flex flex-wrap items-center gap-3">
                             <div class="relative flex-1">
                             <div class="absolute inset-y-0 start-0 flex items-center pointer-events-none z-20 ps-3.5">
@@ -994,7 +1008,7 @@ const startPayment = (type) => {
                             <input
                                 v-model="search"
                                 type="text"
-                                class="block w-full rounded-[1.25rem] border border-stone-200 bg-stone-50 py-[11px] ps-10 pe-8 text-sm placeholder:text-stone-500 focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-200 dark:placeholder:text-neutral-400"
+                                class="block w-full rounded-sm border border-stone-200 bg-stone-50 py-[11px] ps-10 pe-8 text-sm placeholder:text-stone-500 focus:border-green-600 focus:ring-green-600 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-200 dark:placeholder:text-neutral-400"
                                 :placeholder="$t('portal_shop.search.placeholder')"
                             >
                         </div>
@@ -1002,7 +1016,7 @@ const startPayment = (type) => {
                                 <span>{{ $t('portal_shop.search.results', { count: filteredProducts.length }) }}</span>
                                 <button
                                     type="button"
-                                    class="relative inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 transition hover:-translate-y-0.5 hover:bg-stone-50 hover:shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+                                    class="relative inline-flex items-center gap-2 rounded-sm border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 transition hover:-translate-y-0.5 hover:bg-stone-50 hover:shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
                                     @click="openCart"
                                 >
                                     <span class="relative flex h-5 w-5 items-center justify-center">
@@ -1024,14 +1038,14 @@ const startPayment = (type) => {
                         </div>
                     </div>
 
-                    <div v-if="!filteredProducts.length" class="rounded-[1.75rem] border border-stone-200/80 bg-white p-6 text-sm text-stone-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">
+                    <div v-if="!filteredProducts.length" class="rounded-sm border border-stone-200/80 bg-white p-6 text-sm text-stone-500 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400">
                         {{ $t('portal_shop.empty.no_products') }}
                     </div>
                     <div v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
                         <div
                             v-for="(product, index) in filteredProducts"
                             :key="product.id"
-                            class="shop-card group relative flex h-full cursor-pointer flex-col rounded-[1.6rem] border border-stone-200/80 bg-white p-3.5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-neutral-800 dark:bg-neutral-900"
+                            class="shop-card group relative flex h-full cursor-pointer flex-col rounded-sm border border-stone-200/80 bg-white p-3.5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-neutral-800 dark:bg-neutral-900"
                             :style="{ animationDelay: `${Math.min(index, 10) * 40}ms` }"
                             @click="openProductDetails(product)"
                         >
@@ -1041,7 +1055,7 @@ const startPayment = (type) => {
                             >
                                 {{ stockMeta(product).label }}
                             </span>
-                            <div class="relative h-40 w-full overflow-hidden rounded-[1.25rem] border border-stone-200 bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800">
+                            <div class="relative h-40 w-full overflow-hidden rounded-sm border border-stone-200 bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800">
                                 <img
                                     v-if="product.image_url || product.image"
                                     :src="product.image_url || product.image"
@@ -1088,6 +1102,7 @@ const startPayment = (type) => {
                                         <button
                                             type="button"
                                             class="h-7 w-7 rounded-sm border border-stone-200 text-stone-600 hover:bg-stone-50 disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-200"
+                                            :aria-label="$t('portal_shop.actions.decrease_quantity', { product: product.name })"
                                             :disabled="isLocked"
                                             @click.stop="updateQuantity(product.id, -1)"
                                         >
@@ -1099,6 +1114,7 @@ const startPayment = (type) => {
                                         <button
                                             type="button"
                                             class="h-7 w-7 rounded-sm border border-stone-200 text-stone-600 hover:bg-stone-50 disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-200"
+                                            :aria-label="$t('portal_shop.actions.increase_quantity', { product: product.name })"
                                             :disabled="isLocked || cartQuantity(product.id) >= availableStock(product)"
                                             @click.stop="updateQuantity(product.id, 1)"
                                         >
@@ -1122,30 +1138,39 @@ const startPayment = (type) => {
             </div>
         </div>
 
-        <Modal :show="showCart" @close="closeCart" maxWidth="2xl">
-            <div class="flex items-start justify-between border-b border-stone-200 px-4 py-3 dark:border-neutral-700">
-                <div>
-                    <p class="text-[11px] uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ $t('portal_shop.cart.title') }}</p>
-                    <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">
-                        {{ isEditing ? $t('portal_shop.cart.header_order') : $t('portal_shop.cart.header_cart') }}
-                    </h2>
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('portal_shop.cart.items_count', { count: cartItemCount }) }}
-                    </p>
+        <Modal
+            :show="showCart"
+            :closeable="!form.processing"
+            maxWidth="2xl"
+            aria-labelledby="portal-shop-cart-title"
+            @close="closeCart"
+        >
+            <div class="flex max-h-[calc(100dvh-3rem)] min-h-0 flex-col" :aria-busy="form.processing">
+                <div class="flex shrink-0 items-start justify-between gap-3 border-b border-stone-200 px-4 py-3 dark:border-neutral-700">
+                    <div class="min-w-0">
+                        <p class="text-[11px] uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ $t('portal_shop.cart.title') }}</p>
+                        <h2 id="portal-shop-cart-title" class="break-words text-lg font-semibold text-stone-800 dark:text-neutral-100">
+                            {{ isEditing ? $t('portal_shop.cart.header_order') : $t('portal_shop.cart.header_cart') }}
+                        </h2>
+                        <p class="text-xs text-stone-500 dark:text-neutral-400">
+                            {{ $t('portal_shop.cart.items_count', { count: cartItemCount }) }}
+                        </p>
+                    </div>
+                    <button
+                        type="button"
+                        class="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-sm border border-stone-200 text-stone-600 hover:bg-stone-50 disabled:cursor-wait disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                        :aria-label="$t('portal_shop.actions.close_cart')"
+                        :disabled="form.processing"
+                        @click="closeCart"
+                    >
+                        <svg class="size-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18 6 6 18" />
+                            <path d="m6 6 12 12" />
+                        </svg>
+                    </button>
                 </div>
-                <button
-                    type="button"
-                    class="inline-flex h-8 w-8 items-center justify-center rounded-sm border border-stone-200 text-stone-600 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
-                    @click="closeCart"
-                >
-                    <svg class="size-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M18 6 6 18" />
-                        <path d="m6 6 12 12" />
-                    </svg>
-                </button>
-            </div>
-            <div class="space-y-4 p-4">
+                <div class="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-4">
                 <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                     <div class="flex items-center justify-between">
                         <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('portal_shop.cart.items_title') }}</h3>
@@ -1157,30 +1182,32 @@ const startPayment = (type) => {
                         {{ $t('portal_shop.cart.items_empty') }}
                     </div>
                     <div v-else class="mt-3 space-y-3">
-                        <div v-for="entry in cart" :key="entry.product.id" class="flex items-center justify-between gap-2">
-                            <div>
-                                <p class="text-sm font-medium text-stone-800 dark:text-neutral-100">{{ entry.product.name }}</p>
+                        <div v-for="entry in cart" :key="entry.product.id" class="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <div class="min-w-0">
+                                <p class="break-words text-sm font-medium text-stone-800 dark:text-neutral-100">{{ entry.product.name }}</p>
                                 <p class="text-xs text-stone-500 dark:text-neutral-400">
                                     {{ formatCurrency(effectivePrice(entry.product)) }} x {{ entry.quantity }}
                                 </p>
                             </div>
-                            <div class="flex items-center gap-2">
+                            <div class="flex flex-wrap items-center justify-end gap-2 sm:shrink-0">
                                 <button type="button"
                                     class="h-7 w-7 rounded-sm border border-stone-200 text-stone-600 hover:bg-stone-50 disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-200"
-                                    :disabled="isLocked"
+                                    :aria-label="$t('portal_shop.actions.decrease_quantity', { product: entry.product.name })"
+                                    :disabled="cartInteractionLocked"
                                     @click="updateQuantity(entry.product.id, -1)">
                                     -
                                 </button>
                                 <span class="text-sm font-semibold text-stone-700 dark:text-neutral-100">{{ entry.quantity }}</span>
                                 <button type="button"
                                     class="h-7 w-7 rounded-sm border border-stone-200 text-stone-600 hover:bg-stone-50 disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-200"
-                                    :disabled="isLocked"
+                                    :aria-label="$t('portal_shop.actions.increase_quantity', { product: entry.product.name })"
+                                    :disabled="cartInteractionLocked"
                                     @click="updateQuantity(entry.product.id, 1)">
                                     +
                                 </button>
                                 <button type="button"
                                     class="text-xs text-red-600 hover:underline disabled:opacity-50"
-                                    :disabled="isLocked"
+                                    :disabled="cartInteractionLocked"
                                     @click="removeItem(entry.product.id)">
                                     {{ $t('portal_shop.cart.remove') }}
                                 </button>
@@ -1196,8 +1223,10 @@ const startPayment = (type) => {
                             v-if="fulfillment?.delivery_enabled"
                             type="button"
                             class="flex items-center justify-between rounded-sm border px-3 py-2 text-sm"
+                            :aria-pressed="form.fulfillment_method === 'delivery'"
+                            :disabled="cartInteractionLocked"
                             :class="form.fulfillment_method === 'delivery'
-                                ? 'border-green-500 bg-green-50 text-green-700'
+                                ? 'border-green-500 bg-green-50 text-green-700 dark:border-green-400 dark:bg-green-500/10 dark:text-green-300'
                                 : 'border-stone-200 text-stone-700 dark:border-neutral-700 dark:text-neutral-200'"
                             @click="selectMethod('delivery')"
                         >
@@ -1222,8 +1251,10 @@ const startPayment = (type) => {
                             v-if="fulfillment?.pickup_enabled"
                             type="button"
                             class="flex items-center justify-between rounded-sm border px-3 py-2 text-sm"
+                            :aria-pressed="form.fulfillment_method === 'pickup'"
+                            :disabled="cartInteractionLocked"
                             :class="form.fulfillment_method === 'pickup'
-                                ? 'border-green-500 bg-green-50 text-green-700'
+                                ? 'border-green-500 bg-green-50 text-green-700 dark:border-green-400 dark:bg-green-500/10 dark:text-green-300'
                                 : 'border-stone-200 text-stone-700 dark:border-neutral-700 dark:text-neutral-200'"
                             @click="selectMethod('pickup')"
                         >
@@ -1249,6 +1280,7 @@ const startPayment = (type) => {
                         <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('portal_shop.fulfillment.delivery_address') }}</label>
                         <textarea v-model="form.delivery_address"
                             class="block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                            :disabled="cartInteractionLocked"
                             rows="2" />
                         <div v-if="form.errors.delivery_address" class="text-xs text-red-600">
                             {{ form.errors.delivery_address }}
@@ -1256,6 +1288,7 @@ const startPayment = (type) => {
                         <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('portal_shop.fulfillment.delivery_instructions') }}</label>
                         <textarea v-model="form.delivery_notes"
                             class="block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                            :disabled="cartInteractionLocked"
                             rows="2" />
                         <p v-if="fulfillment?.delivery_zone" class="text-xs text-stone-500 dark:text-neutral-400">
                             {{ $t('portal_shop.fulfillment.delivery_zone', { zone: fulfillment.delivery_zone }) }}
@@ -1270,6 +1303,7 @@ const startPayment = (type) => {
                         <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('portal_shop.fulfillment.pickup_notes') }}</label>
                         <textarea v-model="form.pickup_notes"
                             class="block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
+                            :disabled="cartInteractionLocked"
                             rows="2" />
                         <p v-if="fulfillment?.pickup_notes" class="text-xs text-stone-500 dark:text-neutral-400">
                             {{ fulfillment.pickup_notes }}
@@ -1280,10 +1314,23 @@ const startPayment = (type) => {
                         <DateTimePicker
                             v-model="form.scheduled_for"
                             :label="$t('portal_shop.fulfillment.scheduled')"
-                            :disabled="isLocked"
+                            :disabled="cartInteractionLocked"
                         />
                     </div>
                 </div>
+
+                <ClientPortalNotice
+                    v-if="cartErrorMessages.length"
+                    ref="cartErrorSummary"
+                    tone="error"
+                    tabindex="-1"
+                    class="focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-900"
+                >
+                    <p class="font-semibold">{{ $t('portal_shop.validation.title') }}</p>
+                    <ul class="mt-2 list-inside list-disc space-y-1">
+                        <li v-for="(message, index) in cartErrorMessages" :key="`${index}-${message}`">{{ message }}</li>
+                    </ul>
+                </ClientPortalNotice>
 
                 <div v-if="cart.length" class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                     <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ $t('portal_shop.notes.title') }}</h2>
@@ -1293,12 +1340,12 @@ const startPayment = (type) => {
                             <textarea
                                 v-model="form.customer_notes"
                                 rows="2"
-                                :disabled="isLocked"
+                                :disabled="cartInteractionLocked"
                                 class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                             />
                         </div>
                         <label class="flex items-center gap-2 text-sm text-stone-700 dark:text-neutral-200">
-                            <input type="checkbox" v-model="form.substitution_allowed" :disabled="isLocked" />
+                            <input type="checkbox" v-model="form.substitution_allowed" :disabled="cartInteractionLocked" />
                             <span>{{ $t('portal_shop.notes.substitution_allowed') }}</span>
                         </label>
                         <div v-if="form.substitution_allowed">
@@ -1306,7 +1353,7 @@ const startPayment = (type) => {
                             <textarea
                                 v-model="form.substitution_notes"
                                 rows="2"
-                                :disabled="isLocked"
+                                :disabled="cartInteractionLocked"
                                 class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                             />
                         </div>
@@ -1333,37 +1380,40 @@ const startPayment = (type) => {
                             <span class="font-semibold">{{ formatCurrency(grandTotal) }}</span>
                         </div>
                     </div>
-                    <div v-if="form.errors.items" class="mt-2 text-xs text-red-600">
-                        {{ form.errors.items }}
-                    </div>
                     <button type="button"
                         class="mt-4 w-full rounded-sm bg-green-600 px-3 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-60"
                         :disabled="!canCheckout || form.processing || isLocked"
+                        :aria-busy="form.processing"
                         @click="submitOrder">
-                        {{ isEditing ? $t('portal_shop.summary.checkout_update') : $t('portal_shop.summary.checkout_create') }}
+                        {{ form.processing
+                            ? $t('portal_shop.summary.checkout_processing')
+                            : (isEditing ? $t('portal_shop.summary.checkout_update') : $t('portal_shop.summary.checkout_create')) }}
                     </button>
                     <button
                         v-if="isEditing && canEditOrder"
                         type="button"
-                        class="mt-2 w-full rounded-sm border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
+                        class="mt-2 w-full rounded-sm border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        :disabled="form.processing"
                         @click="cancelOrder"
                     >
                         {{ $t('portal_shop.actions.cancel_order') }}
                     </button>
                 </div>
+                </div>
             </div>
         </Modal>
 
-        <Modal :show="showProductDetails" @close="closeProductDetails" maxWidth="2xl">
+        <Modal :show="showProductDetails" @close="closeProductDetails" maxWidth="2xl" aria-labelledby="portal-shop-product-title">
             <div v-if="selectedProduct" class="flex items-start justify-between border-b border-stone-200 px-4 py-3 dark:border-neutral-700">
                 <div>
                     <p class="text-[11px] uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ $t('portal_shop.product.label') }}</p>
-                    <h2 class="text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ selectedProduct.name }}</h2>
+                    <h2 id="portal-shop-product-title" class="text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ selectedProduct.name }}</h2>
                     <p class="text-xs text-stone-500 dark:text-neutral-400">{{ selectedProduct.sku || $t('portal_shop.product.sku_fallback') }}</p>
                 </div>
                 <button
                     type="button"
                     class="inline-flex h-8 w-8 items-center justify-center rounded-sm border border-stone-200 text-stone-600 hover:bg-stone-50 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800"
+                    :aria-label="$t('portal_shop.actions.close_product_details')"
                     @click="closeProductDetails"
                 >
                     <svg class="size-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
@@ -1442,6 +1492,7 @@ const startPayment = (type) => {
                                 <button
                                     type="button"
                                     class="h-8 w-8 rounded-sm border border-stone-200 text-stone-600 hover:bg-stone-50 disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-200"
+                                    :aria-label="$t('portal_shop.actions.decrease_quantity', { product: selectedProduct.name })"
                                     :disabled="isLocked || cartQuantity(selectedProduct.id) <= 0"
                                     @click="updateQuantity(selectedProduct.id, -1)"
                                 >
@@ -1453,6 +1504,7 @@ const startPayment = (type) => {
                                 <button
                                     type="button"
                                     class="h-8 w-8 rounded-sm border border-stone-200 text-stone-600 hover:bg-stone-50 disabled:opacity-50 dark:border-neutral-700 dark:text-neutral-200"
+                                    :aria-label="$t('portal_shop.actions.increase_quantity', { product: selectedProduct.name })"
                                     :disabled="isLocked || cartQuantity(selectedProduct.id) >= availableStock(selectedProduct)"
                                     @click="updateQuantity(selectedProduct.id, 1)"
                                 >

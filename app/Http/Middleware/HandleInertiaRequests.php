@@ -8,7 +8,12 @@ use App\Models\TeamMemberShift;
 use App\Models\User;
 use App\Services\Auth\SocialAuthProviderRegistry;
 use App\Services\CompanyFeatureService;
+use App\Services\Demo\DemoAccountService;
+use App\Services\Portal\PortalAccessService;
+use App\Services\Portal\PortalCapabilityService;
+use App\Services\Rbac\CompanyModuleAccess;
 use App\Services\Rbac\PermissionCatalog;
+use App\Services\TenantBrandingResolver;
 use App\Support\Database\UserSelects;
 use App\Support\LocalePreference;
 use App\Support\Notifications\UserNotificationCenter;
@@ -40,33 +45,27 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $user = $request->user();
-        $ownerId = $user?->accountOwnerId();
         $siteUrl = rtrim((string) (config('app.url') ?: $request->getSchemeAndHttpHost()), '/');
         $featureService = app(CompanyFeatureService::class);
+        $brandingResolver = app(TenantBrandingResolver::class);
         $socialAuthProviders = app(SocialAuthProviderRegistry::class);
         $permissionCatalog = app(PermissionCatalog::class);
 
-        $accountOwner = null;
+        $accountOwner = $user ? $brandingResolver->resolveAccountOwner($user) : null;
+        $ownerId = $accountOwner?->id ?? $user?->accountOwnerId();
+        $tenantBranding = $brandingResolver->forAccountOwner($accountOwner);
         $accountFeatures = null;
-        if ($user && $user->isClient()) {
-            $customer = $user->relationLoaded('customerProfile')
-                ? $user->customerProfile
-                : $user->customerProfile()->first();
-            if ($customer) {
-                $accountOwner = User::query()
-                    ->select(UserSelects::companyFeatureContext())
-                    ->find($customer->user_id);
-            }
-        }
-        if (! $accountOwner && $user && $ownerId) {
-            $accountOwner = $ownerId === $user->id
-                ? $user
-                : User::query()
-                    ->select(UserSelects::companyFeatureContext())
-                    ->find($ownerId);
-        }
         if ($user && $accountOwner) {
             $accountFeatures = $featureService->resolveEnabledFeatures($accountOwner);
+        }
+        $portalCapabilities = null;
+        $portalContext = null;
+        if ($user
+            && $user->isClient()
+            && app(PortalAccessService::class)->clientHasPortalAccess($user)) {
+            $portalCapabilityService = app(PortalCapabilityService::class);
+            $portalCapabilities = $portalCapabilityService->forUser($user);
+            $portalContext = $portalCapabilityService->context($portalCapabilities);
         }
 
         $impersonatorId = $request->session()->get('impersonator_id');
@@ -81,7 +80,13 @@ class HandleInertiaRequests extends Middleware
                 ? $user->teamMembership
                 : $user->teamMembership()->first();
 
-            $teamMembership?->loadMissing('companyRole.permissions');
+            if (! $teamMembership
+                || ! $teamMembership->is_active
+                || (int) $teamMembership->account_id !== (int) $ownerId) {
+                $teamMembership = null;
+            } else {
+                $teamMembership->loadMissing('companyRole.permissions');
+            }
         }
 
         $companyPermissions = [];
@@ -90,6 +95,14 @@ class HandleInertiaRequests extends Middleware
                 ? $permissionCatalog->permissionSlugs()
                 : $permissionCatalog->expand($teamMembership?->resolvedPermissions() ?? []);
         }
+        $moduleAccess = $user
+            ? app(CompanyModuleAccess::class)->payload(
+                $accountOwner,
+                $companyPermissions,
+                $user->isSuperadmin()
+                    || ($user->isOwner() && (int) $user->id === (int) $accountOwner?->id),
+            )
+            : null;
 
         $platformAdmin = null;
         if ($user && $user->isPlatformAdmin()) {
@@ -159,10 +172,31 @@ class HandleInertiaRequests extends Middleware
         $demoWorkspace = null;
         if ($user && ($user->is_demo || $user->is_demo_user)) {
             $demoWorkspace = DemoWorkspace::query()
+                ->withTrashed()
                 ->select(['id', 'owner_user_id', 'company_name', 'prospect_name', 'expires_at'])
-                ->where('owner_user_id', $user->accountOwnerId())
+                ->where('owner_user_id', $accountOwner?->id ?? $user->accountOwnerId())
                 ->first();
         }
+
+        $isDemoSession = (bool) ($user && ($user->is_demo || $user->is_demo_user));
+        $accountDemoType = (string) ($accountOwner?->demo_type ?? $user?->demo_type ?? '');
+        $isLegacyDemo = in_array($accountDemoType, [
+            DemoAccountService::TYPE_SERVICE,
+            DemoAccountService::TYPE_PRODUCT,
+            DemoAccountService::TYPE_GUIDED,
+        ], true);
+        $demoResetMode = match (true) {
+            ! $isDemoSession => 'none',
+            $demoWorkspace !== null => 'managed_baseline',
+            $isLegacyDemo => 'legacy',
+            default => 'none',
+        };
+        $allowDemoReset = (bool) (
+            config('demo.enabled')
+            && config('demo.allow_reset')
+            && $user?->is_demo_user
+            && $demoResetMode === 'legacy'
+        );
 
         return [
             ...parent::share($request),
@@ -176,13 +210,18 @@ class HandleInertiaRequests extends Middleware
                     'is_platform_admin' => $user->isPlatformAdmin(),
                     'currency_code' => $accountOwner?->businessCurrencyCode(),
                     'company' => $accountOwner ? [
-                        'name' => $accountOwner->company_name,
+                        'name' => $tenantBranding['name'],
                         'type' => $accountOwner->company_type,
                         'onboarded' => (bool) $accountOwner->onboarding_completed_at,
-                        'logo_url' => $accountOwner->company_logo_url,
+                        'logo_url' => $tenantBranding['custom_logo_url'],
+                        'custom_logo_url' => $tenantBranding['custom_logo_url'],
+                        'has_custom_logo' => $tenantBranding['has_custom_logo'],
                     ] : null,
                     'features' => $accountFeatures,
                     'permissions' => $companyPermissions,
+                    'module_access' => $moduleAccess,
+                    ...($portalCapabilities !== null ? ['portal_capabilities' => $portalCapabilities] : []),
+                    ...($portalContext !== null ? ['portal_context' => $portalContext] : []),
                     'platform' => $platformAdmin ? [
                         'role' => $platformAdmin->role,
                         'permissions' => $platformAdmin->permissions ?? [],
@@ -218,7 +257,8 @@ class HandleInertiaRequests extends Middleware
             'socialAuth' => $socialAuthProviders->publicPayload(),
             'demo' => [
                 'enabled' => (bool) config('demo.enabled'),
-                'allow_reset' => (bool) config('demo.allow_reset'),
+                'allow_reset' => $allowDemoReset,
+                'reset_mode' => $demoResetMode,
                 'is_demo' => (bool) ($user?->is_demo ?? false),
                 'is_demo_user' => (bool) ($user?->is_demo_user ?? false),
                 'demo_type' => $user?->demo_type,

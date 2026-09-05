@@ -33,6 +33,9 @@ it('adds pulse social posts and targets tables with expected columns', function 
         ->and(Schema::hasColumns('social_post_targets', [
             'social_post_id',
             'social_account_connection_id',
+            'delivery_provider',
+            'transport_generation',
+            'logical_destination_key',
             'status',
             'published_at',
             'failed_at',

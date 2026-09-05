@@ -7,7 +7,7 @@ test('Preline reinitializes the mobile sidebar after an Inertia navigation', asy
     const fixtures = loadFixtures();
     const sidebar = page.locator('#hs-pro-sidebar');
     const sidebarBackdrop = page.locator('#hs-pro-sidebar-backdrop');
-    const sidebarToggle = page.getByRole('button', { name: 'Toggle navigation' });
+    const sidebarToggle = page.getByTestId('sidebar-toggle');
 
     await loginAs(page, fixtures.serviceOwner);
     await page.goto(fixtures.requestInbox.path);
@@ -34,7 +34,7 @@ test('Preline reinitializes the mobile sidebar after an Inertia navigation', asy
     await expect(sidebarToggle).toHaveAttribute('aria-expanded', 'false');
 
     await sidebarToggle.click();
-    await expect(sidebar).toBeVisible();
+    await expect(sidebar).toHaveClass(/\bopened\b/);
     await expect(sidebarToggle).toHaveAttribute('aria-expanded', 'true');
 
     await page.keyboard.press('Escape');

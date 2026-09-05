@@ -8,12 +8,15 @@ use App\Models\Reservation;
 use App\Models\ReservationResource;
 use App\Models\ReservationResourceAllocation;
 use App\Models\ReservationSetting;
+use App\Models\ReservationStatusTransition;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\WeeklyAvailability;
 use App\Services\Reservation\ReservationAvailabilityWindowService;
 use App\Services\Reservation\ReservationPaymentPolicyService;
 use App\Services\Reservation\ReservationResourceService;
+use App\Services\Reservation\ReservationStatusTransitionResult;
+use App\Services\Reservation\ReservationStatusTransitionService;
 use App\Support\ReservationPresetResolver;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -28,7 +31,8 @@ class ReservationAvailabilityService
     public function __construct(
         private readonly ReservationAvailabilityWindowService $availabilityWindowService,
         private readonly ReservationResourceService $resourceService,
-        private readonly ReservationPaymentPolicyService $paymentPolicyService
+        private readonly ReservationPaymentPolicyService $paymentPolicyService,
+        private readonly ReservationStatusTransitionService $statusTransitions
     ) {}
 
     public function resolveAccountForUser(User $user): ?User
@@ -69,7 +73,7 @@ class ReservationAvailabilityService
 
         $accountLevel = ReservationSetting::query()
             ->forAccount($accountId)
-            ->whereNull('team_member_id')
+            ->accountDefault()
             ->first();
 
         $teamLevel = null;
@@ -116,6 +120,10 @@ class ReservationAvailabilityService
             'deposit_amount' => max(0, round((float) ($accountLevel?->deposit_amount ?? $defaults['deposit_amount'] ?? 0), 2)),
             'no_show_fee_enabled' => (bool) ($accountLevel?->no_show_fee_enabled ?? $defaults['no_show_fee_enabled'] ?? false),
             'no_show_fee_amount' => max(0, round((float) ($accountLevel?->no_show_fee_amount ?? $defaults['no_show_fee_amount'] ?? 0), 2)),
+            'past_reservation_reconciliation_enabled' => (bool) ($accountLevel?->past_reservation_reconciliation_enabled ?? false),
+            'past_reservation_reconciliation_mode' => (string) ($accountLevel?->past_reservation_reconciliation_mode ?? ReservationSetting::PAST_RECONCILIATION_MODE_SIGNAL_ONLY),
+            'past_reservation_grace_minutes' => max(0, min(10080, (int) ($accountLevel?->past_reservation_grace_minutes ?? 120))),
+            'past_reservation_max_catchup_days' => max(1, min(365, (int) ($accountLevel?->past_reservation_max_catchup_days ?? 7))),
         ];
     }
 
@@ -469,6 +477,21 @@ class ReservationAvailabilityService
                 'client_notes' => $payload['client_notes'] ?? null,
                 'metadata' => $metadata ?: null,
             ]);
+            $transitionSource = $this->transitionSourceForBooking($payload, $actor);
+            $actorType = in_array($transitionSource, [
+                Reservation::STATUS_CHANGE_SOURCE_API,
+                Reservation::STATUS_CHANGE_SOURCE_PUBLIC_BOOKING,
+                Reservation::STATUS_CHANGE_SOURCE_AI_ASSISTANT,
+            ], true)
+                ? ReservationStatusTransition::ACTOR_INTEGRATION
+                : ReservationStatusTransition::ACTOR_USER;
+            $reservation = $this->statusTransitions->recordCreation(
+                $reservation,
+                $actorType,
+                $actorType === ReservationStatusTransition::ACTOR_USER ? $actor : null,
+                $transitionSource,
+                ['booking_source' => (string) ($payload['source'] ?? Reservation::SOURCE_STAFF)]
+            );
 
             $this->syncResourceAllocations($reservation, $resourceIds);
 
@@ -476,12 +499,20 @@ class ReservationAvailabilityService
         });
     }
 
+    /**
+     * @param  array<string, mixed>  $payload
+     * @param  array<int, string>  $allowedFromStatuses
+     */
     public function reschedule(
         Reservation $reservation,
         array $payload,
-        User $actor
-    ): Reservation {
+        User $actor,
+        array $allowedFromStatuses = Reservation::ACTIVE_STATUSES
+    ): ReservationStatusTransitionResult {
         $accountId = (int) $reservation->account_id;
+        $expectedStatusVersion = (int) $reservation->status_version;
+        $expectedScheduleVersion = (int) $reservation->schedule_version;
+        $expectedMutationVersion = (int) $reservation->mutation_version;
         $account = User::query()->findOrFail($accountId);
         $timezone = $this->timezoneForAccount($account);
         $newTeamMemberId = isset($payload['team_member_id'])
@@ -533,7 +564,12 @@ class ReservationAvailabilityService
             $partySizeProvided,
             $requestedResourceIds,
             $requestedResourceFilters,
-            $requestedPartySize
+            $requestedPartySize,
+            $actor,
+            $allowedFromStatuses,
+            $expectedStatusVersion,
+            $expectedScheduleVersion,
+            $expectedMutationVersion
         ) {
             $teamMember = TeamMember::query()
                 ->forAccount($accountId)
@@ -617,7 +653,7 @@ class ReservationAvailabilityService
                 $settings
             );
 
-            $reservation->forceFill([
+            $transition = $this->statusTransitions->reschedule($reservation, [
                 'team_member_id' => $newTeamMemberId,
                 'service_id' => $payload['service_id'] ?? $reservation->service_id,
                 'status' => $payload['status'] ?? $reservation->status,
@@ -636,11 +672,32 @@ class ReservationAvailabilityService
                 'cancelled_at' => null,
                 'cancel_reason' => null,
                 'cancelled_by_user_id' => null,
-            ])->save();
+            ],
+                $actor,
+                $this->transitionSourceForActor($actor),
+                allowedFromStatuses: $allowedFromStatuses,
+                expectedStatusVersion: $expectedStatusVersion,
+                expectedScheduleVersion: $expectedScheduleVersion,
+                expectedMutationVersion: $expectedMutationVersion
+            );
+            if (! $transition->performed) {
+                throw ValidationException::withMessages([
+                    'reservation' => ['This reservation changed while it was being rescheduled. Refresh and try again.'],
+                ]);
+            }
+
+            $reservation = $transition->reservation;
 
             $this->syncResourceAllocations($reservation, $resourceIds);
 
-            return $reservation->fresh();
+            return new ReservationStatusTransitionResult(
+                $reservation->fresh() ?? $reservation,
+                true,
+                $transition->previousStatus,
+                $transition->statusChanged,
+                $transition->scheduleChanged,
+                $transition->attributesChanged
+            );
         });
     }
 
@@ -666,35 +723,28 @@ class ReservationAvailabilityService
         );
     }
 
-    private function normalizeMoney(mixed $value): float
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function transitionSourceForBooking(array $payload, User $actor): string
     {
-        return max(0, round((float) $value, 2));
+        if (data_get($payload, 'metadata.ai_assistant') !== null) {
+            return Reservation::STATUS_CHANGE_SOURCE_AI_ASSISTANT;
+        }
+
+        return match ((string) ($payload['source'] ?? Reservation::SOURCE_STAFF)) {
+            Reservation::SOURCE_CLIENT => Reservation::STATUS_CHANGE_SOURCE_CLIENT_PORTAL,
+            Reservation::SOURCE_PUBLIC_BOOKING => Reservation::STATUS_CHANGE_SOURCE_PUBLIC_BOOKING,
+            Reservation::SOURCE_API => Reservation::STATUS_CHANGE_SOURCE_API,
+            default => $this->transitionSourceForActor($actor),
+        };
     }
 
-    private function normalizePaymentPolicy(mixed $value): array
+    private function transitionSourceForActor(User $actor): string
     {
-        $policy = is_array($value) ? $value : [];
-        $depositAmount = $this->normalizeMoney($policy['deposit_amount'] ?? 0);
-        $noShowFeeAmount = $this->normalizeMoney($policy['no_show_fee_amount'] ?? 0);
-
-        return [
-            'deposit_required' => (bool) ($policy['deposit_required'] ?? false) && $depositAmount > 0,
-            'deposit_amount' => $depositAmount,
-            'no_show_fee_enabled' => (bool) ($policy['no_show_fee_enabled'] ?? false) && $noShowFeeAmount > 0,
-            'no_show_fee_amount' => $noShowFeeAmount,
-            'captured_at' => $policy['captured_at'] ?? now('UTC')->toIso8601String(),
-        ];
-    }
-
-    private function paymentPolicyFromSettings(array $settings): array
-    {
-        return $this->normalizePaymentPolicy([
-            'deposit_required' => (bool) ($settings['deposit_required'] ?? false),
-            'deposit_amount' => $settings['deposit_amount'] ?? 0,
-            'no_show_fee_enabled' => (bool) ($settings['no_show_fee_enabled'] ?? false),
-            'no_show_fee_amount' => $settings['no_show_fee_amount'] ?? 0,
-            'captured_at' => now('UTC')->toIso8601String(),
-        ]);
+        return $actor->isClient()
+            ? Reservation::STATUS_CHANGE_SOURCE_CLIENT_PORTAL
+            : Reservation::STATUS_CHANGE_SOURCE_STAFF_UI;
     }
 
     private function mergePaymentPolicyMetadata(array $metadata, array $settings): array
@@ -722,44 +772,6 @@ class ReservationAvailabilityService
         return $this->resourceService->hasResourceConstraint($partySize, $resourceFilters);
     }
 
-    private function availableResourcesForMember(
-        int $teamMemberId,
-        Collection $resourcesByMember,
-        array $resourceFilters,
-        ?int $partySize
-    ): Collection {
-        $globalResources = $resourcesByMember->get('global', collect());
-        $memberResources = $resourcesByMember->get((string) $teamMemberId, collect());
-        $resources = $globalResources
-            ->concat($memberResources)
-            ->unique('id')
-            ->values();
-
-        $resourceIds = $resourceFilters['resource_ids'] ?? [];
-        if (! empty($resourceIds)) {
-            $allowed = array_flip($resourceIds);
-            $resources = $resources
-                ->filter(fn (ReservationResource $resource) => isset($allowed[(int) $resource->id]))
-                ->values();
-        }
-
-        $types = $resourceFilters['types'] ?? [];
-        if (! empty($types)) {
-            $allowedTypes = array_flip($types);
-            $resources = $resources
-                ->filter(fn (ReservationResource $resource) => isset($allowedTypes[strtolower((string) $resource->type)]))
-                ->values();
-        }
-
-        if ($partySize && $partySize > 0) {
-            $resources = $resources
-                ->filter(fn (ReservationResource $resource) => (int) $resource->capacity >= $partySize)
-                ->values();
-        }
-
-        return $resources;
-    }
-
     private function loadResourceAllocations(
         int $accountId,
         Carbon $startUtc,
@@ -774,34 +786,6 @@ class ReservationAvailabilityService
             $ignoreReservationId,
             $lockForUpdate
         );
-    }
-
-    private function calculateUsedCapacityForSlot(
-        ReservationResource $resource,
-        Carbon $slotStartUtc,
-        Carbon $slotEndUtc,
-        Collection $resourceAllocations
-    ): int {
-        $allocations = $resourceAllocations->get($resource->id, collect());
-        $usedCapacity = 0;
-
-        foreach ($allocations as $allocation) {
-            $reservation = $allocation->reservation;
-            if (! $reservation) {
-                continue;
-            }
-
-            if (
-                $reservation->starts_at
-                && $reservation->ends_at
-                && $reservation->starts_at->lt($slotEndUtc)
-                && $reservation->ends_at->gt($slotStartUtc)
-            ) {
-                $usedCapacity += max(1, (int) ($allocation->quantity ?? 1));
-            }
-        }
-
-        return $usedCapacity;
     }
 
     private function pickAvailableResourceForWindow(
@@ -966,72 +950,6 @@ class ReservationAvailabilityService
             $exceptions,
             $timezone
         );
-    }
-
-    private function normalizeIntervals(array $intervals): array
-    {
-        if (! $intervals) {
-            return [];
-        }
-
-        usort($intervals, function (array $left, array $right) {
-            if ($left['start']->eq($right['start'])) {
-                return $left['end']->lt($right['end']) ? -1 : 1;
-            }
-
-            return $left['start']->lt($right['start']) ? -1 : 1;
-        });
-
-        $normalized = [];
-        foreach ($intervals as $interval) {
-            if (empty($normalized)) {
-                $normalized[] = $interval;
-
-                continue;
-            }
-
-            $lastIndex = count($normalized) - 1;
-            $last = $normalized[$lastIndex];
-            if ($interval['start']->lte($last['end'])) {
-                if ($interval['end']->gt($last['end'])) {
-                    $normalized[$lastIndex]['end'] = $interval['end'];
-                }
-
-                continue;
-            }
-
-            $normalized[] = $interval;
-        }
-
-        return $normalized;
-    }
-
-    private function subtractIntervals(array $intervals, array $closed): array
-    {
-        $results = [];
-        foreach ($intervals as $interval) {
-            if ($closed['end']->lte($interval['start']) || $closed['start']->gte($interval['end'])) {
-                $results[] = $interval;
-
-                continue;
-            }
-
-            if ($closed['start']->gt($interval['start'])) {
-                $results[] = [
-                    'start' => $interval['start'],
-                    'end' => $closed['start']->copy(),
-                ];
-            }
-
-            if ($closed['end']->lt($interval['end'])) {
-                $results[] = [
-                    'start' => $closed['end']->copy(),
-                    'end' => $interval['end'],
-                ];
-            }
-        }
-
-        return $results;
     }
 
     private function alignToInterval(Carbon $dateTime, int $intervalMinutes): Carbon

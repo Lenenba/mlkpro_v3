@@ -25,22 +25,12 @@ class ReservationNotificationService
 
     public function handleCreated(Reservation $reservation, User $actor): void
     {
-        $isClientSource = $reservation->source === Reservation::SOURCE_CLIENT;
-        $accountLocale = $this->reservationLocale($reservation);
-        $isFr = str_starts_with($accountLocale, 'fr');
-
         $this->notifyLifecycle(
             $reservation,
             'created',
             $actor,
-            $isClientSource
-                ? ($isFr ? 'Nouvelle demande de reservation' : 'New reservation request')
-                : ($isFr ? 'Reservation creee' : 'Reservation created'),
-            $isClientSource
-                ? ($isFr ? 'Un client a soumis une nouvelle demande de reservation.' : 'A client submitted a new reservation request.')
-                : ($isFr ? 'Une reservation a ete creee.' : 'A reservation has been created.'),
             [
-                ['label' => $isFr ? 'Source' : 'Source', 'value' => $reservation->source ?: '-'],
+                'source' => $reservation->source ?: '-',
             ],
             includeClient: true,
             includeInternal: true
@@ -49,14 +39,10 @@ class ReservationNotificationService
 
     public function handleRescheduled(Reservation $reservation, User $actor): void
     {
-        $accountLocale = $this->reservationLocale($reservation);
-        $isFr = str_starts_with($accountLocale, 'fr');
         $this->notifyLifecycle(
             $reservation,
             'rescheduled',
             $actor,
-            $isFr ? 'Reservation replanifiee' : 'Reservation rescheduled',
-            ($actor->name ?: ($isFr ? 'Un utilisateur' : 'A user')).($isFr ? ' a replanifie une reservation.' : ' rescheduled a reservation.'),
             [],
             includeClient: true,
             includeInternal: true
@@ -65,20 +51,13 @@ class ReservationNotificationService
 
     public function handleCancelled(Reservation $reservation, User $actor): void
     {
-        $accountLocale = $this->reservationLocale($reservation);
-        $isFr = str_starts_with($accountLocale, 'fr');
-        $details = [];
-        if ($reservation->cancel_reason) {
-            $details[] = ['label' => $isFr ? 'Raison' : 'Reason', 'value' => $reservation->cancel_reason];
-        }
-
         $this->notifyLifecycle(
             $reservation,
             'cancelled',
             $actor,
-            $isFr ? 'Reservation annulee' : 'Reservation cancelled',
-            ($actor->name ?: ($isFr ? 'Un utilisateur' : 'A user')).($isFr ? ' a annule une reservation.' : ' cancelled a reservation.'),
-            $details,
+            [
+                'reason' => $reservation->cancel_reason,
+            ],
             includeClient: true,
             includeInternal: true
         );
@@ -97,14 +76,10 @@ class ReservationNotificationService
         }
 
         if ($reservation->status === Reservation::STATUS_COMPLETED) {
-            $accountLocale = $this->reservationLocale($reservation);
-            $isFr = str_starts_with($accountLocale, 'fr');
             $this->notifyLifecycle(
                 $reservation,
                 'completed',
                 $actor,
-                $isFr ? 'Reservation terminee' : 'Reservation completed',
-                $isFr ? 'Une reservation a ete marquee comme terminee.' : 'A reservation has been marked as completed.',
                 [],
                 includeClient: true,
                 includeInternal: true
@@ -118,28 +93,22 @@ class ReservationNotificationService
     {
         $reservation = $review->reservation()->with([
             'service:id,name',
-            'teamMember.user:id,name',
+            'teamMember.user:id,name,locale',
             'client:id,first_name,last_name,company_name',
         ])->first();
 
         if ($reservation === null) {
             return;
         }
-        $accountLocale = $this->reservationLocale($reservation);
-        $isFr = str_starts_with($accountLocale, 'fr');
-
-        $details = [
-            ['label' => $isFr ? 'Note' : 'Rating', 'value' => ((int) $review->rating).' / 5'],
-            ['label' => $isFr ? 'Commentaire' : 'Feedback', 'value' => $review->feedback ?: ($isFr ? 'Aucun commentaire fourni' : 'No feedback provided')],
-        ];
 
         $this->notifyLifecycle(
             $reservation,
             'review_submitted',
             $actor,
-            $isFr ? 'Avis reservation recu' : 'Reservation review received',
-            $isFr ? 'Un client a envoye un avis pour une reservation terminee.' : 'A client submitted a review for a completed reservation.',
-            $details,
+            [
+                'rating' => ((int) $review->rating).' / 5',
+                'feedback' => $review->feedback,
+            ],
             includeClient: false,
             includeInternal: true
         );
@@ -157,14 +126,13 @@ class ReservationNotificationService
         if ($account === null) {
             return false;
         }
-        $isFr = str_starts_with(LocalePreference::forUser($account), 'fr');
         $config = match ($event) {
-            'queue_ticket_created' => ['title' => $isFr ? 'Ticket de file cree' : 'Queue ticket created', 'message' => $isFr ? 'Votre ticket de file est confirme.' : 'Your queue ticket is confirmed.', 'include_client' => true, 'include_internal' => false, 'dedupe' => true],
-            'queue_eta_10m' => ['title' => $isFr ? 'Alerte file' : 'Queue alert', 'message' => $isFr ? 'Votre tour est prevu dans environ 10 minutes.' : 'Your turn is expected in about 10 minutes.', 'include_client' => true, 'include_internal' => false, 'dedupe' => true],
-            'queue_pre_call' => ['title' => $isFr ? 'Pre-appel file' : 'Queue pre-call', 'message' => $isFr ? 'Vous etes presque le prochain. Merci de vous preparer.' : 'You are almost next. Please be ready.', 'include_client' => true, 'include_internal' => false, 'dedupe' => true],
-            'queue_called' => ['title' => $isFr ? 'File appelee' : 'Queue called', 'message' => $isFr ? 'C est votre tour maintenant. Merci de vous presenter au point de service.' : 'It is your turn now. Please come to the service point.', 'include_client' => true, 'include_internal' => true, 'dedupe' => true],
-            'queue_grace_expired' => ['title' => $isFr ? 'Delai file expire' : 'Queue grace expired', 'message' => $isFr ? 'La fenetre d appel a expire et le ticket a ete marque comme manque.' : 'The call window expired and the ticket was marked as missed.', 'include_client' => true, 'include_internal' => true, 'dedupe' => true],
-            'queue_status_changed' => ['title' => $isFr ? 'Statut file modifie' : 'Queue status changed', 'message' => $isFr ? 'Votre statut de file a ete mis a jour.' : 'Your queue status was updated.', 'include_client' => true, 'include_internal' => false, 'dedupe' => false],
+            'queue_ticket_created' => ['include_client' => true, 'include_internal' => false, 'dedupe' => true],
+            'queue_eta_10m' => ['include_client' => true, 'include_internal' => false, 'dedupe' => true],
+            'queue_pre_call' => ['include_client' => true, 'include_internal' => false, 'dedupe' => true],
+            'queue_called' => ['include_client' => true, 'include_internal' => true, 'dedupe' => true],
+            'queue_grace_expired' => ['include_client' => true, 'include_internal' => true, 'dedupe' => true],
+            'queue_status_changed' => ['include_client' => true, 'include_internal' => false, 'dedupe' => false],
             default => null,
         };
 
@@ -185,15 +153,15 @@ class ReservationNotificationService
 
         $item->loadMissing([
             'service:id,name',
-            'teamMember.user:id,name,email',
+            'teamMember.user:id,name,email,locale',
             'client:id,first_name,last_name,company_name,email,phone,portal_user_id',
-            'client.portalUser:id,name,email',
-            'clientUser:id,name,email,phone_number',
+            'client.portalUser:id,name,email,locale',
+            'clientUser:id,name,email,phone_number,locale',
             'reservation:id,starts_at,status,team_member_id,client_id,client_user_id',
             'reservation.client:id,first_name,last_name,company_name,email,phone,portal_user_id',
-            'reservation.client.portalUser:id,name,email',
-            'reservation.clientUser:id,name,email,phone_number',
-            'reservation.teamMember.user:id,name,email',
+            'reservation.client.portalUser:id,name,email,locale',
+            'reservation.clientUser:id,name,email,phone_number,locale',
+            'reservation.teamMember.user:id,name,email,locale',
         ]);
 
         $clientUser = $item->clientUser
@@ -206,10 +174,10 @@ class ReservationNotificationService
         $clientLabel = (string) (
             $client?->company_name
             ?: trim(($client?->first_name ?? '').' '.($client?->last_name ?? ''))
-            ?: ($clientUser?->name ?? 'Client')
+            ?: ($clientUser?->name ?? '')
         );
 
-        $serviceLabel = $item->service?->name ?: ($isFr ? 'Service' : 'Service');
+        $serviceLabel = $item->service?->name ?: '';
         $queueLabel = $item->queue_number ?: ('#'.$item->id);
         $fromStatus = is_string($context['from_status'] ?? null)
             ? trim((string) $context['from_status'])
@@ -217,51 +185,6 @@ class ReservationNotificationService
         $toStatus = is_string($context['to_status'] ?? null)
             ? trim((string) $context['to_status'])
             : (string) $item->status;
-        $details = [
-            ['label' => $isFr ? 'File' : 'Queue', 'value' => $queueLabel],
-            ['label' => $isFr ? 'Type' : 'Type', 'value' => $item->item_type],
-            ['label' => $isFr ? 'Service' : 'Service', 'value' => $serviceLabel],
-            ['label' => $isFr ? 'Client' : 'Client', 'value' => $clientLabel],
-            ['label' => $isFr ? 'Statut' : 'Status', 'value' => $toStatus],
-            ['label' => $isFr ? 'Position' : 'Position', 'value' => $item->position ?? '-'],
-            ['label' => 'ETA', 'value' => $item->eta_minutes !== null ? ((int) $item->eta_minutes.' min') : '-'],
-        ];
-        if ($event === 'queue_status_changed') {
-            if ($fromStatus !== null && $fromStatus !== '') {
-                $details[] = ['label' => $isFr ? 'Depuis le statut' : 'From status', 'value' => $fromStatus];
-            }
-            if ($toStatus !== '') {
-                $details[] = ['label' => $isFr ? 'Vers le statut' : 'To status', 'value' => $toStatus];
-            }
-        }
-
-        $memberLabel = $memberUser?->name ?: ($isFr ? 'Membre d equipe' : 'Team member');
-        $details[] = ['label' => $isFr ? 'Membre d equipe' : 'Team member', 'value' => $memberLabel];
-
-        if ($item->call_expires_at) {
-            $callExpiry = $item->call_expires_at->copy()
-                ->setTimezone($account->company_timezone ?: config('app.timezone', 'UTC'))
-                ->format('Y-m-d H:i');
-            $details[] = ['label' => $isFr ? 'Appel expire a' : 'Call expires at', 'value' => $callExpiry];
-        }
-
-        $eventMessage = (string) ($context['message'] ?? $config['message']);
-        if (
-            $event === 'queue_status_changed'
-            && $fromStatus !== null
-            && $fromStatus !== ''
-            && $toStatus !== ''
-            && $fromStatus !== $toStatus
-        ) {
-            $eventMessage = $isFr
-                ? "Votre statut de file est passe de {$fromStatus} a {$toStatus}."
-                : "Your queue status changed from {$fromStatus} to {$toStatus}.";
-        } elseif ($event === 'queue_eta_10m' && is_numeric($item->eta_minutes)) {
-            $eventMessage = $isFr
-                ? 'Votre tour est prevu dans environ '.max(0, (int) $item->eta_minutes).' minutes.'
-                : 'Your turn is expected in about '.max(0, (int) $item->eta_minutes).' minutes.';
-        }
-
         $internalUsers = collect([$account, $memberUser])
             ->filter(fn ($user) => $user instanceof User)
             ->unique('id')
@@ -290,14 +213,40 @@ class ReservationNotificationService
         ];
         foreach ($userRecipients as $recipient) {
             $isClientRecipient = $clientUser && (int) $recipient->id === (int) $clientUser->id;
+            $locale = LocalePreference::forNotifiable($recipient, $account);
+            $copy = $this->queueCopy(
+                $event,
+                $isClientRecipient,
+                $locale,
+                $clientLabel,
+                $item->eta_minutes,
+                $fromStatus,
+                $toStatus
+            );
+            $details = $this->queueDetails(
+                $item,
+                $account,
+                $locale,
+                $queueLabel,
+                $serviceLabel,
+                $clientLabel,
+                $memberUser,
+                $fromStatus,
+                $toStatus
+            );
             $actionUrl = $isClientRecipient
                 ? route('client.reservations.index')
                 : route('reservation.index');
 
             if ((bool) ($settings['in_app'] ?? false)) {
                 $dispatchOk = NotificationDispatcher::send($recipient, new ReservationDatabaseNotification([
-                    'title' => (string) $config['title'],
-                    'message' => $eventMessage,
+                    'title' => $copy['title'],
+                    'message' => $copy['message'],
+                    'title_key' => $copy['title_key'],
+                    'message_key' => $copy['message_key'],
+                    'parameters' => $copy['parameters'],
+                    'content_version' => 2,
+                    'audience' => $isClientRecipient ? 'client' : 'internal',
                     'event' => $event,
                     'action_url' => $actionUrl,
                     'reservation_id' => $item->reservation_id,
@@ -317,12 +266,14 @@ class ReservationNotificationService
 
             if ((bool) ($settings['email'] ?? false) && filled($recipient->email)) {
                 $dispatchOk = NotificationDispatcher::send($recipient, new ActionEmailNotification(
-                    (string) $config['title'],
-                    $eventMessage,
+                    $copy['title'],
+                    $copy['message'],
                     $details,
                     $actionUrl,
-                    $isFr ? 'Ouvrir les reservations' : 'Open reservations',
-                    (string) $config['title']
+                    $this->translate('actions.open_reservations', $locale),
+                    $copy['title'],
+                    accountOwnerId: $account->id,
+                    mirrorInApp: false
                 ), [
                     'reservation_id' => $item->reservation_id,
                     'queue_item_id' => $item->id,
@@ -342,13 +293,35 @@ class ReservationNotificationService
             && filled($client->email)
             && (bool) ($settings['email'] ?? false)
         ) {
+            $locale = LocalePreference::forNotifiable($client, $account);
+            $copy = $this->queueCopy(
+                $event,
+                true,
+                $locale,
+                $clientLabel,
+                $item->eta_minutes,
+                $fromStatus,
+                $toStatus
+            );
             $dispatchOk = NotificationDispatcher::send($client, new ActionEmailNotification(
-                (string) $config['title'],
-                $eventMessage,
-                $details,
+                $copy['title'],
+                $copy['message'],
+                $this->queueDetails(
+                    $item,
+                    $account,
+                    $locale,
+                    $queueLabel,
+                    $serviceLabel,
+                    $clientLabel,
+                    $memberUser,
+                    $fromStatus,
+                    $toStatus
+                ),
                 route('client.reservations.book'),
-                $isFr ? 'Ouvrir les reservations' : 'Open reservations',
-                (string) $config['title']
+                $this->translate('actions.open_reservations', $locale),
+                $copy['title'],
+                accountOwnerId: $account->id,
+                mirrorInApp: false
             ), [
                 'reservation_id' => $item->reservation_id,
                 'queue_item_id' => $item->id,
@@ -361,6 +334,10 @@ class ReservationNotificationService
         }
 
         if ((bool) ($settings['sms'] ?? false) && (bool) ($config['include_client'] ?? false)) {
+            $smsLocale = LocalePreference::forNotifiable(
+                $clientUser instanceof User ? $clientUser : $client,
+                $account
+            );
             $smsMessage = $this->queueSmsMessage(
                 $event,
                 $queueLabel,
@@ -371,10 +348,11 @@ class ReservationNotificationService
                     'from_status' => $fromStatus,
                     'to_status' => $toStatus,
                     'position' => is_numeric($item->position) ? (int) $item->position : null,
-                    'company_name' => (string) ($account->company_name ?: $account->name ?: 'Your service team'),
+                    'company_name' => (string) ($account->company_name ?: $account->name ?: ''),
                     'client_name' => $this->queueClientName($item, $client, $clientUser),
                     'team_member_name' => (string) ($memberUser?->name ?? ''),
-                ]
+                ],
+                $smsLocale
             );
             $smsRecipients = $this->resolveQueueSmsRecipients($item, $client, $clientUser);
             foreach ($smsRecipients as $phone) {
@@ -425,10 +403,10 @@ class ReservationNotificationService
             ->where('starts_at', '<=', $upperBound)
             ->with([
                 'service:id,name',
-                'teamMember.user:id,name',
+                'teamMember.user:id,name,locale',
                 'client:id,first_name,last_name,company_name,email,portal_user_id',
-                'client.portalUser:id,name,email',
-                'clientUser:id,name,email',
+                'client.portalUser:id,name,email,locale',
+                'clientUser:id,name,email,locale',
             ])
             ->get();
 
@@ -463,11 +441,9 @@ class ReservationNotificationService
                     $reservation,
                     'reminder',
                     null,
-                    str_starts_with(LocalePreference::forUser($account), 'fr') ? 'Rappel reservation' : 'Reservation reminder',
-                    str_starts_with(LocalePreference::forUser($account), 'fr')
-                        ? 'Rappel : votre reservation commence dans '.((int) $hours).' heure(s).'
-                        : 'Reminder: your reservation starts in '.((int) $hours).' hour(s).',
-                    [],
+                    [
+                        'hours' => (int) $hours,
+                    ],
                     includeClient: true,
                     includeInternal: true
                 );
@@ -485,10 +461,10 @@ class ReservationNotificationService
             ->where('ends_at', '>=', $now->copy()->subDays(14))
             ->with([
                 'service:id,name',
-                'teamMember.user:id,name',
+                'teamMember.user:id,name,locale',
                 'client:id,first_name,last_name,company_name,email,portal_user_id',
-                'client.portalUser:id,name,email',
-                'clientUser:id,name,email',
+                'client.portalUser:id,name,email,locale',
+                'clientUser:id,name,email,locale',
                 'review:id,reservation_id',
             ])
             ->get();
@@ -538,10 +514,6 @@ class ReservationNotificationService
             $reservation,
             'review_request',
             null,
-            str_starts_with(LocalePreference::forUser($account), 'fr') ? 'Comment s est passe votre service ?' : 'How was your service?',
-            str_starts_with(LocalePreference::forUser($account), 'fr')
-                ? 'Votre reservation est terminee. Partagez votre note et votre commentaire.'
-                : 'Your reservation is completed. Share your rating and feedback.',
             [],
             includeClient: true,
             includeInternal: false
@@ -560,9 +532,7 @@ class ReservationNotificationService
         Reservation $reservation,
         string $event,
         ?User $actor,
-        string $title,
-        string $message,
-        array $details = [],
+        array $context = [],
         bool $includeClient = true,
         bool $includeInternal = true
     ): int {
@@ -575,30 +545,13 @@ class ReservationNotificationService
         if ($this->isEventEnabled($settings, $event) === false) {
             return 0;
         }
-        $isFr = str_starts_with(LocalePreference::forUser($account), 'fr');
-
         $reservation->loadMissing([
             'service:id,name',
-            'teamMember.user:id,name,email',
+            'teamMember.user:id,name,email,locale',
             'client:id,first_name,last_name,company_name,email,portal_user_id',
-            'client.portalUser:id,name,email',
-            'clientUser:id,name,email',
+            'client.portalUser:id,name,email,locale',
+            'clientUser:id,name,email,locale',
         ]);
-
-        $serviceLabel = $reservation->service?->name ?: ($isFr ? 'Reservation' : 'Reservation');
-        $memberLabel = $reservation->teamMember?->user?->name ?: ($isFr ? 'Membre d equipe' : 'Team member');
-        $clientLabel = $this->clientLabel($reservation);
-        $startsAt = $reservation->starts_at?->copy()
-            ?->setTimezone($account->company_timezone ?: config('app.timezone', 'UTC'))
-            ->format('Y-m-d H:i');
-
-        $fullDetails = array_merge([
-            ['label' => $isFr ? 'Service' : 'Service', 'value' => $serviceLabel],
-            ['label' => $isFr ? 'Quand' : 'When', 'value' => $startsAt ?: '-'],
-            ['label' => $isFr ? 'Membre d equipe' : 'Team member', 'value' => $memberLabel],
-            ['label' => $isFr ? 'Client' : 'Client', 'value' => $clientLabel ?: '-'],
-            ['label' => $isFr ? 'Statut' : 'Status', 'value' => $reservation->status],
-        ], $details);
 
         $owner = User::query()->find($reservation->account_id);
         $internalUsers = collect([$owner, $reservation->teamMember?->user])
@@ -628,14 +581,30 @@ class ReservationNotificationService
         $sent = 0;
         foreach ($userRecipients as $recipient) {
             $isClientRecipient = $clientUser && (int) $recipient->id === (int) $clientUser->id;
+            $locale = LocalePreference::forNotifiable($recipient, $account);
+            $copy = $this->lifecycleCopy(
+                $reservation,
+                $event,
+                $actor,
+                $account,
+                $isClientRecipient,
+                $locale,
+                $context
+            );
+            $details = $this->reservationDetails($reservation, $account, $locale, $context);
             $actionUrl = $isClientRecipient
                 ? route('client.reservations.index')
                 : route('reservation.index');
 
             if ((bool) ($settings['in_app'] ?? false)) {
                 $dispatchOk = NotificationDispatcher::send($recipient, new ReservationDatabaseNotification([
-                    'title' => $title,
-                    'message' => $message,
+                    'title' => $copy['title'],
+                    'message' => $copy['message'],
+                    'title_key' => $copy['title_key'],
+                    'message_key' => $copy['message_key'],
+                    'parameters' => $copy['parameters'],
+                    'content_version' => 2,
+                    'audience' => $isClientRecipient ? 'client' : 'internal',
                     'event' => $event,
                     'action_url' => $actionUrl,
                     'reservation_id' => $reservation->id,
@@ -652,12 +621,14 @@ class ReservationNotificationService
 
             if ((bool) ($settings['email'] ?? false) && filled($recipient->email)) {
                 $dispatchOk = NotificationDispatcher::send($recipient, new ActionEmailNotification(
-                    $title,
-                    $message,
-                    $fullDetails,
+                    $copy['title'],
+                    $copy['message'],
+                    $details,
                     $actionUrl,
-                    $isFr ? 'Ouvrir la reservation' : 'Open reservation',
-                    $title
+                    $this->translate('actions.open_reservation', $locale),
+                    $copy['title'],
+                    accountOwnerId: $account->id,
+                    mirrorInApp: false
                 ), [
                     'reservation_id' => $reservation->id,
                     'event' => $event,
@@ -675,13 +646,25 @@ class ReservationNotificationService
             && filled($client->email)
             && (bool) ($settings['email'] ?? false)
         ) {
+            $locale = LocalePreference::forNotifiable($client, $account);
+            $copy = $this->lifecycleCopy(
+                $reservation,
+                $event,
+                $actor,
+                $account,
+                true,
+                $locale,
+                $context
+            );
             $dispatchOk = NotificationDispatcher::send($client, new ActionEmailNotification(
-                $title,
-                $message,
-                $fullDetails,
+                $copy['title'],
+                $copy['message'],
+                $this->reservationDetails($reservation, $account, $locale, $context),
                 route('client.reservations.book'),
-                $isFr ? 'Ouvrir les reservations' : 'Open reservations',
-                $title
+                $this->translate('actions.open_reservations', $locale),
+                $copy['title'],
+                accountOwnerId: $account->id,
+                mirrorInApp: false
             ), [
                 'reservation_id' => $reservation->id,
                 'event' => $event,
@@ -694,11 +677,227 @@ class ReservationNotificationService
         return $sent;
     }
 
-    private function reservationLocale(Reservation $reservation): string
-    {
-        $account = User::query()->select(['id', 'locale'])->find($reservation->account_id);
+    /**
+     * @return array{
+     *     title: string,
+     *     message: string,
+     *     title_key: string,
+     *     message_key: string,
+     *     parameters: array<string, string|int>
+     * }
+     */
+    private function queueCopy(
+        string $event,
+        bool $isClientRecipient,
+        string $locale,
+        string $clientLabel,
+        mixed $etaMinutes,
+        ?string $fromStatus,
+        string $toStatus
+    ): array {
+        $audience = $isClientRecipient ? 'client' : 'internal';
+        $baseKey = 'queue.'.$audience.'.'.$event;
+        $parameters = [
+            'client' => $clientLabel !== '' ? $clientLabel : $this->translate('fallback.client', $locale),
+            'minutes' => is_numeric($etaMinutes) ? max(0, (int) $etaMinutes) : 10,
+            'from' => filled($fromStatus) ? (string) $fromStatus : '-',
+            'to' => $toStatus !== '' ? $toStatus : '-',
+        ];
+        $titleKey = 'reservation_notifications.'.$baseKey.'.title';
+        $messageKey = 'reservation_notifications.'.$baseKey.'.message';
 
-        return LocalePreference::forUser($account);
+        return [
+            'title' => LocalePreference::trans($titleKey, $parameters, $locale),
+            'message' => LocalePreference::trans($messageKey, $parameters, $locale),
+            'title_key' => $titleKey,
+            'message_key' => $messageKey,
+            'parameters' => $parameters,
+        ];
+    }
+
+    /**
+     * @return array<int, array{label: string, value: mixed}>
+     */
+    private function queueDetails(
+        ReservationQueueItem $item,
+        User $account,
+        string $locale,
+        string $queueLabel,
+        string $serviceLabel,
+        string $clientLabel,
+        ?User $memberUser,
+        ?string $fromStatus,
+        string $toStatus
+    ): array {
+        $details = [
+            ['label' => $this->translate('details.queue', $locale), 'value' => $queueLabel],
+            ['label' => $this->translate('details.type', $locale), 'value' => $item->item_type],
+            [
+                'label' => $this->translate('details.service', $locale),
+                'value' => $serviceLabel !== '' ? $serviceLabel : $this->translate('details.service', $locale),
+            ],
+            [
+                'label' => $this->translate('details.client', $locale),
+                'value' => $clientLabel !== '' ? $clientLabel : $this->translate('fallback.client', $locale),
+            ],
+            ['label' => $this->translate('details.status', $locale), 'value' => $toStatus],
+            ['label' => $this->translate('details.position', $locale), 'value' => $item->position ?? '-'],
+            ['label' => 'ETA', 'value' => $item->eta_minutes !== null ? ((int) $item->eta_minutes.' min') : '-'],
+            [
+                'label' => $this->translate('details.team_member', $locale),
+                'value' => $memberUser?->name ?: $this->translate('fallback.team_member', $locale),
+            ],
+        ];
+
+        if (filled($fromStatus)) {
+            $details[] = [
+                'label' => $this->translate('details.from_status', $locale),
+                'value' => $fromStatus,
+            ];
+        }
+        if ($toStatus !== '') {
+            $details[] = [
+                'label' => $this->translate('details.to_status', $locale),
+                'value' => $toStatus,
+            ];
+        }
+
+        if ($item->call_expires_at) {
+            $details[] = [
+                'label' => $this->translate('details.call_expires_at', $locale),
+                'value' => $item->call_expires_at->copy()
+                    ->setTimezone($account->company_timezone ?: config('app.timezone', 'UTC'))
+                    ->format('Y-m-d H:i'),
+            ];
+        }
+
+        return $details;
+    }
+
+    /**
+     * @param  array<string, mixed>  $context
+     * @return array{
+     *     title: string,
+     *     message: string,
+     *     title_key: string,
+     *     message_key: string,
+     *     parameters: array<string, string|int>
+     * }
+     */
+    private function lifecycleCopy(
+        Reservation $reservation,
+        string $event,
+        ?User $actor,
+        User $account,
+        bool $isClientRecipient,
+        string $locale,
+        array $context
+    ): array {
+        $audience = $isClientRecipient ? 'client' : 'internal';
+        $variant = match (true) {
+            $event === 'created' => $reservation->source === Reservation::SOURCE_CLIENT
+                ? 'client_source'
+                : 'staff_source',
+            $isClientRecipient && in_array($event, ['rescheduled', 'cancelled'], true) => $this->actorIsReservationClient($reservation, $actor)
+                ? 'self'
+                : 'staff',
+            default => null,
+        };
+        $baseKey = 'lifecycle.'.$audience.'.'.$event.($variant ? '.'.$variant : '');
+        $parameters = [
+            'actor' => (string) ($actor?->name ?: $this->translate('fallback.user', $locale)),
+            'client' => $this->clientLabel($reservation) ?: $this->translate('fallback.client', $locale),
+            'company' => (string) ($account->company_name ?: $account->name ?: $this->translate('fallback.company', $locale)),
+            'hours' => (int) ($context['hours'] ?? 0),
+        ];
+        $titleKey = 'reservation_notifications.'.$baseKey.'.title';
+        $messageKey = 'reservation_notifications.'.$baseKey.'.message';
+
+        return [
+            'title' => LocalePreference::trans($titleKey, $parameters, $locale),
+            'message' => LocalePreference::trans($messageKey, $parameters, $locale),
+            'title_key' => $titleKey,
+            'message_key' => $messageKey,
+            'parameters' => $parameters,
+        ];
+    }
+
+    private function actorIsReservationClient(Reservation $reservation, ?User $actor): bool
+    {
+        if (! $actor instanceof User) {
+            return false;
+        }
+
+        $clientUser = $reservation->clientUser ?: $reservation->client?->portalUser;
+
+        return $clientUser instanceof User && (int) $clientUser->id === (int) $actor->id;
+    }
+
+    /**
+     * @param  array<string, mixed>  $context
+     * @return array<int, array{label: string, value: mixed}>
+     */
+    private function reservationDetails(
+        Reservation $reservation,
+        User $account,
+        string $locale,
+        array $context
+    ): array {
+        $startsAt = $reservation->starts_at?->copy()
+            ?->setTimezone($account->company_timezone ?: config('app.timezone', 'UTC'))
+            ->format('Y-m-d H:i');
+        $details = [
+            [
+                'label' => $this->translate('details.service', $locale),
+                'value' => $reservation->service?->name ?: $this->translate('fallback.reservation', $locale),
+            ],
+            [
+                'label' => $this->translate('details.when', $locale),
+                'value' => $startsAt ?: '-',
+            ],
+            [
+                'label' => $this->translate('details.team_member', $locale),
+                'value' => $reservation->teamMember?->user?->name ?: $this->translate('fallback.team_member', $locale),
+            ],
+            [
+                'label' => $this->translate('details.client', $locale),
+                'value' => $this->clientLabel($reservation) ?: '-',
+            ],
+            [
+                'label' => $this->translate('details.status', $locale),
+                'value' => $reservation->status,
+            ],
+        ];
+
+        foreach (['source', 'reason', 'rating'] as $key) {
+            if (blank($context[$key] ?? null)) {
+                continue;
+            }
+
+            $details[] = [
+                'label' => $this->translate('details.'.$key, $locale),
+                'value' => $context[$key],
+            ];
+        }
+
+        if (array_key_exists('feedback', $context)) {
+            $details[] = [
+                'label' => $this->translate('details.feedback', $locale),
+                'value' => filled($context['feedback'] ?? null)
+                    ? $context['feedback']
+                    : $this->translate('details.no_feedback', $locale),
+            ];
+        }
+
+        return $details;
+    }
+
+    /**
+     * @param  array<string, string|int>  $replace
+     */
+    private function translate(string $key, string $locale, array $replace = []): string
+    {
+        return LocalePreference::trans('reservation_notifications.'.$key, $replace, $locale);
     }
 
     private function isEventEnabled(array $settings, string $event): bool
@@ -811,7 +1010,8 @@ class ReservationNotificationService
         string $queueLabel,
         string $serviceLabel,
         string $status,
-        array $context = []
+        array $context = [],
+        string $locale = 'en'
     ): string {
         $companyName = $this->smsCompactLabel((string) ($context['company_name'] ?? ''), 42);
         $clientName = $this->smsCompactLabel((string) ($context['client_name'] ?? ''), 40);
@@ -831,30 +1031,29 @@ class ReservationNotificationService
         $toStatus = is_string($context['to_status'] ?? null)
             ? trim((string) $context['to_status'])
             : $status;
-
-        $headline = $companyName !== '' ? $companyName : 'Reservation update';
-        $main = match ($event) {
-            'queue_ticket_created' => "[{$queueLabel}] {$serviceLabel}: ticket confirmed. Keep this number for tracking.",
-            'queue_eta_10m' => $etaMinutes !== null
-                ? "[{$queueLabel}] {$serviceLabel}: your turn is in about {$etaMinutes} min."
-                : "[{$queueLabel}] {$serviceLabel}: your turn is in about 10 min.",
-            'queue_pre_call' => "[{$queueLabel}] {$serviceLabel}: you are almost next.",
-            'queue_called' => "[{$queueLabel}] {$serviceLabel}: it is your turn now.",
-            'queue_grace_expired' => "[{$queueLabel}] {$serviceLabel}: your turn was missed. Please rejoin at reception.",
-            'queue_status_changed' => ($fromStatus && $toStatus && $fromStatus !== $toStatus)
-                ? "[{$queueLabel}] {$serviceLabel}: status changed {$fromStatus} -> {$toStatus}."
-                : "[{$queueLabel}] {$serviceLabel}: queue status updated ({$toStatus}).",
-            default => "[{$queueLabel}] {$serviceLabel}: queue update ({$toStatus}).",
-        };
-
-        $lines = [$headline, $main];
+        $copy = $this->queueCopy(
+            $event,
+            true,
+            $locale,
+            $clientName,
+            $etaMinutes,
+            $fromStatus,
+            $toStatus
+        );
+        $headline = $companyName !== '' ? $companyName : $this->translate('fallback.company', $locale);
+        $service = $serviceLabel !== '' ? $serviceLabel : $this->translate('details.service', $locale);
+        $lines = [
+            $headline,
+            "[{$queueLabel}] {$service}",
+            $copy['message'],
+        ];
 
         if ($clientName !== '' && strtolower($clientName) !== 'client') {
-            $lines[] = "Name: {$clientName}";
+            $lines[] = $this->translate('details.client', $locale).": {$clientName}";
         }
 
         if ($position !== null) {
-            $lines[] = "Position: {$position}";
+            $lines[] = $this->translate('details.position', $locale).": {$position}";
         }
 
         if ($etaMinutes !== null) {
@@ -862,11 +1061,7 @@ class ReservationNotificationService
         }
 
         if ($teamMemberName !== '') {
-            $lines[] = "Staff: {$teamMemberName}";
-        }
-
-        if ($event === 'queue_ticket_created') {
-            $lines[] = "Please keep ticket {$queueLabel} to track your place.";
+            $lines[] = $this->translate('details.team_member', $locale).": {$teamMemberName}";
         }
 
         return implode("\n", $lines);

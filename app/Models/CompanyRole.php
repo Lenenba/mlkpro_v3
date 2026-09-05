@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -48,6 +49,17 @@ class CompanyRole extends Model
         return $this->hasMany(TeamMember::class);
     }
 
+    public function scopeAvailableForCompany(Builder $query, int $companyId): Builder
+    {
+        return $query->where(function (Builder $roleQuery) use ($companyId): void {
+            $roleQuery->where('company_id', $companyId)
+                ->orWhere(function (Builder $systemRoleQuery): void {
+                    $systemRoleQuery->whereNull('company_id')
+                        ->where('is_system', true);
+                });
+        });
+    }
+
     public function isSystem(): bool
     {
         return (bool) $this->is_system;
@@ -61,5 +73,11 @@ class CompanyRole extends Model
     public function isDeletable(): bool
     {
         return (bool) $this->is_deletable;
+    }
+
+    public function isAvailableForCompany(int $companyId): bool
+    {
+        return (int) $this->company_id === $companyId
+            || ($this->company_id === null && $this->isSystem());
     }
 }

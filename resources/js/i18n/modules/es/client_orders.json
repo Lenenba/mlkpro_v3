@@ -3,6 +3,7 @@
     "title": "Mis pedidos",
     "subtitle_company": "Ventas con {name}",
     "subtitle_default": "Tus ventas recientes",
+    "portal_navigation": "Secciones de tu portal de cliente",
     "actions": {
       "order": "Orden",
       "reorder": "Reordenar",

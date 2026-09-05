@@ -21,10 +21,14 @@ use App\Models\TeamMember;
 use App\Models\User;
 use App\Models\Work;
 use App\Queries\Dashboard\DashboardProductsOverviewQuery;
+use App\Queries\Demo\DemoScenarioDashboardQuery;
 use App\Services\BillingPlanService;
 use App\Services\BillingSubscriptionService;
 use App\Services\Campaigns\DashboardKpiService;
 use App\Services\FinanceApprovalService;
+use App\Services\Portal\PortalCapabilityService;
+use App\Services\Rbac\AccessControl;
+use App\Services\Rbac\PermissionCatalog;
 use App\Services\StripeInvoiceService;
 use App\Services\StripeSaleService;
 use App\Services\UsageLimitService;
@@ -46,6 +50,7 @@ class DashboardController extends Controller
         }
         $cacheEnabled = empty(request()->query());
         $cacheTtl = now()->addSeconds(30);
+        $dashboardLocale = app()->getLocale();
         $fromCache = function (?string $cacheKey) use ($cacheEnabled) {
             if (! $cacheEnabled || ! $cacheKey) {
                 return null;
@@ -64,14 +69,21 @@ class DashboardController extends Controller
         $today = $now->toDateString();
         if ($user && $user->isClient()) {
             $customer = $user->customerProfile;
+            $portalCapabilityService = app(PortalCapabilityService::class);
+            $portalCapabilities = $portalCapabilityService->forUser($user);
+            $portalContext = $portalCapabilityService->context($portalCapabilities);
+            $portalCapabilityFingerprint = $portalCapabilityService->fingerprint($portalCapabilities);
             if (! $customer) {
-                $cacheKey = $cacheEnabled ? "dashboard:client-missing:{$user->id}" : null;
+                $cacheKey = $cacheEnabled ? "dashboard:client-missing:{$user->id}:{$portalCapabilityFingerprint}:{$dashboardLocale}" : null;
                 if ($cached = $fromCache($cacheKey)) {
                     return $this->inertiaOrJson($cached['component'], $cached['props']);
                 }
 
                 return $respond('DashboardClient', [
                     'profileMissing' => true,
+                    'portalCapabilities' => $portalCapabilities,
+                    'portalContext' => $portalContext,
+                    'orderOverview' => null,
                     'stats' => [
                         'quotes_pending' => 0,
                         'works_pending' => 0,
@@ -99,9 +111,15 @@ class DashboardController extends Controller
                 ], $cacheKey);
             }
 
-            $accountOwner = User::query()->select(['id', 'company_type', 'company_name'])->find($customer->user_id);
-            if ($accountOwner?->company_type === 'products') {
-                $cacheKey = $cacheEnabled ? "dashboard:client-products:{$user->id}" : null;
+            $accountOwner = User::query()->find($customer->user_id);
+            $shouldRenderProductDashboard = $accountOwner instanceof User
+                && ($this->shouldReturnJson()
+                    ? $accountOwner->company_type === 'products'
+                        && (bool) data_get($portalCapabilities, 'orders.view', false)
+                    : $portalContext['mode'] === 'product');
+
+            if ($shouldRenderProductDashboard) {
+                $cacheKey = $cacheEnabled ? "dashboard:client-products:{$user->id}:{$portalCapabilityFingerprint}:{$dashboardLocale}" : null;
                 if ($cached = $fromCache($cacheKey)) {
                     return $this->inertiaOrJson($cached['component'], $cached['props']);
                 }
@@ -109,28 +127,7 @@ class DashboardController extends Controller
                 $salesQuery = Sale::query()
                     ->where('user_id', $accountOwner->id)
                     ->where('customer_id', $customerId);
-
-                $stats = [
-                    'orders_total' => (clone $salesQuery)->count(),
-                    'orders_pending' => (clone $salesQuery)->where('status', Sale::STATUS_PENDING)->count(),
-                    'orders_paid' => (clone $salesQuery)->where('status', Sale::STATUS_PAID)->count(),
-                    'amount_paid' => (float) (clone $salesQuery)->where('status', Sale::STATUS_PAID)->sum('total'),
-                ];
-
-                $recentSales = (clone $salesQuery)
-                    ->latest()
-                    ->limit(8)
-                    ->get([
-                        'id',
-                        'number',
-                        'status',
-                        'total',
-                        'created_at',
-                        'fulfillment_method',
-                        'fulfillment_status',
-                        'scheduled_for',
-                        'delivery_confirmed_at',
-                    ]);
+                $orderOverview = $this->buildClientOrderOverview($accountOwner, $customerId, 8);
 
                 $pendingOrders = (clone $salesQuery)
                     ->where('status', '!=', Sale::STATUS_CANCELED)
@@ -206,11 +203,13 @@ class DashboardController extends Controller
                     ]);
 
                 $props = [
+                    'portalCapabilities' => $portalCapabilities,
+                    'portalContext' => $portalContext,
                     'company' => [
                         'name' => $accountOwner->company_name,
                     ],
-                    'stats' => $stats,
-                    'sales' => $recentSales,
+                    'stats' => $orderOverview['stats'],
+                    'sales' => $orderOverview['sales'],
                     'pendingOrders' => $pendingOrders,
                     'inDeliveryOrders' => $inDeliveryOrders,
                     'deliveryAlerts' => $deliveryAlerts,
@@ -226,172 +225,211 @@ class DashboardController extends Controller
             $autoValidateTasks = (bool) ($customer->auto_validate_tasks ?? false);
             $autoValidateInvoices = (bool) ($customer->auto_validate_invoices ?? false);
 
-            $cacheKey = $cacheEnabled ? "dashboard:client:{$user->id}" : null;
+            $cacheKey = $cacheEnabled ? "dashboard:client:{$user->id}:{$portalCapabilityFingerprint}:{$dashboardLocale}" : null;
             if ($cached = $fromCache($cacheKey)) {
                 return $this->inertiaOrJson($cached['component'], $cached['props']);
             }
 
+            $orderOverview = $portalContext['has_product'] && $accountOwner
+                ? $this->buildClientOrderOverview($accountOwner, $customerId, 5)
+                : null;
+
+            $canViewPendingQuotes = (bool) data_get($portalCapabilities, 'quotes.view', false);
+            $canViewQuoteHistory = (bool) data_get($portalCapabilities, 'quotes.history', false);
+            $canManagePendingWorks = (bool) data_get($portalCapabilities, 'works.validate', false)
+                || (bool) data_get($portalCapabilities, 'works.dispute', false);
+            $canReviewSchedules = (bool) data_get($portalCapabilities, 'works.schedule', false);
+            $canViewWorks = (bool) data_get($portalCapabilities, 'works.view', false);
+            $canViewWorkProofs = (bool) data_get($portalCapabilities, 'works.proofs', false);
+            $canPayInvoices = (bool) data_get($portalCapabilities, 'invoices.pay', false);
+            $canRateQuotes = (bool) data_get($portalCapabilities, 'quotes.rate', false);
+            $canRateWorks = (bool) data_get($portalCapabilities, 'works.rate', false);
+
             $sessionId = request()->query('session_id');
             $invoiceId = request()->query('invoice');
-            if ($sessionId && $invoiceId) {
+            if ($canPayInvoices && $sessionId && $invoiceId) {
                 $stripeService = app(StripeInvoiceService::class);
                 if ($stripeService->isConfigured()) {
-                    $invoice = Invoice::query()->find($invoiceId);
-                    $connectAccountId = $invoice ? $stripeService->resolveConnectedAccountId($invoice) : null;
-                    $payment = $stripeService->syncFromCheckoutSessionId($sessionId, $connectAccountId);
-                    if ($payment && (int) $payment->invoice_id === (int) $invoiceId) {
-                        if ($invoice && (int) $invoice->customer_id === (int) $customerId) {
+                    $invoice = Invoice::query()
+                        ->where('customer_id', $customerId)
+                        ->where('user_id', $customer->user_id)
+                        ->find($invoiceId);
+                    if ($invoice) {
+                        $connectAccountId = $stripeService->resolveConnectedAccountId($invoice);
+                        $payment = $stripeService->syncFromCheckoutSessionId($sessionId, $connectAccountId, $invoice);
+                        if ($payment && (int) $payment->invoice_id === (int) $invoice->id) {
                             $invoice->refresh();
                         }
                     }
                 }
             }
 
-            $pendingQuotesQuery = Quote::query()
-                ->where('customer_id', $customerId)
-                ->whereNull('archived_at')
-                ->where('status', 'sent');
-            $validatedQuotesQuery = Quote::query()
-                ->where('customer_id', $customerId)
-                ->whereNull('archived_at')
-                ->whereIn('status', ['accepted', 'declined']);
-
-            $pendingWorksQuery = Work::query()
-                ->where('customer_id', $customerId)
-                ->whereIn('status', [Work::STATUS_PENDING_REVIEW, Work::STATUS_TECH_COMPLETE]);
-            $pendingSchedulesQuery = Work::query()
-                ->where('customer_id', $customerId)
-                ->where('status', Work::STATUS_SCHEDULED)
-                ->whereDoesntHave('tasks')
-                ->with('teamMembers.user:id,name');
-            $validatedWorksQuery = Work::query()
-                ->where('customer_id', $customerId)
-                ->whereIn('status', [
-                    Work::STATUS_VALIDATED,
-                    Work::STATUS_AUTO_VALIDATED,
-                    Work::STATUS_CLOSED,
-                    Work::STATUS_COMPLETED,
-                ]);
-
-            $invoicesDueQuery = $autoValidateInvoices
-                ? null
-                : Invoice::query()
+            $pendingQuotesQuery = $canViewPendingQuotes
+                ? Quote::query()
                     ->where('customer_id', $customerId)
-                    ->whereIn('status', ['sent', 'partial', 'overdue']);
+                    ->whereNull('archived_at')
+                    ->where('status', 'sent')
+                : null;
+            $validatedQuotesQuery = $canViewQuoteHistory
+                ? Quote::query()
+                    ->where('customer_id', $customerId)
+                    ->whereNull('archived_at')
+                    ->whereIn('status', ['accepted', 'declined'])
+                : null;
 
-            $quoteRatingsQuery = Quote::query()
-                ->where('customer_id', $customerId)
-                ->whereNull('archived_at')
-                ->whereIn('status', ['accepted', 'declined'])
-                ->whereDoesntHave('ratings', function ($query) use ($user) {
-                    $query->where('user_id', $user->id);
-                });
+            $pendingWorksQuery = $canManagePendingWorks
+                ? Work::query()
+                    ->where('customer_id', $customerId)
+                    ->whereIn('status', [Work::STATUS_PENDING_REVIEW, Work::STATUS_TECH_COMPLETE])
+                : null;
+            $pendingSchedulesQuery = $canReviewSchedules
+                ? Work::query()
+                    ->where('customer_id', $customerId)
+                    ->where('status', Work::STATUS_SCHEDULED)
+                    ->whereDoesntHave('tasks')
+                    ->with('teamMembers.user:id,name')
+                : null;
+            $validatedWorksQuery = $canViewWorks
+                ? Work::query()
+                    ->where('customer_id', $customerId)
+                    ->whereIn('status', [
+                        Work::STATUS_VALIDATED,
+                        Work::STATUS_AUTO_VALIDATED,
+                        Work::STATUS_CLOSED,
+                        Work::STATUS_COMPLETED,
+                    ])
+                : null;
 
-            $workRatingsQuery = Work::query()
-                ->where('customer_id', $customerId)
-                ->whereIn('status', [
-                    Work::STATUS_VALIDATED,
-                    Work::STATUS_AUTO_VALIDATED,
-                    Work::STATUS_CLOSED,
-                    Work::STATUS_COMPLETED,
-                ])
-                ->whereDoesntHave('ratings', function ($query) use ($user) {
-                    $query->where('user_id', $user->id);
-                });
+            $invoicesDueQuery = ! $autoValidateInvoices && $canPayInvoices
+                ? Invoice::query()
+                    ->where('customer_id', $customerId)
+                    ->whereIn('status', ['sent', 'partial', 'overdue'])
+                : null;
+
+            $quoteRatingsQuery = $canRateQuotes
+                ? Quote::query()
+                    ->where('customer_id', $customerId)
+                    ->whereNull('archived_at')
+                    ->whereIn('status', ['accepted', 'declined'])
+                    ->whereDoesntHave('ratings', function ($query) use ($user) {
+                        $query->where('user_id', $user->id);
+                    })
+                : null;
+
+            $workRatingsQuery = $canRateWorks
+                ? Work::query()
+                    ->where('customer_id', $customerId)
+                    ->whereIn('status', [
+                        Work::STATUS_VALIDATED,
+                        Work::STATUS_AUTO_VALIDATED,
+                        Work::STATUS_CLOSED,
+                        Work::STATUS_COMPLETED,
+                    ])
+                    ->whereDoesntHave('ratings', function ($query) use ($user) {
+                        $query->where('user_id', $user->id);
+                    })
+                : null;
 
             $stats = [
-                'quotes_pending' => (clone $pendingQuotesQuery)->count(),
-                'works_pending' => (clone $pendingWorksQuery)->count(),
-                'invoices_due' => $autoValidateInvoices ? 0 : (clone $invoicesDueQuery)->count(),
-                'ratings_due' => (clone $quoteRatingsQuery)->count()
-                    + (clone $workRatingsQuery)->count(),
+                'quotes_pending' => $pendingQuotesQuery ? (clone $pendingQuotesQuery)->count() : 0,
+                'works_pending' => $pendingWorksQuery ? (clone $pendingWorksQuery)->count() : 0,
+                'invoices_due' => $invoicesDueQuery ? (clone $invoicesDueQuery)->count() : 0,
+                'ratings_due' => ($quoteRatingsQuery ? (clone $quoteRatingsQuery)->count() : 0)
+                    + ($workRatingsQuery ? (clone $workRatingsQuery)->count() : 0),
             ];
 
-            $pendingQuotes = (clone $pendingQuotesQuery)
-                ->latest()
-                ->limit(8)
-                ->get(['id', 'number', 'job_title', 'status', 'total', 'initial_deposit', 'created_at'])
-                ->map(function ($quote) {
-                    return [
-                        'id' => $quote->id,
-                        'number' => $quote->number,
-                        'job_title' => $quote->job_title,
-                        'status' => $quote->status,
-                        'total' => (float) $quote->total,
-                        'initial_deposit' => (float) ($quote->initial_deposit ?? 0),
-                        'created_at' => $quote->created_at,
-                    ];
-                });
+            $pendingQuotes = $pendingQuotesQuery
+                ? (clone $pendingQuotesQuery)
+                    ->latest()
+                    ->limit(8)
+                    ->get(['id', 'number', 'job_title', 'status', 'total', 'initial_deposit', 'created_at'])
+                    ->map(function ($quote) {
+                        return [
+                            'id' => $quote->id,
+                            'number' => $quote->number,
+                            'job_title' => $quote->job_title,
+                            'status' => $quote->status,
+                            'total' => (float) $quote->total,
+                            'initial_deposit' => (float) ($quote->initial_deposit ?? 0),
+                            'created_at' => $quote->created_at,
+                        ];
+                    })
+                : collect();
 
-            $validatedQuotes = (clone $validatedQuotesQuery)
-                ->orderByDesc('updated_at')
-                ->limit(6)
-                ->get(['id', 'number', 'job_title', 'status', 'total', 'signed_at', 'accepted_at', 'updated_at'])
-                ->map(function ($quote) {
-                    return [
-                        'id' => $quote->id,
-                        'number' => $quote->number,
-                        'job_title' => $quote->job_title,
-                        'status' => $quote->status,
-                        'total' => (float) $quote->total,
-                        'decided_at' => $quote->accepted_at ?? $quote->signed_at ?? $quote->updated_at,
-                    ];
-                });
+            $validatedQuotes = $validatedQuotesQuery
+                ? (clone $validatedQuotesQuery)
+                    ->orderByDesc('updated_at')
+                    ->limit(6)
+                    ->get(['id', 'number', 'job_title', 'status', 'total', 'signed_at', 'accepted_at', 'updated_at'])
+                    ->map(function ($quote) {
+                        return [
+                            'id' => $quote->id,
+                            'number' => $quote->number,
+                            'job_title' => $quote->job_title,
+                            'status' => $quote->status,
+                            'total' => (float) $quote->total,
+                            'decided_at' => $quote->accepted_at ?? $quote->signed_at ?? $quote->updated_at,
+                        ];
+                    })
+                : collect();
 
-            $pendingWorks = (clone $pendingWorksQuery)
-                ->orderByDesc('updated_at')
-                ->limit(8)
-                ->get(['id', 'job_title', 'status', 'start_date', 'end_date', 'completed_at'])
-                ->map(function ($work) {
-                    return [
-                        'id' => $work->id,
-                        'job_title' => $work->job_title,
-                        'status' => $work->status,
-                        'start_date' => $work->start_date,
-                        'end_date' => $work->end_date,
-                        'completed_at' => $work->completed_at,
-                    ];
-                });
+            $pendingWorks = $pendingWorksQuery
+                ? (clone $pendingWorksQuery)
+                    ->orderByDesc('updated_at')
+                    ->limit(8)
+                    ->get(['id', 'job_title', 'status', 'start_date', 'end_date', 'completed_at'])
+                    ->map(function ($work) {
+                        return [
+                            'id' => $work->id,
+                            'job_title' => $work->job_title,
+                            'status' => $work->status,
+                            'start_date' => $work->start_date,
+                            'end_date' => $work->end_date,
+                            'completed_at' => $work->completed_at,
+                        ];
+                    })
+                : collect();
 
-            $pendingSchedules = (clone $pendingSchedulesQuery)
-                ->orderBy('start_date')
-                ->limit(8)
-                ->get([
-                    'id',
-                    'job_title',
-                    'status',
-                    'start_date',
-                    'end_date',
-                    'start_time',
-                    'end_time',
-                    'frequency',
-                    'repeatsOn',
-                    'totalVisits',
-                ])
-                ->map(function ($work) {
-                    return [
-                        'id' => $work->id,
-                        'job_title' => $work->job_title,
-                        'status' => $work->status,
-                        'start_date' => $work->start_date,
-                        'end_date' => $work->end_date,
-                        'start_time' => $work->start_time,
-                        'end_time' => $work->end_time,
-                        'frequency' => $work->frequency,
-                        'repeatsOn' => $work->repeatsOn,
-                        'totalVisits' => $work->totalVisits,
-                        'team_members' => $work->teamMembers->map(function ($member) {
-                            return [
-                                'id' => $member->id,
-                                'name' => $member->user?->name ?? 'Membre equipe',
-                            ];
-                        })->values(),
-                    ];
-                });
+            $pendingSchedules = $pendingSchedulesQuery
+                ? (clone $pendingSchedulesQuery)
+                    ->orderBy('start_date')
+                    ->limit(8)
+                    ->get([
+                        'id',
+                        'job_title',
+                        'status',
+                        'start_date',
+                        'end_date',
+                        'start_time',
+                        'end_time',
+                        'frequency',
+                        'repeatsOn',
+                        'totalVisits',
+                    ])
+                    ->map(function ($work) {
+                        return [
+                            'id' => $work->id,
+                            'job_title' => $work->job_title,
+                            'status' => $work->status,
+                            'start_date' => $work->start_date,
+                            'end_date' => $work->end_date,
+                            'start_time' => $work->start_time,
+                            'end_time' => $work->end_time,
+                            'frequency' => $work->frequency,
+                            'repeatsOn' => $work->repeatsOn,
+                            'totalVisits' => $work->totalVisits,
+                            'team_members' => $work->teamMembers->map(function ($member) {
+                                return [
+                                    'id' => $member->id,
+                                    'name' => $member->user?->name ?? 'Membre equipe',
+                                ];
+                            })->values(),
+                        ];
+                    })
+                : collect();
 
-            $taskProofs = $autoValidateTasks
-                ? collect()
-                : Task::query()
+            $taskProofs = $canViewWorkProofs
+                ? Task::query()
                     ->where('customer_id', $customerId)
                     ->whereNotNull('work_id')
                     ->whereIn('status', ['in_progress', 'done'])
@@ -419,24 +457,26 @@ class DashboardController extends Controller
                             'work_id' => $task->work_id,
                             'work_title' => $task->work?->job_title,
                         ];
-                    });
+                    })
+                : collect();
 
-            $validatedWorks = (clone $validatedWorksQuery)
-                ->orderByDesc('completed_at')
-                ->limit(6)
-                ->get(['id', 'job_title', 'status', 'completed_at'])
-                ->map(function ($work) {
-                    return [
-                        'id' => $work->id,
-                        'job_title' => $work->job_title,
-                        'status' => $work->status,
-                        'completed_at' => $work->completed_at,
-                    ];
-                });
+            $validatedWorks = $validatedWorksQuery
+                ? (clone $validatedWorksQuery)
+                    ->orderByDesc('completed_at')
+                    ->limit(6)
+                    ->get(['id', 'job_title', 'status', 'completed_at'])
+                    ->map(function ($work) {
+                        return [
+                            'id' => $work->id,
+                            'job_title' => $work->job_title,
+                            'status' => $work->status,
+                            'completed_at' => $work->completed_at,
+                        ];
+                    })
+                : collect();
 
-            $invoicesDue = $autoValidateInvoices
-                ? collect()
-                : (clone $invoicesDueQuery)
+            $invoicesDue = $invoicesDueQuery
+                ? (clone $invoicesDueQuery)
                     ->withSum(['payments as payments_sum_amount' => fn ($query) => $query->whereIn('status', Payment::settledStatuses())], 'amount')
                     ->orderByDesc('created_at')
                     ->limit(8)
@@ -451,64 +491,80 @@ class DashboardController extends Controller
                             'balance_due' => $invoice->balance_due,
                             'created_at' => $invoice->created_at,
                         ];
-                    });
+                    })
+                : collect();
 
-            $quoteRatingsDue = (clone $quoteRatingsQuery)
-                ->orderByDesc('updated_at')
-                ->limit(6)
-                ->get(['id', 'number', 'job_title', 'status', 'total', 'accepted_at', 'signed_at', 'updated_at'])
-                ->map(function ($quote) {
-                    return [
-                        'id' => $quote->id,
-                        'number' => $quote->number,
-                        'job_title' => $quote->job_title,
-                        'status' => $quote->status,
-                        'total' => (float) $quote->total,
-                        'decided_at' => $quote->accepted_at ?? $quote->signed_at ?? $quote->updated_at,
-                    ];
-                });
+            $quoteRatingsDue = $quoteRatingsQuery
+                ? (clone $quoteRatingsQuery)
+                    ->orderByDesc('updated_at')
+                    ->limit(6)
+                    ->get(['id', 'number', 'job_title', 'status', 'total', 'accepted_at', 'signed_at', 'updated_at'])
+                    ->map(function ($quote) {
+                        return [
+                            'id' => $quote->id,
+                            'number' => $quote->number,
+                            'job_title' => $quote->job_title,
+                            'status' => $quote->status,
+                            'total' => (float) $quote->total,
+                            'decided_at' => $quote->accepted_at ?? $quote->signed_at ?? $quote->updated_at,
+                        ];
+                    })
+                : collect();
 
-            $workRatingsDue = (clone $workRatingsQuery)
-                ->orderByDesc('completed_at')
-                ->limit(6)
-                ->get(['id', 'job_title', 'status', 'completed_at'])
-                ->map(function ($work) {
-                    return [
-                        'id' => $work->id,
-                        'job_title' => $work->job_title,
-                        'status' => $work->status,
-                        'completed_at' => $work->completed_at,
-                    ];
-                });
+            $workRatingsDue = $workRatingsQuery
+                ? (clone $workRatingsQuery)
+                    ->orderByDesc('completed_at')
+                    ->limit(6)
+                    ->get(['id', 'job_title', 'status', 'completed_at'])
+                    ->map(function ($work) {
+                        return [
+                            'id' => $work->id,
+                            'job_title' => $work->job_title,
+                            'status' => $work->status,
+                            'completed_at' => $work->completed_at,
+                        ];
+                    })
+                : collect();
 
             $seriesMonths = 6;
-            $quotesPendingSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($pendingQuotesQuery) {
-                return (clone $pendingQuotesQuery)
-                    ->whereBetween('created_at', [$start, $end])
-                    ->count();
-            });
-            $worksPendingSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($pendingWorksQuery) {
-                return (clone $pendingWorksQuery)
-                    ->whereBetween('created_at', [$start, $end])
-                    ->count();
-            });
-            $invoicesDueSeries = $autoValidateInvoices
-                ? ['values' => array_fill(0, $seriesMonths, 0)]
-                : $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($invoicesDueQuery) {
+            $emptySeries = ['values' => array_fill(0, $seriesMonths, 0)];
+            $quotesPendingSeries = $pendingQuotesQuery
+                ? $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($pendingQuotesQuery) {
+                    return (clone $pendingQuotesQuery)
+                        ->whereBetween('created_at', [$start, $end])
+                        ->count();
+                })
+                : $emptySeries;
+            $worksPendingSeries = $pendingWorksQuery
+                ? $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($pendingWorksQuery) {
+                    return (clone $pendingWorksQuery)
+                        ->whereBetween('created_at', [$start, $end])
+                        ->count();
+                })
+                : $emptySeries;
+            $invoicesDueSeries = $invoicesDueQuery
+                ? $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($invoicesDueQuery) {
                     return (clone $invoicesDueQuery)
                         ->whereBetween('created_at', [$start, $end])
                         ->count();
-                });
-            $ratingsDueSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($quoteRatingsQuery, $workRatingsQuery) {
-                $quoteCount = (clone $quoteRatingsQuery)
-                    ->whereBetween('updated_at', [$start, $end])
-                    ->count();
-                $workCount = (clone $workRatingsQuery)
-                    ->whereBetween('updated_at', [$start, $end])
-                    ->count();
+                })
+                : $emptySeries;
+            $ratingsDueSeries = $quoteRatingsQuery || $workRatingsQuery
+                ? $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($quoteRatingsQuery, $workRatingsQuery) {
+                    $quoteCount = $quoteRatingsQuery
+                        ? (clone $quoteRatingsQuery)
+                            ->whereBetween('updated_at', [$start, $end])
+                            ->count()
+                        : 0;
+                    $workCount = $workRatingsQuery
+                        ? (clone $workRatingsQuery)
+                            ->whereBetween('updated_at', [$start, $end])
+                            ->count()
+                        : 0;
 
-                return $quoteCount + $workCount;
-            });
+                    return $quoteCount + $workCount;
+                })
+                : $emptySeries;
             $kpiSeries = [
                 'quotes_pending' => $quotesPendingSeries['values'],
                 'works_pending' => $worksPendingSeries['values'],
@@ -518,6 +574,9 @@ class DashboardController extends Controller
 
             $props = [
                 'profileMissing' => false,
+                'portalCapabilities' => $portalCapabilities,
+                'portalContext' => $portalContext,
+                'orderOverview' => $orderOverview,
                 'stats' => $stats,
                 'autoValidation' => [
                     'tasks' => $autoValidateTasks,
@@ -555,7 +614,8 @@ class DashboardController extends Controller
             $accountOwner,
             'quick_actions'
         );
-        $isAccountOwner = ($user?->id ?? Auth::id()) === $accountId;
+        $isAccountOwner = ($user?->id ?? Auth::id()) === $accountId
+            && (bool) $user?->isAccountOwner();
 
         $membership = null;
         if (! $isAccountOwner && $user) {
@@ -566,8 +626,21 @@ class DashboardController extends Controller
                 ->first();
         }
 
+        if (! $isAccountOwner && ! $membership) {
+            abort(403);
+        }
+
         if ($accountOwner?->company_type === 'products') {
-            $cacheKey = $cacheEnabled ? "dashboard:products:{$accountId}:{$user?->id}" : null;
+            $accessFingerprint = 'owner';
+            if ($membership) {
+                $membership->loadMissing('companyRole.permissions');
+                $effectivePermissions = app(PermissionCatalog::class)->expand($membership->resolvedPermissions());
+                sort($effectivePermissions);
+                $accessFingerprint = substr(hash('sha256', implode('|', $effectivePermissions)), 0, 16);
+            }
+            $cacheKey = $cacheEnabled
+                ? "dashboard:products:{$accountId}:{$user?->id}:{$accessFingerprint}:{$dashboardLocale}"
+                : null;
             if ($cached = $fromCache($cacheKey)) {
                 return $this->inertiaOrJson($cached['component'], $cached['props']);
             }
@@ -625,12 +698,25 @@ class DashboardController extends Controller
         }
 
         if ($membership) {
+            $membership->loadMissing('companyRole.permissions');
+            $effectivePermissions = app(PermissionCatalog::class)->expand($membership->resolvedPermissions());
+            sort($effectivePermissions);
+            $accessFingerprint = substr(hash('sha256', implode('|', $effectivePermissions)), 0, 16);
+            $canViewTasks = (bool) $accountOwner?->hasCompanyFeature('tasks')
+                && $membership->hasPermission('tasks.view');
+            $canViewJobs = (bool) $accountOwner?->hasCompanyFeature('jobs')
+                && $membership->hasPermission('jobs.view');
+
             if ($membership->role === 'admin') {
-                $cacheKey = $cacheEnabled ? "dashboard:admin:{$accountId}:{$user->id}" : null;
+                $cacheKey = $cacheEnabled
+                    ? "dashboard:admin:{$accountId}:{$user->id}:{$accessFingerprint}:{$dashboardLocale}"
+                    : null;
                 if ($cached = $fromCache($cacheKey)) {
                     return $this->inertiaOrJson($cached['component'], $cached['props']);
                 }
-                $tasksQuery = Task::query()->forAccount($accountId);
+                $tasksQuery = Task::query()
+                    ->forAccount($accountId)
+                    ->when(! $canViewTasks, fn ($query) => $query->whereRaw('1 = 0'));
 
                 $stats = [
                     'tasks_total' => (clone $tasksQuery)->count(),
@@ -707,7 +793,9 @@ class DashboardController extends Controller
                         ];
                     });
 
-                $worksQuery = Work::query()->byUser($accountId);
+                $worksQuery = Work::query()
+                    ->byUser($accountId)
+                    ->when(! $canViewJobs, fn ($query) => $query->whereRaw('1 = 0'));
                 $worksToday = $this->buildWorksToday($worksQuery, $today);
                 $agendaAlerts = $this->buildAgendaAlerts($tasksQuery, $worksQuery, $today);
 
@@ -756,14 +844,17 @@ class DashboardController extends Controller
                 return $respond('DashboardAdmin', $props, $cacheKey);
             }
 
-            $cacheKey = $cacheEnabled ? "dashboard:member:{$accountId}:{$user->id}" : null;
+            $cacheKey = $cacheEnabled
+                ? "dashboard:member:{$accountId}:{$user->id}:{$accessFingerprint}:{$dashboardLocale}"
+                : null;
             if ($cached = $fromCache($cacheKey)) {
                 return $this->inertiaOrJson($cached['component'], $cached['props']);
             }
 
             $tasksQuery = Task::query()
                 ->forAccount($accountId)
-                ->where('assigned_team_member_id', $membership->id);
+                ->where('assigned_team_member_id', $membership->id)
+                ->when(! $canViewTasks, fn ($query) => $query->whereRaw('1 = 0'));
 
             $stats = [
                 'tasks_total' => (clone $tasksQuery)->count(),
@@ -842,7 +933,8 @@ class DashboardController extends Controller
 
             $worksQuery = Work::query()
                 ->byUser($accountId)
-                ->whereHas('teamMembers', fn ($query) => $query->whereKey($membership->id));
+                ->whereHas('teamMembers', fn ($query) => $query->whereKey($membership->id))
+                ->when(! $canViewJobs, fn ($query) => $query->whereRaw('1 = 0'));
             $worksToday = $this->buildWorksToday($worksQuery, $today);
             $agendaAlerts = $this->buildAgendaAlerts($tasksQuery, $worksQuery, $today);
 
@@ -885,7 +977,7 @@ class DashboardController extends Controller
             return $respond('DashboardMember', $props, $cacheKey);
         }
 
-        $cacheKey = $cacheEnabled ? "dashboard:owner:{$accountId}:{$user?->id}" : null;
+        $cacheKey = $cacheEnabled ? "dashboard:owner:{$accountId}:{$user?->id}:{$dashboardLocale}" : null;
         if ($cached = $fromCache($cacheKey)) {
             return $this->inertiaOrJson($cached['component'], $cached['props']);
         }
@@ -895,7 +987,8 @@ class DashboardController extends Controller
         $recentSince = $now->copy()->subDays(30);
 
         $customersQuery = Customer::byUser($userId);
-        $productsQuery = Product::byUser($userId);
+        $catalogQuery = Product::byUser($userId);
+        $productsQuery = Product::query()->products()->byUser($userId);
         $quotesQuery = Quote::byUser($userId);
         $worksQuery = Work::byUser($userId);
         $invoicesQuery = Invoice::byUser($userId);
@@ -918,6 +1011,7 @@ class DashboardController extends Controller
         $stats = [
             'customers_total' => (clone $customersQuery)->count(),
             'customers_new' => (clone $customersQuery)->whereDate('created_at', '>=', $recentSince)->count(),
+            'catalog_total' => (clone $catalogQuery)->count(),
             'products_total' => (clone $productsQuery)->count(),
             'products_low_stock' => (clone $productsQuery)
                 ->whereColumn('stock', '<=', 'minimum_stock')
@@ -940,12 +1034,27 @@ class DashboardController extends Controller
             'plan_scans_total' => PlanScan::query()->where('user_id', $userId)->count(),
         ];
 
+        $invoicePaymentsQuery = Payment::query()
+            ->where('user_id', $userId)
+            ->whereNotNull('invoice_id')
+            ->whereNull('sale_id')
+            ->settled();
+        $posPaymentsQuery = Payment::query()
+            ->where('user_id', $userId)
+            ->whereNotNull('sale_id')
+            ->whereNull('invoice_id')
+            ->settled();
+
         $revenueBilled = (clone $invoicesQuery)->sum('total');
-        $revenuePaid = Payment::where('user_id', $userId)->sum('amount');
+        $revenuePaid = (float) (clone $invoicePaymentsQuery)->sum('amount');
         $stats['revenue_billed'] = $revenueBilled;
         $stats['revenue_paid'] = $revenuePaid;
         $stats['revenue_outstanding'] = max(0, $revenueBilled - $revenuePaid);
-        $stats['payments_month'] = Payment::where('user_id', $userId)
+        $stats['payments_month'] = (float) (clone $invoicePaymentsQuery)
+            ->whereDate('paid_at', '>=', $startOfMonth)
+            ->sum('amount');
+        $stats['pos_revenue_paid'] = (float) (clone $posPaymentsQuery)->sum('amount');
+        $stats['pos_payments_month'] = (float) (clone $posPaymentsQuery)
             ->whereDate('paid_at', '>=', $startOfMonth)
             ->sum('amount');
 
@@ -1162,14 +1271,27 @@ class DashboardController extends Controller
                 ];
             });
 
-        $seriesMonths = 6;
-        $revenueSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($userId) {
-            return (float) Payment::where('user_id', $userId)
+        $scenarioInsights = $accountOwner
+            ? app(DemoScenarioDashboardQuery::class)->execute($accountOwner)
+            : null;
+        $seriesMonths = $scenarioInsights ? 12 : 6;
+        $seriesAnchor = $scenarioInsights
+            ? Carbon::parse(
+                (string) $scenarioInsights['reference_date'],
+                (string) $scenarioInsights['timezone'],
+            )->endOfDay()
+            : $now;
+        $revenueSeries = $this->buildMonthlySeries($seriesAnchor, $seriesMonths, function ($start, $end) use ($userId) {
+            return (float) Payment::query()
+                ->where('user_id', $userId)
+                ->whereNotNull('invoice_id')
+                ->whereNull('sale_id')
+                ->settled()
                 ->whereBetween('paid_at', [$start, $end])
                 ->sum('amount');
         });
         $expenseSeries = $accountOwner?->hasCompanyFeature('expenses')
-            ? $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($userId) {
+            ? $this->buildMonthlySeries($seriesAnchor, $seriesMonths, function ($start, $end) use ($userId) {
                 return (float) Expense::query()
                     ->byAccount($userId)
                     ->whereIn('status', [Expense::STATUS_PAID, Expense::STATUS_REIMBURSED])
@@ -1177,49 +1299,49 @@ class DashboardController extends Controller
                     ->sum('total');
             })
             : ['values' => []];
-        $revenueOutstandingSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($invoicesQuery) {
+        $revenueOutstandingSeries = $this->buildMonthlySeries($seriesAnchor, $seriesMonths, function ($start, $end) use ($invoicesQuery) {
             return (float) (clone $invoicesQuery)
                 ->whereNotIn('status', ['paid', 'void'])
                 ->whereBetween('created_at', [$start, $end])
                 ->sum('total');
         });
-        $quotesOpenSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($quotesQuery) {
+        $quotesOpenSeries = $this->buildMonthlySeries($seriesAnchor, $seriesMonths, function ($start, $end) use ($quotesQuery) {
             return (clone $quotesQuery)
                 ->whereIn('status', ['draft', 'sent'])
                 ->whereBetween('created_at', [$start, $end])
                 ->count();
         });
-        $worksInProgressSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($worksQuery, $inProgressStatuses) {
+        $worksInProgressSeries = $this->buildMonthlySeries($seriesAnchor, $seriesMonths, function ($start, $end) use ($worksQuery, $inProgressStatuses) {
             return (clone $worksQuery)
                 ->whereIn('status', $inProgressStatuses)
                 ->whereBetween('created_at', [$start, $end])
                 ->count();
         });
-        $worksScheduledSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($worksQuery, $scheduledStatuses) {
+        $worksScheduledSeries = $this->buildMonthlySeries($seriesAnchor, $seriesMonths, function ($start, $end) use ($worksQuery, $scheduledStatuses) {
             return (clone $worksQuery)
                 ->whereIn('status', $scheduledStatuses)
                 ->whereBetween('created_at', [$start, $end])
                 ->count();
         });
-        $customersSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($customersQuery) {
+        $customersSeries = $this->buildMonthlySeries($seriesAnchor, $seriesMonths, function ($start, $end) use ($customersQuery) {
             return (clone $customersQuery)
                 ->whereBetween('created_at', [$start, $end])
                 ->count();
         });
-        $lowStockSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($productsQuery) {
+        $lowStockSeries = $this->buildMonthlySeries($seriesAnchor, $seriesMonths, function ($start, $end) use ($productsQuery) {
             return (clone $productsQuery)
                 ->whereColumn('stock', '<=', 'minimum_stock')
                 ->where('stock', '>', 0)
                 ->whereBetween('updated_at', [$start, $end])
                 ->count();
         });
-        $invoicesPaidSeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($invoicesQuery) {
+        $invoicesPaidSeries = $this->buildMonthlySeries($seriesAnchor, $seriesMonths, function ($start, $end) use ($invoicesQuery) {
             return (clone $invoicesQuery)
                 ->where('status', 'paid')
                 ->whereBetween('updated_at', [$start, $end])
                 ->count();
         });
-        $inventorySeries = $this->buildMonthlySeries($now, $seriesMonths, function ($start, $end) use ($productsQuery) {
+        $inventorySeries = $this->buildMonthlySeries($seriesAnchor, $seriesMonths, function ($start, $end) use ($productsQuery) {
             return (float) (clone $productsQuery)
                 ->whereBetween('created_at', [$start, $end])
                 ->select(DB::raw('COALESCE(SUM(stock * COALESCE(NULLIF(cost_price, 0), price)), 0) as value'))
@@ -1276,6 +1398,7 @@ class DashboardController extends Controller
             'quickAnnouncements' => $quickAnnouncements,
             'financeSummary' => $accountOwner ? $this->buildDashboardFinanceSummary($accountOwner) : [],
             'marketingKpis' => $marketingKpis,
+            'scenarioInsights' => $scenarioInsights,
             'usage_limits' => $usageLimits,
             'billing' => [
                 'plans' => $plans,
@@ -1372,12 +1495,25 @@ class DashboardController extends Controller
                 ->first();
         }
 
-        $tasksQuery = Task::query()->forAccount($accountId);
+        $accountOwner = $isAccountOwner
+            ? $user
+            : User::query()->find($accountId);
+        $accessControl = app(AccessControl::class);
+        $canViewTasks = (bool) $accountOwner?->hasCompanyFeature('tasks')
+            && $accessControl->userHasPermission($user, 'tasks.view', $accountId);
+        $canViewJobs = (bool) $accountOwner?->hasCompanyFeature('jobs')
+            && $accessControl->userHasPermission($user, 'jobs.view', $accountId);
+
+        $tasksQuery = Task::query()
+            ->forAccount($accountId)
+            ->when(! $canViewTasks, fn ($query) => $query->whereRaw('1 = 0'));
         if ($membership && $membership->role !== 'admin') {
             $tasksQuery->where('assigned_team_member_id', $membership->id);
         }
 
-        $worksQuery = Work::query()->byUser($accountId);
+        $worksQuery = Work::query()
+            ->byUser($accountId)
+            ->when(! $canViewJobs, fn ($query) => $query->whereRaw('1 = 0'));
         if ($membership && $membership->role !== 'admin') {
             $worksQuery->whereHas('teamMembers', fn ($query) => $query->whereKey($membership->id));
         }
@@ -1577,6 +1713,48 @@ class DashboardController extends Controller
         $value = str_replace(',', '\,', $value);
 
         return $value;
+    }
+
+    /**
+     * @return array{stats: array{orders_total: int, orders_pending: int, orders_paid: int, amount_paid: float}, sales: array<int, array<string, mixed>>}
+     */
+    private function buildClientOrderOverview(User $accountOwner, int $customerId, int $recentLimit): array
+    {
+        $salesQuery = Sale::query()
+            ->where('user_id', $accountOwner->id)
+            ->where('customer_id', $customerId);
+
+        $recentSales = (clone $salesQuery)
+            ->with(['payments:id,sale_id,status,amount'])
+            ->latest()
+            ->limit($recentLimit)
+            ->get([
+                'id',
+                'number',
+                'status',
+                'total',
+                'created_at',
+                'fulfillment_method',
+                'fulfillment_status',
+                'scheduled_for',
+                'delivery_confirmed_at',
+            ])
+            ->map(static function (Sale $sale): array {
+                $sale->makeHidden('payments');
+
+                return $sale->toArray();
+            })
+            ->all();
+
+        return [
+            'stats' => [
+                'orders_total' => (clone $salesQuery)->count(),
+                'orders_pending' => (clone $salesQuery)->where('status', Sale::STATUS_PENDING)->count(),
+                'orders_paid' => (clone $salesQuery)->where('status', Sale::STATUS_PAID)->count(),
+                'amount_paid' => (float) (clone $salesQuery)->where('status', Sale::STATUS_PAID)->sum('total'),
+            ],
+            'sales' => $recentSales,
+        ];
     }
 
     private function buildProductPerformance(int $accountId, Carbon $now): array
@@ -2197,8 +2375,7 @@ class DashboardController extends Controller
                     })
                     ->orWhere('audience', 'new_tenants');
             })
-            ->orderByDesc('priority')
-            ->orderByDesc('starts_at')
+            ->orderedForDisplay()
             ->limit(6)
             ->get()
             ->filter(function (PlatformAnnouncement $announcement) use ($tenant, $now) {
@@ -2215,15 +2392,17 @@ class DashboardController extends Controller
                 return $tenant->created_at->gte($now->copy()->subDays($days));
             })
             ->map(function (PlatformAnnouncement $announcement) {
+                $content = $announcement->localizedContent();
+
                 return [
                     'id' => $announcement->id,
-                    'title' => $announcement->title,
-                    'body' => $announcement->body,
+                    'title' => $content['title'],
+                    'body' => $content['body'],
                     'display_style' => $announcement->display_style,
                     'background_color' => $announcement->background_color,
                     'media_type' => $announcement->media_type,
                     'media_url' => $announcement->media_url,
-                    'link_label' => $announcement->link_label,
+                    'link_label' => $content['link_label'],
                     'link_url' => $announcement->link_url,
                     'starts_at' => $announcement->starts_at?->toDateString(),
                     'ends_at' => $announcement->ends_at?->toDateString(),

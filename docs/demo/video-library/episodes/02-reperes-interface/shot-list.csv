@@ -1,0 +1,13 @@
+capture_id,sequence,route,ui_state,data,framing,narration_focus,expected_proof,canonical_filename,status
+G02-S01,1,/dashboard,Tableau de bord propriétaire,Salon Éclat Amina Diallo,Vue large avec en-tête et barre latérale,Quatre repères,Contexte complet visible,G02-REPERES__S01-DASHBOARD-PROPRIETAIRE__desktop__fr__v01.png,a_produire
+G02-S02,2,/dashboard,En-tête propriétaire,Aucune notification ouverte,Gros plan horizontal,Recherche alertes réglages compte,Zones distinctes lisibles,G02-REPERES__S02-ENTETE__desktop__fr__v01.png,a_produire
+G02-S03,3,/dashboard,Barre latérale et hubs,Salon Éclat propriétaire,Gros plan vertical avec libellés,Regroupement par usage,Six hubs visibles selon modules,G02-REPERES__S03-HUBS__desktop__fr__v01.png,a_produire
+G02-S04,4,/workspace-hubs/revenue,Hub Revenus,Clients visible,Vue générale du hub,Retrouver Client,Lien Clients visible,G02-REPERES__S04-HUB-REVENUS__desktop__fr__v01.png,a_produire
+G02-S05,5,/workspace-hubs/operations,Hub Opérations,Réservations et équipe,Vue générale du hub,Modules de la journée,Entrées réelles du preset visibles,G02-REPERES__S05-HUB-OPERATIONS__desktop__fr__v01.png,a_produire
+G02-S06,6,/workspace-hubs/catalog,Hub Catalogue,Prestations et produits,Vue générale du hub,Ce que le salon vend,Entrées catalogue visibles,G02-REPERES__S06-HUB-CATALOGUE__desktop__fr__v01.png,a_produire
+G02-S07,7,/dashboard,Retour par le logo,Tableau de bord,Gros plan logo plus page,Chemin de retour,URL dashboard,G02-REPERES__S07-RETOUR-DASHBOARD__desktop__fr__v01.png,a_produire
+G02-S08,8,/dashboard,Palette ouverte avant recherche,Actions Client Prestation Produit,Vue centrée palette,Actions rapides conditionnelles,Actions visibles sans donnée saisie,G02-REPERES__S08-PALETTE-ACTIONS__desktop__fr__v01.png,a_produire
+G02-S09,9,/dashboard,Recherche globale avec résultat,Marie,Palette et groupes,Seuil et groupes,Marie Lefebvre dans Clients,G02-REPERES__S09-RECHERCHE-MARIE__desktop__fr__v01.png,a_produire
+G02-S10,10,/dashboard,Formulaire rapide Client ouvert,Formulaire vide,Vue de la modale,Différence action rapide page complète,Aucune donnée personnelle,G02-REPERES__S10-CLIENT-RAPIDE__desktop__fr__v01.png,a_produire
+G02-S11,11,/dashboard,Formulaire rapide fermé,Aucune création,Vue large,Sortie sans enregistrer,Retour propre au dashboard,G02-REPERES__S11-AUCUNE-CREATION__desktop__fr__v01.png,a_produire
+G02-S12,12,/dashboard,Comparaison rôle réception,Compte de démonstration réception,Vue navigation avec cartouche rôle,Modules plus permissions,Rôle clairement identifié,G02-REPERES__S12-VARIANTE-RECEPTION__desktop__fr__v01.png,a_produire

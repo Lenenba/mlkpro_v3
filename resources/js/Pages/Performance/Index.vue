@@ -3,6 +3,8 @@ import { computed, onMounted, ref } from 'vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
+import ModuleKpiSection from '@/Components/Dashboard/ModuleKpiSection.vue';
 import Card from '@/Components/UI/Card.vue';
 import { useCurrencyFormatter } from '@/utils/currency';
 
@@ -19,12 +21,21 @@ const props = defineProps({
         type: String,
         default: 'clients',
     },
+    performanceMode: {
+        type: String,
+        default: null,
+    },
 });
 
 const { t } = useI18n();
 const page = usePage();
 const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
-const isServiceCompany = computed(() => companyType.value !== 'products');
+const isServiceCompany = computed(() =>
+    props.performanceMode
+        ? props.performanceMode !== 'products'
+        : companyType.value !== 'products'
+);
+const isReservationPerformance = computed(() => props.performanceMode === 'reservations');
 
 const activeTab = ref(props.tab === 'employees' ? 'employees' : 'clients');
 const activePeriod = ref('month');
@@ -123,20 +134,62 @@ const noSellersLabel = computed(() =>
     isServiceCompany.value ? t('performance.employees.no_members') : t('performance.employees.no_sellers')
 );
 const topProductsLabel = computed(() =>
-    isServiceCompany.value ? t('performance.employees.top_jobs') : t('performance.employees.top_products')
+    isReservationPerformance.value
+        ? t('dashboard.scenario.top_services')
+        : (isServiceCompany.value ? t('performance.employees.top_jobs') : t('performance.employees.top_products'))
 );
 const noProductsLabel = computed(() =>
-    isServiceCompany.value ? t('performance.employees.no_jobs') : t('performance.employees.no_products')
+    isReservationPerformance.value
+        ? t('services.empty')
+        : (isServiceCompany.value ? t('performance.employees.no_jobs') : t('performance.employees.no_products'))
 );
-const employeeLineKey = computed(() =>
-    isServiceCompany.value ? 'performance.employees.member_line' : 'performance.employees.seller_line'
-);
-const clientLineKey = computed(() =>
-    isServiceCompany.value ? 'performance.clients.line_services' : 'performance.clients.line'
-);
-const productLineKey = computed(() =>
-    isServiceCompany.value ? 'performance.employees.job_line' : 'performance.employees.product_line'
-);
+
+const reservationLine = (revenue, reservations, services) =>
+    `${formatCurrency(revenue)} · ${formatNumber(reservations)} ${t('nav.reservations')} · ${formatNumber(services)} ${t('nav.services')}`;
+
+const clientLine = (customer) => {
+    if (isReservationPerformance.value) {
+        return reservationLine(customer.revenue, customer.orders, customer.items);
+    }
+
+    return t(
+        isServiceCompany.value ? 'performance.clients.line_services' : 'performance.clients.line',
+        {
+            revenue: formatCurrency(customer.revenue),
+            orders: formatNumber(customer.orders),
+            items: formatNumber(customer.items),
+        },
+    );
+};
+
+const employeeLine = (employee) => {
+    if (isReservationPerformance.value) {
+        return reservationLine(employee.revenue, employee.orders, employee.items);
+    }
+
+    return t(
+        isServiceCompany.value ? 'performance.employees.member_line' : 'performance.employees.seller_line',
+        {
+            revenue: formatCurrency(employee.revenue),
+            orders: formatNumber(employee.orders),
+            items: formatNumber(employee.items),
+        },
+    );
+};
+
+const productLine = (product) => {
+    if (isReservationPerformance.value) {
+        return `${formatCurrency(product.revenue)} · ${formatNumber(product.quantity)} ${t('nav.services')}`;
+    }
+
+    return t(
+        isServiceCompany.value ? 'performance.employees.job_line' : 'performance.employees.product_line',
+        {
+            revenue: formatCurrency(product.revenue),
+            quantity: formatNumber(product.quantity),
+        },
+    );
+};
 
 const highlightThemes = {
     day: {
@@ -224,124 +277,18 @@ const highlightThemes = {
 const sellerHighlightStyles = computed(() => highlightThemes[activePeriod.value]?.seller || highlightThemes.month.seller);
 const customerHighlightStyles = computed(() => highlightThemes[activePeriod.value]?.client || highlightThemes.month.client);
 
-const kpiIcons = {
-    revenue: {
-        viewBox: '0 0 24 24',
-        paths: [
-            'M12 6v12',
-            'M8.5 9.5a3.5 3.5 0 117 0c0 1.933-1.567 3.5-3.5 3.5S8.5 11.433 8.5 9.5z',
-            'M8.5 14.5a3.5 3.5 0 117 0c0 1.933-1.567 3.5-3.5 3.5S8.5 16.433 8.5 14.5z',
-        ],
-    },
-    orders: {
-        viewBox: '0 0 24 24',
-        paths: [
-            'M3 3h2l.4 2',
-            'M7 13h10l4-8H5.4',
-            'M7 13L5.4 5',
-            'M7 13l-2 6',
-            'M17 13l2 6',
-            'M9 21a1 1 0 100-2 1 1 0 000 2',
-            'M17 21a1 1 0 100-2 1 1 0 000 2',
-        ],
-    },
-    items_sold: {
-        viewBox: '0 0 24 24',
-        paths: [
-            'M12 3l8 4-8 4-8-4 8-4z',
-            'M4 7v10l8 4 8-4V7',
-        ],
-    },
-    jobs: {
-        viewBox: '0 0 24 24',
-        paths: [
-            'M2 7h20v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7',
-            'M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2',
-            'M2 11h20',
-        ],
-    },
-    tasks: {
-        viewBox: '0 0 24 24',
-        paths: [
-            'M9 11l3 3L22 4',
-            'M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11',
-        ],
-    },
-    avg_order: {
-        viewBox: '0 0 24 24',
-        paths: [
-            'M6 4h12v16l-3-1.5-3 1.5-3-1.5-3 1.5V4z',
-            'M9 8h6',
-            'M9 12h6',
-        ],
-    },
-    avg_job: {
-        viewBox: '0 0 24 24',
-        paths: [
-            'M6 4h12v16l-3-1.5-3 1.5-3-1.5-3 1.5V4z',
-            'M9 8h6',
-            'M9 12h6',
-        ],
-    },
-    customers: {
-        viewBox: '0 0 24 24',
-        paths: [
-            'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2',
-            'M9 7a4 4 0 100 8 4 4 0 000-8z',
-            'M23 21v-2a4 4 0 00-3-3.87',
-            'M16 3.13a4 4 0 010 7.75',
-        ],
-    },
-    avg_customer_value: {
-        viewBox: '0 0 24 24',
-        paths: [
-            'M2 5h20a2 2 0 012 2v10a2 2 0 01-2 2H2a2 2 0 01-2-2V7a2 2 0 012-2z',
-            'M2 11h20',
-            'M6 15h4',
-        ],
-    },
-    revenue_per_seller: {
-        viewBox: '0 0 24 24',
-        paths: [
-            'M3 17l6-6 4 4 7-7',
-            'M14 8h6v6',
-        ],
-    },
-    revenue_per_member: {
-        viewBox: '0 0 24 24',
-        paths: [
-            'M3 17l6-6 4 4 7-7',
-            'M14 8h6v6',
-        ],
-    },
-};
-
-const kpiStyles = {
-    revenue: 'bg-emerald-500/90 text-white shadow-emerald-500/30',
-    orders: 'bg-sky-500/90 text-white shadow-sky-500/30',
-    items_sold: 'bg-amber-500/90 text-white shadow-amber-500/30',
-    jobs: 'bg-indigo-500/90 text-white shadow-indigo-500/30',
-    tasks: 'bg-rose-500/90 text-white shadow-rose-500/30',
-    avg_order: 'bg-violet-500/90 text-white shadow-violet-500/30',
-    avg_job: 'bg-violet-500/90 text-white shadow-violet-500/30',
-    customers: 'bg-rose-500/90 text-white shadow-rose-500/30',
-    avg_customer_value: 'bg-teal-500/90 text-white shadow-teal-500/30',
-    revenue_per_seller: 'bg-cyan-500/90 text-white shadow-cyan-500/30',
-    revenue_per_member: 'bg-cyan-500/90 text-white shadow-cyan-500/30',
-};
-
-const kpiBorderStyles = {
-    revenue: 'border-t-emerald-500 dark:border-t-emerald-400',
-    orders: 'border-t-sky-500 dark:border-t-sky-400',
-    items_sold: 'border-t-amber-500 dark:border-t-amber-400',
-    jobs: 'border-t-indigo-500 dark:border-t-indigo-400',
-    tasks: 'border-t-rose-500 dark:border-t-rose-400',
-    avg_order: 'border-t-violet-500 dark:border-t-violet-400',
-    avg_job: 'border-t-violet-500 dark:border-t-violet-400',
-    customers: 'border-t-rose-500 dark:border-t-rose-400',
-    avg_customer_value: 'border-t-teal-500 dark:border-t-teal-400',
-    revenue_per_seller: 'border-t-cyan-500 dark:border-t-cyan-400',
-    revenue_per_member: 'border-t-cyan-500 dark:border-t-cyan-400',
+const kpiTones = {
+    revenue: 'emerald',
+    orders: 'sky',
+    items_sold: 'amber',
+    jobs: 'indigo',
+    tasks: 'rose',
+    avg_order: 'violet',
+    avg_job: 'violet',
+    customers: 'rose',
+    avg_customer_value: 'teal',
+    revenue_per_seller: 'cyan',
+    revenue_per_member: 'cyan',
 };
 
 const buildKpis = (items) =>
@@ -349,9 +296,7 @@ const buildKpis = (items) =>
         const iconKey = item.iconKey || item.key;
         return {
             ...item,
-            icon: kpiIcons[iconKey],
-            iconClass: kpiStyles[iconKey] || 'bg-stone-600/90 text-white shadow-stone-500/30',
-            borderClass: kpiBorderStyles[iconKey] || 'border-t-stone-300 dark:border-t-neutral-600',
+            tone: kpiTones[iconKey] || 'stone',
         };
     });
 
@@ -360,19 +305,25 @@ const clientKpis = computed(() => buildKpis([
     {
         key: isServiceCompany.value ? 'jobs' : 'orders',
         iconKey: isServiceCompany.value ? 'jobs' : 'orders',
-        label: isServiceCompany.value ? t('performance.kpi.jobs') : t('performance.kpi.orders'),
+        label: isReservationPerformance.value
+            ? t('nav.reservations')
+            : (isServiceCompany.value ? t('performance.kpi.jobs') : t('performance.kpi.orders')),
         value: formatNumber(clientPeriod.value.orders),
     },
     {
         key: isServiceCompany.value ? 'tasks' : 'items_sold',
         iconKey: isServiceCompany.value ? 'tasks' : 'items_sold',
-        label: isServiceCompany.value ? t('performance.kpi.tasks') : t('performance.kpi.items_sold'),
+        label: isReservationPerformance.value
+            ? t('nav.services')
+            : (isServiceCompany.value ? t('performance.kpi.tasks') : t('performance.kpi.items_sold')),
         value: formatNumber(clientPeriod.value.items_sold),
     },
     {
         key: isServiceCompany.value ? 'avg_job' : 'avg_order',
         iconKey: isServiceCompany.value ? 'avg_job' : 'avg_order',
-        label: isServiceCompany.value ? t('performance.kpi.avg_job') : t('performance.kpi.avg_order'),
+        label: isReservationPerformance.value
+            ? t('performance.kpi.avg_service')
+            : (isServiceCompany.value ? t('performance.kpi.avg_job') : t('performance.kpi.avg_order')),
         value: formatCurrency(clientPeriod.value.avg_order),
     },
     { key: 'customers', label: t('performance.kpi.customers'), value: formatNumber(clientPeriod.value.customers) },
@@ -384,19 +335,25 @@ const employeeKpis = computed(() => buildKpis([
     {
         key: isServiceCompany.value ? 'jobs' : 'orders',
         iconKey: isServiceCompany.value ? 'jobs' : 'orders',
-        label: isServiceCompany.value ? t('performance.kpi.jobs') : t('performance.kpi.orders'),
+        label: isReservationPerformance.value
+            ? t('nav.reservations')
+            : (isServiceCompany.value ? t('performance.kpi.jobs') : t('performance.kpi.orders')),
         value: formatNumber(employeePeriod.value.orders),
     },
     {
         key: isServiceCompany.value ? 'tasks' : 'items_sold',
         iconKey: isServiceCompany.value ? 'tasks' : 'items_sold',
-        label: isServiceCompany.value ? t('performance.kpi.tasks') : t('performance.kpi.items_sold'),
+        label: isReservationPerformance.value
+            ? t('nav.services')
+            : (isServiceCompany.value ? t('performance.kpi.tasks') : t('performance.kpi.items_sold')),
         value: formatNumber(employeePeriod.value.items_sold),
     },
     {
         key: isServiceCompany.value ? 'avg_job' : 'avg_order',
         iconKey: isServiceCompany.value ? 'avg_job' : 'avg_order',
-        label: isServiceCompany.value ? t('performance.kpi.avg_job') : t('performance.kpi.avg_order'),
+        label: isReservationPerformance.value
+            ? t('performance.kpi.avg_service')
+            : (isServiceCompany.value ? t('performance.kpi.avg_job') : t('performance.kpi.avg_order')),
         value: formatCurrency(employeePeriod.value.avg_order),
     },
     { key: 'customers', label: t('performance.kpi.customers'), value: formatNumber(employeePeriod.value.customers) },
@@ -507,53 +464,24 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
             </div>
 
             <div v-if="activeTab === 'clients'" class="space-y-4">
-                <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
-                    <div
-                        v-if="isHydrating"
-                        v-for="index in skeletonKpis"
-                        :key="`client-kpi-skeleton-${index}`"
-                        class="rounded-sm border border-t-4 border-stone-200 bg-white p-4 text-xs text-stone-500 shadow-sm animate-pulse dark:border-neutral-700 dark:border-t-neutral-600 dark:bg-neutral-900 dark:text-neutral-400"
-                    >
-                        <div class="flex items-start justify-between gap-2">
-                            <div class="space-y-2">
-                                <div class="h-3 w-16 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
-                                <div class="h-4 w-20 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
-                            </div>
-                            <div class="h-9 w-9 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
-                        </div>
-                    </div>
-                    <div
-                        v-else
-                        v-for="card in clientKpis"
-                        :key="card.label"
-                        class="rounded-sm border border-t-4 border-stone-200 bg-white p-4 text-xs text-stone-500 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400"
-                        :class="card.borderClass"
-                    >
-                        <div class="flex items-start justify-between gap-2">
-                            <div>
-                                <p class="uppercase">{{ card.label }}</p>
-                                <p class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ card.value }}</p>
-                            </div>
-                            <div
-                                class="flex h-9 w-9 items-center justify-center rounded-full shadow-lg ring-1 ring-white/20 animate-[pulse_3s_ease-in-out_infinite]"
-                                :class="card.iconClass"
-                            >
-                                <svg
-                                    v-if="card.icon"
-                                    :viewBox="card.icon.viewBox"
-                                    class="h-4 w-4"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="1.8"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                >
-                                    <path v-for="path in card.icon.paths" :key="path" :d="path" />
-                                </svg>
+                <ModuleKpiSection module-key="performance">
+                    <div v-if="isHydrating" class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-3">
+                        <div
+                            v-for="index in skeletonKpis"
+                            :key="`client-kpi-skeleton-${index}`"
+                            class="rounded-sm border border-t-4 border-stone-200 bg-white p-4 text-xs text-stone-500 shadow-sm animate-pulse dark:border-neutral-700 dark:border-t-neutral-600 dark:bg-neutral-900 dark:text-neutral-400"
+                        >
+                            <div class="flex items-start justify-between gap-2">
+                                <div class="space-y-2">
+                                    <div class="h-3 w-16 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                    <div class="h-4 w-20 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                </div>
+                                <div class="h-9 w-9 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
                             </div>
                         </div>
                     </div>
-                </div>
+                    <KpiMetricGrid v-else :metrics="clientKpis" />
+                </ModuleKpiSection>
 
                 <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
                     <Card class="lg:col-span-2">
@@ -598,11 +526,7 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                                 <div class="flex-1">
                                     <p class="font-semibold text-stone-800 dark:text-neutral-100">{{ customerDisplayName(customer) }}</p>
                                     <p class="text-xs text-stone-500 dark:text-neutral-400">
-                            {{ t(clientLineKey, {
-                                revenue: formatCurrency(customer.revenue),
-                                orders: formatNumber(customer.orders),
-                                items: formatNumber(customer.items),
-                            }) }}
+                                        {{ clientLine(customer) }}
                                     </p>
                                 </div>
                             </div>
@@ -660,13 +584,9 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                                 </div>
                                 <div>
                                     <p class="text-sm font-semibold">{{ customerDisplayName(customerOfPeriod) }}</p>
-                                    <p class="text-xs" :class="customerHighlightStyles.subtle">
-                                            {{ t(clientLineKey, {
-                                                revenue: formatCurrency(customerOfPeriod.revenue),
-                                                orders: formatNumber(customerOfPeriod.orders),
-                                                items: formatNumber(customerOfPeriod.items),
-                                            }) }}
-                                    </p>
+                                        <p class="text-xs" :class="customerHighlightStyles.subtle">
+                                            {{ clientLine(customerOfPeriod) }}
+                                        </p>
                                 </div>
                             </div>
                             <p v-else class="mt-3 text-sm" :class="customerHighlightStyles.subtle">
@@ -678,53 +598,24 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
             </div>
 
             <div v-else class="space-y-4">
-                <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
-                    <div
-                        v-if="isHydrating"
-                        v-for="index in skeletonKpis"
-                        :key="`employee-kpi-skeleton-${index}`"
-                        class="rounded-sm border border-t-4 border-stone-200 bg-white p-4 text-xs text-stone-500 shadow-sm animate-pulse dark:border-neutral-700 dark:border-t-neutral-600 dark:bg-neutral-900 dark:text-neutral-400"
-                    >
-                        <div class="flex items-start justify-between gap-2">
-                            <div class="space-y-2">
-                                <div class="h-3 w-16 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
-                                <div class="h-4 w-20 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
-                            </div>
-                            <div class="h-9 w-9 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
-                        </div>
-                    </div>
-                    <div
-                        v-else
-                        v-for="card in employeeKpis"
-                        :key="card.label"
-                        class="rounded-sm border border-t-4 border-stone-200 bg-white p-4 text-xs text-stone-500 shadow-sm dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400"
-                        :class="card.borderClass"
-                    >
-                        <div class="flex items-start justify-between gap-2">
-                            <div>
-                                <p class="uppercase">{{ card.label }}</p>
-                                <p class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">{{ card.value }}</p>
-                            </div>
-                            <div
-                                class="flex h-9 w-9 items-center justify-center rounded-full shadow-lg ring-1 ring-white/20 animate-[pulse_3s_ease-in-out_infinite]"
-                                :class="card.iconClass"
-                            >
-                                <svg
-                                    v-if="card.icon"
-                                    :viewBox="card.icon.viewBox"
-                                    class="h-4 w-4"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    stroke-width="1.8"
-                                    stroke-linecap="round"
-                                    stroke-linejoin="round"
-                                >
-                                    <path v-for="path in card.icon.paths" :key="path" :d="path" />
-                                </svg>
+                <ModuleKpiSection module-key="performance">
+                    <div v-if="isHydrating" class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))] gap-3">
+                        <div
+                            v-for="index in skeletonKpis"
+                            :key="`employee-kpi-skeleton-${index}`"
+                            class="rounded-sm border border-t-4 border-stone-200 bg-white p-4 text-xs text-stone-500 shadow-sm animate-pulse dark:border-neutral-700 dark:border-t-neutral-600 dark:bg-neutral-900 dark:text-neutral-400"
+                        >
+                            <div class="flex items-start justify-between gap-2">
+                                <div class="space-y-2">
+                                    <div class="h-3 w-16 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                    <div class="h-4 w-20 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
+                                </div>
+                                <div class="h-9 w-9 rounded-full bg-stone-200 dark:bg-neutral-700"></div>
                             </div>
                         </div>
                     </div>
-                </div>
+                    <KpiMetricGrid v-else :metrics="employeeKpis" />
+                </ModuleKpiSection>
 
                 <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
                     <div class="lg:col-span-2 space-y-4">
@@ -778,11 +669,7 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                                             </span>
                                         </div>
                                         <p class="text-xs text-stone-500 dark:text-neutral-400">
-                                            {{ t(employeeLineKey, {
-                                                revenue: formatCurrency(seller.revenue),
-                                                orders: formatNumber(seller.orders),
-                                                items: formatNumber(seller.items),
-                                            }) }}
+                                            {{ employeeLine(seller) }}
                                         </p>
                                     </div>
                                     <Link
@@ -836,10 +723,7 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                                     <div class="flex-1">
                                         <p class="font-semibold text-stone-800 dark:text-neutral-100">{{ product.name }}</p>
                                         <p class="text-xs text-stone-500 dark:text-neutral-400">
-                                            {{ t(productLineKey, {
-                                                revenue: formatCurrency(product.revenue),
-                                                quantity: formatNumber(product.quantity),
-                                            }) }}
+                                            {{ productLine(product) }}
                                         </p>
                                     </div>
                                 </div>
@@ -899,11 +783,7 @@ const skeletonRows = Array.from({ length: 4 }, (_, index) => index);
                                 <div>
                                     <p class="text-sm font-semibold">{{ sellerDisplayName(sellerOfPeriod) }}</p>
                                     <p class="text-xs" :class="sellerHighlightStyles.subtle">
-                                        {{ t(employeeLineKey, {
-                                            revenue: formatCurrency(sellerOfPeriod.revenue),
-                                            orders: formatNumber(sellerOfPeriod.orders),
-                                            items: formatNumber(sellerOfPeriod.items),
-                                        }) }}
+                                        {{ employeeLine(sellerOfPeriod) }}
                                     </p>
                                 </div>
                             </div>

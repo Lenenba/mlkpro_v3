@@ -1,6 +1,10 @@
 {
   "invoices": {
     "title": "Facturas",
+    "history": {
+      "title": "Historial de facturas y pagos",
+      "subtitle": "Consulta tus facturas, pagos y saldos pendientes."
+    },
     "company_fallback": "Empresa",
     "view": {
       "table": "Tabla",
@@ -125,7 +129,12 @@
       "line_items_empty": "Sin líneas de pedido.",
       "summary": {
         "subtotal": "Subtotal",
+        "taxes": "Impuestos",
+        "invoice_total": "Total de la factura",
         "paid": "Pagado",
+        "paid_toward_invoice": "Pagado en la factura",
+        "tips": "Propina",
+        "charged_total": "Total cobrado",
         "total_amount": "Monto total",
         "balance_due": "Saldo adeudado"
       },
@@ -165,6 +174,7 @@
       "invoices": "Aún no hay facturas."
     },
     "pagination": {
+      "label": "Paginación de facturas",
       "previous": "Anterior",
       "next": "Siguiente",
       "of": "de"

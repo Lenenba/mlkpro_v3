@@ -63,7 +63,7 @@ function pulseHistoryTeamMember(
 
 function pulseHistoryConnection(User $owner, string $platform, array $overrides = []): SocialAccountConnection
 {
-    return SocialAccountConnection::query()->create(array_merge([
+    $attributes = array_merge([
         'user_id' => $owner->id,
         'platform' => $platform,
         'label' => Str::headline($platform).' channel',
@@ -79,7 +79,16 @@ function pulseHistoryConnection(User $owner, string $platform, array $overrides 
             'provider_label' => Str::headline($platform),
             'target_type' => 'page',
         ],
-    ], $overrides));
+    ], $overrides);
+
+    return SocialAccountConnection::query()->create([
+        ...$attributes,
+        ...pulseDirectTransportIdentity(
+            $owner,
+            (string) $attributes['platform'],
+            (string) $attributes['external_account_id'],
+        ),
+    ]);
 }
 
 /**
@@ -169,6 +178,10 @@ it('renders the pulse history page and filters posts by status platform and sear
         'text' => 'LinkedIn retry needed',
         'failed_at' => Carbon::parse('2026-04-22 11:00:00'),
         'failure_reason' => 'LinkedIn API timeout',
+        'metadata' => [
+            'publish_mode' => 'immediate',
+            'publish_requested_at' => Carbon::parse('2026-04-22 10:59:00')->toIso8601String(),
+        ],
     ]);
 
     pulseHistoryPost($owner, $owner, SocialPost::STATUS_DRAFT, [[
@@ -202,7 +215,26 @@ it('renders the pulse history page and filters posts by status platform and sear
         ->assertJsonPath('filters.search', 'Spring')
         ->assertJsonCount(1, 'posts')
         ->assertJsonPath('posts.0.status', SocialPost::STATUS_PUBLISHED)
-        ->assertJsonPath('posts.0.text', 'Spring launch published');
+        ->assertJsonPath('posts.0.text', 'Spring launch published')
+        ->assertJsonPath('posts.0.is_queued_publication', false)
+        ->assertJsonPath('posts.0.is_editable', false)
+        ->assertJsonPath('posts.0.targets.0.status', SocialPostTarget::STATUS_PUBLISHED)
+        ->assertJsonPath('posts.0.targets.0.failure_reason', null);
+
+    $this->actingAs($owner)
+        ->getJson(route('social.history', [
+            'status' => SocialPost::STATUS_FAILED,
+            'platform' => SocialAccountConnection::PLATFORM_LINKEDIN,
+            'search' => 'retry',
+        ]))
+        ->assertOk()
+        ->assertJsonCount(1, 'posts')
+        ->assertJsonPath('posts.0.status', SocialPost::STATUS_FAILED)
+        ->assertJsonPath('posts.0.is_queued_publication', true)
+        ->assertJsonPath('posts.0.is_editable', false)
+        ->assertJsonPath('posts.0.targets.0.status', SocialPostTarget::STATUS_FAILED)
+        ->assertJsonPath('posts.0.targets.0.failed_at', Carbon::parse('2026-04-22 11:00:00')->toIso8601String())
+        ->assertJsonPath('posts.0.targets.0.failure_reason', 'LinkedIn API timeout');
 });
 
 it('duplicates pulse draft published and failed posts into editable drafts', function () {

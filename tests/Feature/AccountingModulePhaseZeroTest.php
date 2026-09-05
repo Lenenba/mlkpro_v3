@@ -264,11 +264,11 @@ test('accounting phase one bootstraps accounts mappings and journal entries from
             ->where('mobile_summary.cash_out', 45)
             ->has('journal.data', 10)
             ->has('review_workspace.batches')
-            ->has('system_accounts', 8)
+            ->has('system_accounts', 9)
             ->has('mapping_conventions', 6)
         );
 
-    expect(AccountingAccount::query()->where('user_id', $owner->id)->count())->toBe(8);
+    expect(AccountingAccount::query()->where('user_id', $owner->id)->count())->toBe(9);
     expect(AccountingMapping::query()->where('user_id', $owner->id)->count())->toBe(6);
     expect(AccountingEntryBatch::query()->where('user_id', $owner->id)->count())->toBe(4);
     expect(AccountingEntry::query()->where('user_id', $owner->id)->count())->toBe(10);
@@ -281,6 +281,289 @@ test('accounting phase one bootstraps accounts mappings and journal entries from
 
     expect($invoiceBatch)->not->toBeNull();
     expect($invoiceBatch->status)->toBe(AccountingEntryBatch::STATUS_GENERATED);
+});
+
+test('settled invoice payments debit the charged total and isolate tips as a payable liability', function () {
+    $owner = accountingOwner();
+    $customer = accountingCustomer($owner);
+    $work = accountingWork($owner, $customer);
+    $invoice = Invoice::query()->create([
+        'user_id' => $owner->id,
+        'customer_id' => $customer->id,
+        'work_id' => $work->id,
+        'created_by_user_id' => $owner->id,
+        'status' => 'paid',
+        'approval_status' => 'approved',
+        'subtotal' => 100,
+        'tax_total' => 15,
+        'total' => 115,
+        'currency_code' => 'CAD',
+    ]);
+    InvoiceItem::query()->create([
+        'invoice_id' => $invoice->id,
+        'title' => 'Salon service',
+        'quantity' => 1,
+        'unit_price' => 100,
+        'total' => 100,
+        'currency_code' => 'CAD',
+    ]);
+    $payment = Payment::query()->create([
+        'invoice_id' => $invoice->id,
+        'customer_id' => $customer->id,
+        'user_id' => $owner->id,
+        'amount' => 115,
+        'tip_amount' => 10,
+        'charged_total' => 125,
+        'currency_code' => 'CAD',
+        'method' => 'card',
+        'status' => Payment::STATUS_COMPLETED,
+        'paid_at' => now(),
+    ]);
+
+    $this->actingAs($owner)->get(route('accounting.index'))->assertOk();
+
+    $batch = AccountingEntryBatch::query()
+        ->where('user_id', $owner->id)
+        ->where('source_type', 'payment')
+        ->where('source_id', $payment->id)
+        ->where('source_event_key', 'payment_collected')
+        ->firstOrFail();
+    $accounts = AccountingAccount::query()
+        ->where('user_id', $owner->id)
+        ->get()
+        ->keyBy('key');
+
+    expect($batch->status)->toBe(AccountingEntryBatch::STATUS_GENERATED)
+        ->and($batch->entries()->where([
+            'account_id' => $accounts['cash_and_bank']->id,
+            'direction' => AccountingEntry::DIRECTION_DEBIT,
+            'amount' => 125,
+        ])->exists())->toBeTrue()
+        ->and($batch->entries()->where([
+            'account_id' => $accounts['accounts_receivable']->id,
+            'direction' => AccountingEntry::DIRECTION_CREDIT,
+            'amount' => 115,
+        ])->exists())->toBeTrue()
+        ->and($batch->entries()->where([
+            'account_id' => $accounts['tips_payable']->id,
+            'direction' => AccountingEntry::DIRECTION_CREDIT,
+            'amount' => 10,
+        ])->exists())->toBeTrue();
+});
+
+test('invoice snapshots and reversed tips remain balanced when line items diverge', function () {
+    $owner = accountingOwner();
+    $customer = accountingCustomer($owner);
+    $work = accountingWork($owner, $customer);
+    $invoice = Invoice::query()->create([
+        'user_id' => $owner->id,
+        'customer_id' => $customer->id,
+        'work_id' => $work->id,
+        'created_by_user_id' => $owner->id,
+        'status' => 'paid',
+        'approval_status' => 'approved',
+        'subtotal' => 35,
+        'tax_total' => 5.24,
+        'total' => 40.24,
+        'currency_code' => 'CAD',
+    ]);
+    InvoiceItem::query()->create([
+        'invoice_id' => $invoice->id,
+        'title' => 'Divergent legacy line',
+        'quantity' => 1,
+        'unit_price' => 99,
+        'total' => 99,
+        'currency_code' => 'CAD',
+    ]);
+    $payment = Payment::query()->create([
+        'invoice_id' => $invoice->id,
+        'customer_id' => $customer->id,
+        'user_id' => $owner->id,
+        'amount' => 40.24,
+        'tip_amount' => 7.25,
+        'tip_reversed_amount' => 2,
+        'charged_total' => 47.49,
+        'currency_code' => 'CAD',
+        'method' => 'card',
+        'status' => Payment::STATUS_COMPLETED,
+        'paid_at' => now(),
+    ]);
+
+    $this->actingAs($owner)->get(route('accounting.index'))->assertOk();
+
+    $accounts = AccountingAccount::query()
+        ->where('user_id', $owner->id)
+        ->get()
+        ->keyBy('key');
+    $invoiceBatch = AccountingEntryBatch::query()
+        ->where('user_id', $owner->id)
+        ->where('source_type', 'invoice')
+        ->where('source_id', $invoice->id)
+        ->firstOrFail();
+    $paymentBatch = AccountingEntryBatch::query()
+        ->where('user_id', $owner->id)
+        ->where('source_type', 'payment')
+        ->where('source_id', $payment->id)
+        ->firstOrFail();
+
+    expect($invoiceBatch->entries()->where([
+        'account_id' => $accounts['accounts_receivable']->id,
+        'direction' => AccountingEntry::DIRECTION_DEBIT,
+        'amount' => 40.24,
+    ])->exists())->toBeTrue()
+        ->and($invoiceBatch->entries()->where([
+            'account_id' => $accounts['sales_revenue']->id,
+            'direction' => AccountingEntry::DIRECTION_CREDIT,
+            'amount' => 35,
+        ])->exists())->toBeTrue()
+        ->and($invoiceBatch->entries()->where([
+            'account_id' => $accounts['taxes_collected']->id,
+            'direction' => AccountingEntry::DIRECTION_CREDIT,
+            'amount' => 5.24,
+        ])->exists())->toBeTrue()
+        ->and($paymentBatch->status)->toBe(AccountingEntryBatch::STATUS_GENERATED)
+        ->and($paymentBatch->entries()->where([
+            'account_id' => $accounts['cash_and_bank']->id,
+            'direction' => AccountingEntry::DIRECTION_DEBIT,
+            'amount' => 45.49,
+        ])->exists())->toBeTrue()
+        ->and($paymentBatch->entries()->where([
+            'account_id' => $accounts['accounts_receivable']->id,
+            'direction' => AccountingEntry::DIRECTION_CREDIT,
+            'amount' => 40.24,
+        ])->exists())->toBeTrue()
+        ->and($paymentBatch->entries()->where([
+            'account_id' => $accounts['tips_payable']->id,
+            'direction' => AccountingEntry::DIRECTION_CREDIT,
+            'amount' => 5.25,
+        ])->exists())->toBeTrue();
+});
+
+test('charged-total mismatches are balanced through suspense and flagged for accounting review', function () {
+    $owner = accountingOwner();
+    $customer = accountingCustomer($owner);
+    $work = accountingWork($owner, $customer);
+    $invoice = Invoice::query()->create([
+        'user_id' => $owner->id,
+        'customer_id' => $customer->id,
+        'work_id' => $work->id,
+        'created_by_user_id' => $owner->id,
+        'status' => 'paid',
+        'approval_status' => 'approved',
+        'total' => 115,
+        'currency_code' => 'CAD',
+    ]);
+    $payment = Payment::query()->create([
+        'invoice_id' => $invoice->id,
+        'customer_id' => $customer->id,
+        'user_id' => $owner->id,
+        'amount' => 115,
+        'tip_amount' => 10,
+        'charged_total' => 130,
+        'currency_code' => 'CAD',
+        'method' => 'card',
+        'status' => Payment::STATUS_COMPLETED,
+        'paid_at' => now(),
+    ]);
+
+    $this->actingAs($owner)->get(route('accounting.index'))->assertOk();
+
+    $batch = AccountingEntryBatch::query()
+        ->where('user_id', $owner->id)
+        ->where('source_type', 'payment')
+        ->where('source_id', $payment->id)
+        ->where('source_event_key', 'payment_collected')
+        ->firstOrFail();
+    $accounts = AccountingAccount::query()
+        ->where('user_id', $owner->id)
+        ->get()
+        ->keyBy('key');
+
+    expect($batch->status)->toBe(AccountingEntryBatch::STATUS_REVIEW_REQUIRED)
+        ->and(data_get($batch->meta, 'missing_mapping_keys'))->toContain('charged_total_variance')
+        ->and($batch->entries()->where([
+            'account_id' => $accounts['cash_and_bank']->id,
+            'direction' => AccountingEntry::DIRECTION_DEBIT,
+            'amount' => 130,
+        ])->exists())->toBeTrue()
+        ->and($batch->entries()->where([
+            'account_id' => $accounts['accounts_receivable']->id,
+            'direction' => AccountingEntry::DIRECTION_CREDIT,
+            'amount' => 115,
+        ])->exists())->toBeTrue()
+        ->and($batch->entries()->where([
+            'account_id' => $accounts['tips_payable']->id,
+            'direction' => AccountingEntry::DIRECTION_CREDIT,
+            'amount' => 10,
+        ])->exists())->toBeTrue()
+        ->and($batch->entries()->where([
+            'account_id' => $accounts['suspense']->id,
+            'direction' => AccountingEntry::DIRECTION_CREDIT,
+            'amount' => 5,
+        ])->exists())->toBeTrue();
+});
+
+test('an understated charged total debits suspense without reducing receivable or tip credits', function () {
+    $owner = accountingOwner();
+    $customer = accountingCustomer($owner);
+    $work = accountingWork($owner, $customer);
+    $invoice = Invoice::query()->create([
+        'user_id' => $owner->id,
+        'customer_id' => $customer->id,
+        'work_id' => $work->id,
+        'created_by_user_id' => $owner->id,
+        'status' => 'paid',
+        'approval_status' => 'approved',
+        'total' => 115,
+        'currency_code' => 'CAD',
+    ]);
+    $payment = Payment::query()->create([
+        'invoice_id' => $invoice->id,
+        'customer_id' => $customer->id,
+        'user_id' => $owner->id,
+        'amount' => 115,
+        'tip_amount' => 10,
+        'charged_total' => 120,
+        'currency_code' => 'CAD',
+        'method' => 'card',
+        'status' => Payment::STATUS_COMPLETED,
+        'paid_at' => now(),
+    ]);
+
+    $this->actingAs($owner)->get(route('accounting.index'))->assertOk();
+
+    $batch = AccountingEntryBatch::query()
+        ->where('user_id', $owner->id)
+        ->where('source_type', 'payment')
+        ->where('source_id', $payment->id)
+        ->where('source_event_key', 'payment_collected')
+        ->firstOrFail();
+    $accounts = AccountingAccount::query()
+        ->where('user_id', $owner->id)
+        ->get()
+        ->keyBy('key');
+
+    expect($batch->status)->toBe(AccountingEntryBatch::STATUS_REVIEW_REQUIRED)
+        ->and($batch->entries()->where([
+            'account_id' => $accounts['cash_and_bank']->id,
+            'direction' => AccountingEntry::DIRECTION_DEBIT,
+            'amount' => 120,
+        ])->exists())->toBeTrue()
+        ->and($batch->entries()->where([
+            'account_id' => $accounts['suspense']->id,
+            'direction' => AccountingEntry::DIRECTION_DEBIT,
+            'amount' => 5,
+        ])->exists())->toBeTrue()
+        ->and($batch->entries()->where([
+            'account_id' => $accounts['accounts_receivable']->id,
+            'direction' => AccountingEntry::DIRECTION_CREDIT,
+            'amount' => 115,
+        ])->exists())->toBeTrue()
+        ->and($batch->entries()->where([
+            'account_id' => $accounts['tips_payable']->id,
+            'direction' => AccountingEntry::DIRECTION_CREDIT,
+            'amount' => 10,
+        ])->exists())->toBeTrue();
 });
 
 test('accounting journal filters by source type in the api response', function () {

@@ -107,7 +107,7 @@
         "taxes_collected": "Taxes collected",
         "taxes_paid": "Taxes paid",
         "net_tax_due": "Net tax due",
-        "review_required_count": "Tax lines to review"
+        "review_required_count": "Tax review"
       }
     },
     "exports": {
@@ -197,7 +197,7 @@
       "not_configured": "Needs setup",
       "cards": {
         "approvals": "Finance approvals",
-        "auto_approve": "Invoice auto-approve",
+        "auto_approve": "Auto-approval",
         "accounts": "System accounts",
         "mappings": "Mappings"
       }

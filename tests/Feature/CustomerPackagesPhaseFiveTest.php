@@ -1,5 +1,6 @@
 <?php
 
+use App\Actions\Invoices\CreateInvoicePaymentAction;
 use App\Models\ActivityLog;
 use App\Models\Campaign;
 use App\Models\CampaignRecipient;
@@ -26,6 +27,7 @@ use App\Services\OfferPackages\CustomerPackageService;
 use App\Services\Segments\SegmentResolverRegistry;
 use App\Services\StripeInvoiceService;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -668,6 +670,33 @@ it('respects client billing preferences and email opt-outs for renewal payment r
     Carbon::setTestNow();
 });
 
+it('notifies a forfait renewal only after its payment transaction commits', function () {
+    $this->travelTo(Carbon::parse('2026-06-05 08:00:00', 'UTC'));
+    $owner = customerPackagesPhaseFiveOwner();
+    $customer = Customer::factory()->create(['user_id' => $owner->id, 'email' => 'renewal@example.com']);
+    $product = customerPackagesPhaseFiveProduct($owner);
+    $offer = customerPackagesPhaseFiveOffer($owner, $product);
+    $package = app(CustomerPackageService::class)->assign($owner, $customer, $offer, ['starts_at' => '2026-05-01']);
+    $invoice = app(CustomerPackageService::class)->createRenewalInvoice($owner, $customer, $package);
+    Notification::fake();
+
+    expect(fn () => DB::transaction(function () use ($invoice, $owner): void {
+        app(CreateInvoicePaymentAction::class)->execute($invoice, ['amount' => 360], 'card', $owner);
+        throw new RuntimeException('Payment transaction interrupted');
+    }))->toThrow(RuntimeException::class, 'Payment transaction interrupted');
+
+    $this->assertDatabaseMissing('payments', ['invoice_id' => $invoice->id]);
+    $this->assertDatabaseMissing('customer_packages', ['renewed_from_customer_package_id' => $package->id]);
+    $this->assertDatabaseMissing('activity_logs', ['action' => 'customer_package_client_resume_notice_sent']);
+    Notification::assertNothingSent();
+
+    app(CreateInvoicePaymentAction::class)->execute($invoice, ['amount' => 360], 'card', $owner);
+
+    $this->assertDatabaseHas('invoices', ['id' => $invoice->id, 'status' => 'paid']);
+    $this->assertDatabaseHas('customer_packages', ['renewed_from_customer_package_id' => $package->id]);
+    Notification::assertSentToTimes($customer, ActionEmailNotification::class, 1);
+});
+
 it('notifies the client when a recurring forfait is suspended and when it resumes after payment', function () {
     Notification::fake();
     Carbon::setTestNow(Carbon::parse('2026-06-04 08:00:00', 'UTC'));
@@ -888,6 +917,47 @@ it('suspends payment due recurring forfaits after the grace period', function ()
         ->and($package->recurrence_status)->toBe(CustomerPackage::RECURRENCE_SUSPENDED)
         ->and(data_get($package->metadata, 'recurrence.suspension_reason'))->toBe('renewal_payment_overdue')
         ->and(ActivityLog::query()->where('action', 'customer_package_renewal_suspended')->exists())->toBeTrue();
+
+    Carbon::setTestNow();
+});
+
+it('blocks suspended forfait consumption while preserving the payment due grace period', function () {
+    Carbon::setTestNow(Carbon::parse('2026-06-09 10:00:00', 'UTC'));
+
+    $owner = customerPackagesPhaseFiveOwner();
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    $product = customerPackagesPhaseFiveProduct($owner);
+    $offer = customerPackagesPhaseFiveOffer($owner, $product);
+    $service = app(CustomerPackageService::class);
+    $package = $service->assign($owner, $customer, $offer, [
+        'starts_at' => '2026-05-01',
+        'expires_at' => '2026-06-30',
+    ]);
+
+    $package->forceFill([
+        'recurrence_status' => CustomerPackage::RECURRENCE_SUSPENDED,
+    ])->save();
+
+    expect(fn () => $service->consume($owner, $customer, $package->fresh(), [
+        'quantity' => 1,
+        'used_at' => '2026-06-09',
+        'product_id' => $product->id,
+    ]))->toThrow(
+        Illuminate\Validation\ValidationException::class,
+        'This recurring forfait is suspended until its renewal payment is settled.',
+    );
+
+    $package->forceFill([
+        'recurrence_status' => CustomerPackage::RECURRENCE_PAYMENT_DUE,
+    ])->save();
+    $updated = $service->consume($owner, $customer, $package->fresh(), [
+        'quantity' => 1,
+        'used_at' => '2026-06-09',
+        'product_id' => $product->id,
+    ]);
+
+    expect($updated->consumed_quantity)->toBe(1)
+        ->and($updated->remaining_quantity)->toBe(3);
 
     Carbon::setTestNow();
 });

@@ -33,9 +33,21 @@ defineProps({
         type: String,
         default: 'Clear',
     },
+    clearTestId: {
+        type: String,
+        default: undefined,
+    },
     applyLabel: {
         type: String,
         default: 'Apply',
+    },
+    filtersAvailable: {
+        type: Boolean,
+        default: false,
+    },
+    filtersControls: {
+        type: String,
+        default: undefined,
     },
 });
 
@@ -51,10 +63,12 @@ const slots = useSlots();
 
             <div class="flex flex-wrap items-center justify-end gap-2">
                 <button
-                    v-if="slots.filters"
+                    v-if="slots.filters || filtersAvailable"
                     type="button"
                     :class="crmButtonClass('secondary', 'toolbar')"
                     :disabled="busy"
+                    :aria-expanded="String(showFilters)"
+                    :aria-controls="filtersControls"
                     @click="$emit('toggle-filters')"
                 >
                     {{ filtersLabel }}
@@ -63,6 +77,7 @@ const slots = useSlots();
                 <button
                     v-if="showClear"
                     type="button"
+                    :data-testid="clearTestId"
                     :class="crmButtonClass('secondary', 'toolbar')"
                     :disabled="busy"
                     @click="$emit('clear')"

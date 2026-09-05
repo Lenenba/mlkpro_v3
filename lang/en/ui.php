@@ -3,6 +3,7 @@
 return [
     'auth' => [
         'account_suspended' => 'Account suspended. Please contact support.',
+        'portal_access_disabled' => 'Your client portal access has been disabled. Please contact the business.',
         'two_factor_delivery_failed' => 'Unable to deliver a verification code. Please try again.',
         'update_temporary_password' => 'Please update your temporary password.',
         'social' => [
@@ -41,5 +42,11 @@ return [
         'billing_not_configured' => 'Billing is not configured yet.',
         'checkout_requires_stripe' => 'Onboarding checkout is only available with Stripe.',
         'checkout_start_failed' => 'Unable to start checkout.',
+    ],
+    'announcements' => [
+        'media_only_requires_media' => 'Media-only display requires an image or video.',
+    ],
+    'portal' => [
+        'capability_unavailable' => 'This feature is not available in your client portal.',
     ],
 ];

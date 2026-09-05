@@ -1,0 +1,132 @@
+capture_id,episode_id,sequence,route,state_to_show,viewport,canonical_filename,status,notes
+F00-S01,F00,1,studio,Plan fondateur face caméra,1920x1080,F00-INTRO-FONDATEUR__S01-FACE-CAMERA__desktop__fr__v01.png,a_produire,Portrait ou plan vidéo à fournir
+F00-S02,F00,2,asset,Logo Malikia Pro sur fond propre,1920x1080,F00-INTRO-FONDATEUR__S02-LOGO__desktop__fr__v01.png,a_produire,Référencer public/brand/bimi-logo.svg
+G01-S01,G01,1,/onboarding,Visiteur étape Compte,1920x1080,G01-ONBOARDING__S01-ACCUEIL-INVITE__desktop__fr__v01.png,a_produire,Différence invité propriétaire — Seule Compte est accessible
+G01-S02,G01,2,/onboarding,Formulaire de création du propriétaire,1920x1080,G01-ONBOARDING__S02-CREATION-COMPTE__desktop__fr__v01.png,a_produire,Créer le compte propriétaire — Champs identité visibles et mot de passe masqué
+G01-S03,G01,3,/onboarding,Propriétaire connecté étape Entreprise,1920x1080,G01-ONBOARDING__S03-RETOUR-PROPRIETAIRE__desktop__fr__v01.png,a_produire,Deux phases compte puis espace — Entreprise devient première étape
+G01-S04,G01,4,/onboarding,Identité entreprise remplie,1920x1080,G01-ONBOARDING__S04-IDENTITE-ENTREPRISE__desktop__fr__v01.png,a_produire,Identité et champs optionnels — Nom et description cohérents
+G01-S05,G01,5,/onboarding,Adresse manuelle et devise,1920x1080,G01-ONBOARDING__S05-ADRESSE-DEVISE__desktop__fr__v01.png,a_produire,Ce qui est réellement persisté — Ville région pays et CAD lisibles
+G01-S06,G01,6,/onboarding,Étape Type,1920x1080,G01-ONBOARDING__S06-TYPE-SERVICES__desktop__fr__v01.png,a_produire,Services versus produits — Radio Services sélectionné
+G01-S07,G01,7,/onboarding,Étape Secteur,1920x1080,G01-ONBOARDING__S07-SECTEUR-SALON__desktop__fr__v01.png,a_produire,Préparation du contexte métier — Secteur Salon visible
+G01-S08,G01,8,/onboarding,Configuration Team,1920x1080,G01-ONBOARDING__S08-TAILLE-EQUIPE__desktop__fr__v01.png,a_produire,La taille oriente l'audience — Profil Team de trois personnes visible
+G01-S09,G01,9,/onboarding,Invitation temporaire non soumise,1920x1080,G01-ONBOARDING__S09-INVITATION-OPTIONNELLE__desktop__fr__v01.png,a_produire,Rôles et vrai effet de l'invitation — Ligne fictive visible avant retrait
+G01-S10,G01,10,/onboarding,Recommandation pour trois personnes,1920x1080,G01-ONBOARDING__S10-RECOMMANDATION-TEAM__desktop__fr__v01.png,a_produire,Compatibilité Solo Team — Recommandation Team et capacité lisibles
+G01-S11,G01,11,/onboarding,Comparaison des périodes,1920x1080,G01-ONBOARDING__S11-PERIODE-FACTURATION__desktop__fr__v01.png,a_produire,Période devise essai — Toggle période et date d'essai visibles
+G01-S12,G01,12,/onboarding,Plan sélectionné et conditions acceptées,1920x1080,G01-ONBOARDING__S12-FORFAIT-CONDITIONS__desktop__fr__v01.png,a_produire,Choix conscient du plan — Plan sélectionné et case cochée
+G01-S13,G01,13,/onboarding,Étape Sécurité,1920x1080,G01-ONBOARDING__S13-SECURITE-EMAIL__desktop__fr__v01.png,a_produire,Préférence versus configuration — Email actif et App visible comme variante
+G01-S14,G01,14,/onboarding,Formulaire prêt à soumettre,1920x1080,G01-ONBOARDING__S14-SOUMISSION-FINALE__desktop__fr__v01.png,a_produire,Contrôle final avant effet externe — Bouton final et état complet visibles
+G01-S15,G01,15,Stripe Checkout test,Checkout réel en mode test,1920x1080,G01-ONBOARDING__S15-STRIPE-CHECKOUT-TEST__desktop__fr__v01.png,a_produire,Frontière de facturation — Mode test et récapitulatif authentique visibles
+G01-S16,G01,16,/two-factor-challenge,Challenge 2FA vide,1920x1080,G01-ONBOARDING__S16-CHALLENGE-2FA__desktop__fr__v01.png,a_produire,2FA avant premier dashboard — Route méthode et durée visibles
+G01-S17,G01,17,/dashboard,Premier tableau de bord sécurisé,1920x1080,G01-ONBOARDING__S17-TABLEAU-DE-BORD__desktop__fr__v01.png,a_produire,Preuve finale du parcours — Espace Salon Éclat accessible
+G01-S18,G01,18,/onboarding,Annexe membre en attente,1920x1080,G01-ONBOARDING__S18-MEMBRE-PENDING-OWNER__desktop__fr__v01.png,a_produire,Seul le propriétaire finalise — Message d'attente et deux actions visibles
+G01-S19,G01,19,/onboarding,Annexe erreur Solo Team,1920x1080,G01-ONBOARDING__S19-ERREUR-SOLO-TEAM__desktop__fr__v01.png,a_produire,Solo propriétaire uniquement — Erreur plan visible et onboarding incomplet
+G01-S20,G01,20,/onboarding,Annexe checkout annulé,1920x1080,G01-ONBOARDING__S20-CHECKOUT-ANNULE__desktop__fr__v01.png,a_produire,Annulation ne vaut pas succès — Onboarding toujours ouvert avec erreur
+G01-S21,G01,21,/onboarding,Annexe préférence App,1920x1080,G01-ONBOARDING__S21-SECURITE-APP-PREFERENCE__desktop__fr__v01.png,a_produire,Préférence sans secret TOTP — Choix visible sans prétendre activation
+G02-S01,G02,1,/dashboard,Tableau de bord propriétaire,1920x1080,G02-REPERES__S01-DASHBOARD-PROPRIETAIRE__desktop__fr__v01.png,a_produire,Quatre repères — Contexte complet visible
+G02-S02,G02,2,/dashboard,En-tête propriétaire,1920x1080,G02-REPERES__S02-ENTETE__desktop__fr__v01.png,a_produire,Recherche alertes réglages compte — Zones distinctes lisibles
+G02-S03,G02,3,/dashboard,Barre latérale et hubs,1920x1080,G02-REPERES__S03-HUBS__desktop__fr__v01.png,a_produire,Regroupement par usage — Six hubs visibles selon modules
+G02-S04,G02,4,/workspace-hubs/revenue,Hub Revenus,1920x1080,G02-REPERES__S04-HUB-REVENUS__desktop__fr__v01.png,a_produire,Retrouver Client — Lien Clients visible
+G02-S05,G02,5,/workspace-hubs/operations,Hub Opérations,1920x1080,G02-REPERES__S05-HUB-OPERATIONS__desktop__fr__v01.png,a_produire,Modules de la journée — Entrées réelles du preset visibles
+G02-S06,G02,6,/workspace-hubs/catalog,Hub Catalogue,1920x1080,G02-REPERES__S06-HUB-CATALOGUE__desktop__fr__v01.png,a_produire,Ce que le salon vend — Entrées catalogue visibles
+G02-S07,G02,7,/dashboard,Retour par le logo,1920x1080,G02-REPERES__S07-RETOUR-DASHBOARD__desktop__fr__v01.png,a_produire,Chemin de retour — URL dashboard
+G02-S08,G02,8,/dashboard,Palette ouverte avant recherche,1920x1080,G02-REPERES__S08-PALETTE-ACTIONS__desktop__fr__v01.png,a_produire,Actions rapides conditionnelles — Actions visibles sans donnée saisie
+G02-S09,G02,9,/dashboard,Recherche globale avec résultat,1920x1080,G02-REPERES__S09-RECHERCHE-MARIE__desktop__fr__v01.png,a_produire,Seuil et groupes — Marie Lefebvre dans Clients
+G02-S10,G02,10,/dashboard,Formulaire rapide Client ouvert,1920x1080,G02-REPERES__S10-CLIENT-RAPIDE__desktop__fr__v01.png,a_produire,Différence action rapide page complète — Aucune donnée personnelle
+G02-S11,G02,11,/dashboard,Formulaire rapide fermé,1920x1080,G02-REPERES__S11-AUCUNE-CREATION__desktop__fr__v01.png,a_produire,Sortie sans enregistrer — Retour propre au dashboard
+G02-S12,G02,12,/dashboard,Comparaison rôle réception,1920x1080,G02-REPERES__S12-VARIANTE-RECEPTION__desktop__fr__v01.png,a_produire,Modules plus permissions — Rôle clairement identifié
+G03-S01,G03,1,/customer,Recherche sans résultat,1920x1080,G03-CLIENT__S01-RECHERCHE-ABSENTE__desktop__fr__v01.png,a_produire,Prévenir les doublons — Aucune fiche Nora visible
+G03-S02,G03,2,/customer/create,Formulaire vierge,1920x1080,G03-CLIENT__S02-FORMULAIRE-VIERGE__desktop__fr__v01.png,a_produire,Présenter la carte de l'écran — Route et sections initiales visibles
+G03-S03,G03,3,/customer/create,Type et avatar,1920x1080,G03-CLIENT__S03-TYPE-AVATAR__desktop__fr__v01.png,a_produire,Différence Particulier Entreprise — Champs entreprise masqués
+G03-S04,G03,4,/customer/create,Identité et contact remplis,1920x1080,G03-CLIENT__S04-IDENTITE-CONTACT__desktop__fr__v01.png,a_produire,Obligatoire versus optionnel — Identité complète sans donnée réelle
+G03-S05,G03,5,/customer/create,Accès portail désactivé,1920x1080,G03-CLIENT__S05-PORTAIL-DESACTIVE__desktop__fr__v01.png,a_produire,Conséquence compte et invitation — Toggle clairement inactif
+G03-S06,G03,6,/customer/create,Auto-validation Salon Éclat,1920x1080,G03-CLIENT__S06-AUTO-VALIDATION-FACTURES__desktop__fr__v01.png,a_produire,Options conditionnées par modules — Seule Factures visible
+G03-S07,G03,7,/customer/create,Détails additionnels remplis,1920x1080,G03-CLIENT__S07-DETAILS-ADDITIONNELS__desktop__fr__v01.png,a_produire,Contexte provenance remise permanente — Valeurs lisibles et cohérentes
+G03-S08,G03,8,/customer/create,Recherche d'adresse,1920x1080,G03-CLIENT__S08-RECHERCHE-ADRESSE__desktop__fr__v01.png,a_produire,Autocomplétion ou saisie manuelle — Aucune adresse personnelle
+G03-S09,G03,9,/customer/create,Adresse complète,1920x1080,G03-CLIENT__S09-ADRESSE-COMPLETE__desktop__fr__v01.png,a_produire,Rôle de la ville — Adresse prête à persister
+G03-S10,G03,10,/customer/create,Erreur courriel déjà utilisé,1920x1080,G03-CLIENT__S10-ERREUR-COURRIEL-DUPLIQUE__desktop__fr__v01.png,a_produire,Unicité et correction — Erreur réelle visible
+G03-S11,G03,11,/customer/create,Formulaire corrigé avant soumission,1920x1080,G03-CLIENT__S11-ACTIONS-ENREGISTREMENT__desktop__fr__v01.png,a_produire,Deux sorties après enregistrement — Boutons et libellés lisibles
+G03-S12,G03,12,/customer,Retour liste après création,1920x1080,G03-CLIENT__S12-SUCCES-LISTE__desktop__fr__v01.png,a_produire,Résultat réel de la redirection — Message et ligne créés
+G03-S13,G03,13,/customer/{customer},Fiche client ouverte,1920x1080,G03-CLIENT__S13-FICHE-CREEE__desktop__fr__v01.png,a_produire,Vérifier les données enregistrées — Identité contact et adresse cohérents
+G03-S14,G03,14,/app/reservations,Recherche dans nouvelle réservation,1920x1080,G03-CLIENT__S14-PREUVE-RESERVATION__desktop__fr__v01.png,a_produire,Preuve fonctionnelle aval — Nora sélectionnable
+G03-S15,G03,15,/customer/create,Branche Entreprise sans soumission,1920x1080,G03-CLIENT__S15-VARIANTE-ENTREPRISE__desktop__fr__v01.png,a_produire,Organisation et contact principal — Entreprise immatriculation secteur visibles
+G03-S16,G03,16,/customer/create,Préférences avancées workspace de référence,1920x1080,G03-CLIENT__S16-FACTURATION-CONDITIONNELLE__desktop__fr__v01.png,a_produire,Options variant selon modules — Contexte autre que Salon Éclat explicite
+G04-S01,G04,1,/service,Recherche sans résultat,1920x1080,G04-PRESTATION__S01-RECHERCHE-ABSENTE__desktop__fr__v01.png,a_produire,Prévenir un doublon non bloqué — Aucune ligne exacte visible
+G04-S02,G04,2,/service,Modale Nouveau service vierge,1920x1080,G04-PRESTATION__S02-MODALE-VIERGE__desktop__fr__v01.png,a_produire,Création dans une modale — Route inchangée et sections visibles
+G04-S03,G04,3,/service,Identité remplie,1920x1080,G04-PRESTATION__S03-NOM-CATEGORIE__desktop__fr__v01.png,a_produire,Nom et classement explicites — Deux champs requis lisibles
+G04-S04,G04,4,/service,Unité et taxe remplies,1920x1080,G04-PRESTATION__S04-UNITE-TAXE__desktop__fr__v01.png,a_produire,Unité différente de durée — Valeurs cohérentes et lisibles
+G04-S05,G04,5,/service,Prix et devise,1920x1080,G04-PRESTATION__S05-PRIX-DEVISE__desktop__fr__v01.png,a_produire,Devise héritée du compte — Prix et CAD visibles
+G04-S06,G04,6,/service,Statut description et image,1920x1080,G04-PRESTATION__S06-STATUT-DESCRIPTION-IMAGE__desktop__fr__v01.png,a_produire,Disponibilité contenu et visuel par défaut — État actif et texte exact
+G04-S07,G04,7,/service,Section Matériaux vide,1920x1080,G04-PRESTATION__S07-MATERIAUX-VIDES__desktop__fr__v01.png,a_produire,Choix volontaire de ne rien ajouter — Message état vide visible
+G04-S08,G04,8,/service,Erreur de champ requis,1920x1080,G04-PRESTATION__S08-ERREUR-NOM-REQUIS__desktop__fr__v01.png,a_produire,Validation et correction — Erreur réelle visible sans perte des autres valeurs
+G04-S09,G04,9,/service,Formulaire corrigé avant soumission,1920x1080,G04-PRESTATION__S09-ACTIONS-ENREGISTREMENT__desktop__fr__v01.png,a_produire,Comparer les sorties — Boutons Annuler enchaîner et créer lisibles
+G04-S10,G04,10,/service,Retour liste après création,1920x1080,G04-PRESTATION__S10-RETOUR-LISTE__desktop__fr__v01.png,a_produire,Comportement réel de sauvegarde — Retour sur la liste confirmé
+G04-S11,G04,11,/service,Recherche de la ligne créée,1920x1080,G04-PRESTATION__S11-LIGNE-CREEE__desktop__fr__v01.png,a_produire,Preuve de création catalogue — Nom prix catégorie et statut visibles
+G04-S12,G04,12,/service,Modale Modifier service,1920x1080,G04-PRESTATION__S12-REOUVERTURE-EDITION__desktop__fr__v01.png,a_produire,Vérifier les valeurs moins visibles — Unité taxe description et statut cohérents
+G04-S13,G04,13,/app/reservations,Nouvelle réservation avec sélecteur prestation,1920x1080,G04-PRESTATION__S13-PREUVE-RESERVATION__desktop__fr__v01.png,a_produire,Preuve fonctionnelle aval — Prestation active sélectionnable
+G04-S14,G04,14,/service,Annexe catégorie et matériau sans soumission,1920x1080,G04-PRESTATION__S14-VARIANTES-CATEGORIE-MATERIAU__desktop__fr__v01.png,a_produire,Variantes optionnelles — Contrôles visibles sans donnée enregistrée
+G05-S01,G05,1,/app/reservations,Calendrier avant création,1920x1080,G05-RESERVATION__S01-CALENDRIER-AVANT__desktop__fr__v01.png,a_produire,Préparer avant de saisir — Contexte du planning visible
+G05-S02,G05,2,/app/reservations,Modale vierge,1920x1080,G05-RESERVATION__S02-MODALE-VIERGE__desktop__fr__v01.png,a_produire,Création sans page séparée — Titre et champs visibles
+G05-S03,G05,3,/app/reservations,Relations sélectionnées,1920x1080,G05-RESERVATION__S03-MEMBRE-CLIENT-SERVICE__desktop__fr__v01.png,a_produire,Relier membre client service — Trois sélections lisibles
+G05-S04,G05,4,/app/reservations,Plage et statut remplis,1920x1080,G05-RESERVATION__S04-PLAGE-STATUT__desktop__fr__v01.png,a_produire,Cohérence début fin durée — Valeurs cohérentes
+G05-S05,G05,5,/app/reservations,Deux notes remplies,1920x1080,G05-RESERVATION__S05-NOTES-SEPAREES__desktop__fr__v01.png,a_produire,Distinguer leurs destinataires — Textes non inversés
+G05-S06,G05,6,/app/reservations,Erreur de conflit,1920x1080,G05-RESERVATION__S06-ERREUR-CONFLIT__desktop__fr__v01.png,a_produire,Contrôle serveur réel — Aucun doublon et erreur visible
+G05-S07,G05,7,/app/reservations,Formulaire corrigé,1920x1080,G05-RESERVATION__S07-CRENEAU-CORRIGE__desktop__fr__v01.png,a_produire,Corriger sans perdre les données — Formulaire prêt à créer
+G05-S08,G05,8,/app/reservations,Calendrier après création,1920x1080,G05-RESERVATION__S08-SUCCES-CALENDRIER__desktop__fr__v01.png,a_produire,Première preuve persistante — Événement unique visible
+G05-S09,G05,9,/app/reservations,Détails internes ouverts,1920x1080,G05-RESERVATION__S09-DETAILS-CREES__desktop__fr__v01.png,a_produire,Relire ce qui est enregistré — Relations plage statut notes visibles
+G05-S10,G05,10,/app/reservations,Vue Liste filtrée,1920x1080,G05-RESERVATION__S10-PREUVE-LISTE__desktop__fr__v01.png,a_produire,Deuxième preuve persistante — Une ligne correspondante
+G05-S11,G05,11,/settings/reservations,Lien public actif,1920x1080,G05-RESERVATION__S11-LIEN-PUBLIC-ACTIF__desktop__fr__v01.png,a_produire,Obtenir l'URL depuis l'application — Lien et politique visibles
+G05-S12,G05,12,/book/{company}/{slug},Étape Service,1920x1080,G05-RESERVATION__S12-PUBLIC-SERVICE__desktop__fr__v01.png,a_produire,Différence avec la modale interne — Service autorisé sélectionné
+G05-S13,G05,13,/book/{company}/{slug},Étapes Date et Horaire,1920x1080,G05-RESERVATION__S13-PUBLIC-DATE-HEURE__desktop__fr__v01.png,a_produire,Créneaux calculés par l'application — Date et heure sélectionnées
+G05-S14,G05,14,/book/{company}/{slug},Étape Personne,1920x1080,G05-RESERVATION__S14-PUBLIC-AFFECTATION-AUTO__desktop__fr__v01.png,a_produire,Affectation automatique — Option auto sélectionnée
+G05-S15,G05,15,/book/{company}/{slug},Récapitulatif avant confirmation,1920x1080,G05-RESERVATION__S15-PUBLIC-RECAPITULATIF__desktop__fr__v01.png,a_produire,Champs publics et confirmation manuelle — Données fictives cohérentes
+G05-S16,G05,16,/book/{company}/{slug},Succès public,1920x1080,G05-RESERVATION__S16-PUBLIC-SUCCES-ATTENTE__desktop__fr__v01.png,a_produire,Demande versus confirmation — Résumé et message de confirmation manuelle
+G05-S17,G05,17,/app/reservations,Détails demande publique,1920x1080,G05-RESERVATION__S17-PREUVE-PUBLIC-INTERNE__desktop__fr__v01.png,a_produire,Provenance et prospect — Cartouche contact et lien visibles
+G05-S18,G05,18,/app/reservations,Conversion client non exécutée,1920x1080,G05-RESERVATION__S18-CONVERSION-SANS-EXECUTER__desktop__fr__v01.png,a_produire,Pas de client automatique — Options visibles sans mutation
+G06-S01,G06,1,/promotions,Bibliothèque avant création,1920x1080,G06-PROMOTION__S01-BIBLIOTHEQUE-AVANT__desktop__fr__v01.png,a_produire,Préserver la promotion existante et vérifier le code — Absence de BIENVENUE10 sans recherche inventée
+G06-S02,G06,2,/promotions,Modale Créer une promotion vierge,1920x1080,G06-PROMOTION__S02-MODALE-VIERGE__desktop__fr__v01.png,a_produire,Valeurs initiales à décider — Champs et valeurs par défaut visibles
+G06-S03,G06,3,/promotions,Identité remplie,1920x1080,G06-PROMOTION__S03-NOM-CODE__desktop__fr__v01.png,a_produire,Nom interne et code demandé — Valeurs exactes lisibles
+G06-S04,G06,4,/promotions,Cible service remplie,1920x1080,G06-PROMOTION__S04-CIBLE-SERVICE__desktop__fr__v01.png,a_produire,Cible exacte et non catégorie — Champ conditionnel et prestation visibles
+G06-S05,G06,5,/promotions,Remise remplie,1920x1080,G06-PROMOTION__S05-REMISE-10-POURCENT__desktop__fr__v01.png,a_produire,Interpréter dix pour cent — Type et valeur sans ambiguïté
+G06-S06,G06,6,/promotions,Fenêtre remplie,1920x1080,G06-PROMOTION__S06-FENETRE-DATES__desktop__fr__v01.png,a_produire,Début fin et durabilité — Aujourd'hui inclus et fin non antérieure
+G06-S07,G06,7,/promotions,Statut et limites,1920x1080,G06-PROMOTION__S07-STATUT-LIMITE-MINIMUM__desktop__fr__v01.png,a_produire,Limite globale et absence de seuil — Trois choix visibles
+G06-S08,G06,8,/promotions,Erreur code dupliqué,1920x1080,G06-PROMOTION__S08-ERREUR-CODE-DUPLIQUE__desktop__fr__v01.png,a_produire,Unicité après normalisation — Erreur serveur réelle visible
+G06-S09,G06,9,/promotions,Formulaire corrigé avant soumission,1920x1080,G06-PROMOTION__S09-FORMULAIRE-CORRIGE__desktop__fr__v01.png,a_produire,Relecture complète — Aucune erreur et aucune valeur perdue
+G06-S10,G06,10,/promotions,Retour bibliothèque après création,1920x1080,G06-PROMOTION__S10-RETOUR-BIBLIOTHEQUE__desktop__fr__v01.png,a_produire,Comportement réel de sauvegarde — Retour sur la même route confirmé
+G06-S11,G06,11,/promotions,Ligne promotion créée,1920x1080,G06-PROMOTION__S11-LIGNE-CREEE-VALIDE__desktop__fr__v01.png,a_produire,Preuve de configuration et validité — Code cible remise fenêtre compteur et badges visibles
+G06-S12,G06,12,/promotions,Modale Modifier promotion,1920x1080,G06-PROMOTION__S12-REOUVERTURE-EDITION__desktop__fr__v01.png,a_produire,Contrôle des données non résumées — Cible limite et minimum cohérents
+G06-S13,G06,13,/social/composer,Compositeur Pulse prérempli,1920x1080,G06-PROMOTION__S13-PREUVE-PULSE__desktop__fr__v01.png,a_produire,Preuve aval marketing sans publication — Données promotion réutilisées et aucun envoi
+G06-S14,G06,14,/promotions,Annexe types de cible,1920x1080,G06-PROMOTION__S14-VARIANTES-CIBLES__desktop__fr__v01.png,a_produire,Champ Cible conditionnel — Global sans cible et autres avec cible
+G06-S15,G06,15,/promotions,Annexe remise et contraintes,1920x1080,G06-PROMOTION__S15-VARIANTES-REMISE-LIMITES__desktop__fr__v01.png,a_produire,Variantes non enregistrées — Contrôles visibles sans altérer BIENVENUE10
+G07-S01,G07,1,/team,Recherche sans résultat,1920x1080,G07-EQUIPE__S01-RECHERCHE-ABSENTE__desktop__fr__v01.png,a_produire,Prévenir le doublon — Aucune Emma visible
+G07-S02,G07,2,/settings/roles-permissions,Rôle préparé,1920x1080,G07-EQUIPE__S02-ROLE-ACCES-PREPARE__desktop__fr__v01.png,a_produire,Minimum nécessaire — Permissions utiles et exclusions visibles
+G07-S03,G07,3,/team,Modale vierge,1920x1080,G07-EQUIPE__S03-MODALE-VIERGE__desktop__fr__v01.png,a_produire,Création intégrée à la liste — Titre et sections visibles
+G07-S04,G07,4,/team,Identité et avatar,1920x1080,G07-EQUIPE__S04-IDENTITE-AVATAR__desktop__fr__v01.png,a_produire,Données fictives et image sûre — Nom courriel icône lisibles
+G07-S05,G07,5,/team,Profil et rôle sélectionnés,1920x1080,G07-EQUIPE__S05-PROFIL-ROLE__desktop__fr__v01.png,a_produire,Profil versus rôle — Deux valeurs distinctes visibles
+G07-S06,G07,6,/team,Fonction et téléphone,1920x1080,G07-EQUIPE__S06-TITRE-TELEPHONE__desktop__fr__v01.png,a_produire,Informations optionnelles — Valeurs de démonstration lisibles
+G07-S07,G07,7,/team,Règles de planning remplies,1920x1080,G07-EQUIPE__S07-REGLES-PLANNING__desktop__fr__v01.png,a_produire,Règles sans disponibilités — Valeurs valides et cohérentes
+G07-S08,G07,8,/team,Formulaire avant soumission,1920x1080,G07-EQUIPE__S08-AVIS-INVITATION__desktop__fr__v01.png,a_produire,Invitation toujours tentée — Conséquence lue avant clic
+G07-S09,G07,9,/team,Erreur courriel déjà utilisé,1920x1080,G07-EQUIPE__S09-ERREUR-COURRIEL-DUPLIQUE__desktop__fr__v01.png,a_produire,Unicité globale — Erreur réelle visible sans création
+G07-S10,G07,10,/team,Formulaire corrigé,1920x1080,G07-EQUIPE__S10-FORMULAIRE-CORRIGE__desktop__fr__v01.png,a_produire,Corriger sans perdre l'accès — Formulaire final cohérent
+G07-S11,G07,11,/team,Retour après création,1920x1080,G07-EQUIPE__S11-RETOUR-CREATION__desktop__fr__v01.png,a_produire,Dispatch versus création — Message exact visible
+G07-S12,G07,12,/team,Liste filtrée,1920x1080,G07-EQUIPE__S12-MEMBRE-ACTIF__desktop__fr__v01.png,a_produire,Preuve du membre créé — Nom rôle titre statut visibles
+G07-S13,G07,13,/team,Détails du membre,1920x1080,G07-EQUIPE__S13-DETAILS-PERMISSIONS__desktop__fr__v01.png,a_produire,Vérifier l'accès réel — Rôle et permissions limités visibles
+G07-S14,G07,14,local-mail-catcher,Liste des messages locale,1920x1080,G07-EQUIPE__S14-INVITATION-LOCALE__desktop__fr__v01.png,a_produire,Absence de transport externe — Invitation interceptée localement
+G07-S15,G07,15,/app/reservations,Sélecteur Membre ouvert,1920x1080,G07-EQUIPE__S15-PREUVE-SELECTEUR__desktop__fr__v01.png,a_produire,Membre actif pas disponibilité — Emma proposée sans rendez-vous créé
+G08-S01,G08,1,/app/reservations,Ticket de rejeu En service,1920x1080,G08-ENCAISSEMENT__S01-TICKET-EN-SERVICE__desktop__fr__v01.png,a_produire,Point de départ métier — Identités et statut visibles
+G08-S02,G08,2,/app/reservations,Actions du ticket,1920x1080,G08-ENCAISSEMENT__S02-ACTION-TERMINER__desktop__fr__v01.png,a_produire,Transition vers paiement — Action réelle disponible
+G08-S03,G08,3,/app/reservations,Ticket À encaisser,1920x1080,G08-ENCAISSEMENT__S03-A-ENCAISSER__desktop__fr__v01.png,a_produire,Travail fini règlement absent — Statut visible
+G08-S04,G08,4,/app/reservations,Modale identité,1920x1080,G08-ENCAISSEMENT__S04-CONTEXTE-SERVICE__desktop__fr__v01.png,a_produire,Contrôle du contexte — Trois identités cohérentes
+G08-S05,G08,5,/app/reservations,Montants sans pourboire,1920x1080,G08-ENCAISSEMENT__S05-MONTANTS-FACTURE__desktop__fr__v01.png,a_produire,Sous-total taxes facture — Équation lisible
+G08-S06,G08,6,/app/reservations,Moyen et reçu,1920x1080,G08-ENCAISSEMENT__S06-ESPECES-SANS-ENVOI__desktop__fr__v01.png,a_produire,Paiement manuel sans notification — Choix visibles
+G08-S07,G08,7,/app/reservations,Pourboire activé,1920x1080,G08-ENCAISSEMENT__S07-POURBOIRE-ACTIVE__desktop__fr__v01.png,a_produire,Choix facultatif — Modes visibles
+G08-S08,G08,8,/app/reservations,Pourboire 18 pour cent,1920x1080,G08-ENCAISSEMENT__S08-POURBOIRE-18__desktop__fr__v01.png,a_produire,Base du pourboire — 18 pour cent de 65 visible
+G08-S09,G08,9,/app/reservations,Référence et note,1920x1080,G08-ENCAISSEMENT__S09-REFERENCE-NOTE__desktop__fr__v01.png,a_produire,Rapprochement sans donnée sensible — Valeurs fictives
+G08-S10,G08,10,/app/reservations,Récapitulatif final avant soumission,1920x1080,G08-ENCAISSEMENT__S10-TOTAL-A-ENCAISSER__desktop__fr__v01.png,a_produire,Différence facture encaissement — Montants réconciliés
+G08-S11,G08,11,/app/reservations,Succès checkout,1920x1080,G08-ENCAISSEMENT__S11-SUCCES-TICKET__desktop__fr__v01.png,a_produire,Effets atomiques — Succès réel du clone
+G08-S12,G08,12,/invoices,Facture créée dans la liste,1920x1080,G08-ENCAISSEMENT__S12-FACTURE-LISTE__desktop__fr__v01.png,a_produire,Première preuve financière — Ligne identifiable
+G08-S13,G08,13,/invoices/{invoice},En-tête facture,1920x1080,G08-ENCAISSEMENT__S13-FACTURE-PAYEE__desktop__fr__v01.png,a_produire,Lien client statut — Bonne facture ouverte
+G08-S14,G08,14,/invoices/{invoice},Résumé financier,1920x1080,G08-ENCAISSEMENT__S14-RECONCILIATION__desktop__fr__v01.png,a_produire,Réconciliation complète — Tous montants visibles
+G08-S15,G08,15,/invoices/{invoice},Bloc Paiements,1920x1080,G08-ENCAISSEMENT__S15-PAIEMENT-POURBOIRE__desktop__fr__v01.png,a_produire,Moyen pourboire bénéficiaire — Trace de paiement
+G08-S16,G08,16,downloaded-pdf,Reçu PDF téléchargé puis ouvert,1920x1080,G08-ENCAISSEMENT__S16-RECU-PDF__desktop__fr__v01.png,a_produire,Reçu téléchargeable — Document propre sans chemin local
+G08-S17,G08,17,/payments/tips,Allocation du pourboire,1920x1080,G08-ENCAISSEMENT__S17-ALLOCATION-POURBOIRE__desktop__fr__v01.png,a_produire,Traçabilité employé — Allocation retrouvée
+G08-S18,G08,18,/invoices/{invoice},Preuve canonique lecture seule,1920x1080,G08-ENCAISSEMENT__S18-PREUVE-CANONIQUE__desktop__fr__v01.png,a_produire,Fallback vérifié — Origine provisionnée explicite

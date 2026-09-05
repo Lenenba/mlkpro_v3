@@ -16,6 +16,19 @@ Rendre les temps de réponse et l’usage mémoire stables lorsque le nombre de 
 
 Les Query Objects, DTO et props existants restent les frontières. Chaque nouvelle requête fonctionne d’abord en mode ombre et son résultat est comparé à l’ancienne implémentation avant activation.
 
+## Pré-sélection factuelle — sans ouverture de Phase 2
+
+La décision [MLK-DEC-011](DECISIONS.md) est **proposée**, non acceptée : elle ne démarre aucun ticket P2, ne modifie ni code ni infrastructure et ne lève aucune gate. L’ordre recommandé s’appuie sur l’analyse statique des collections non bornées et doit être validé avant tout GO P2 ; [MLK-DEC-005](DECISIONS.md) doit aussi être acceptée, rejetée ou remplacée avant l’ouverture de la Phase 2.
+
+| Rang proposé | Ticket | Indice statique | Garde-fou de démarrage |
+|---:|---|---|---|
+| 1 | P2-001 — Pagination SQL des demandes | `BuildRequestInboxIndexData` filtre, trie et pagine des collections chargées en mémoire ; contrat `RequestInboxPhaseOneTest` déjà présent | Résultats JSON/Inertia identiques, mode ombre, budget SQL/mémoire/p95 sur données représentatives |
+| 2 | P2-002 — Pipeline CRM borné | `BuildSalesPipelineIndexData` charge et fusionne demandes/devis avant de rendre les cartes ; contrat `SalesPipelineQueryPhaseSixTest` présent | Double lecture, plafonds par colonne, « charger plus » sans rupture du kanban |
+| 3 | P2-003 — Relance devis et dashboard prospects en SQL | `BuildQuoteRecoveryIndexData` et `BuildProspectDashboardData` chargent puis agrègent en PHP des collections de volume croissant | Égalité SQL/PHP, index MySQL vérifiés, requête historique pendant le canari |
+| 4 | P2-004 — Cache et agrégats dashboard | Candidat suivant : `count`/`sum` multiples, mais cache et rôles doivent être mesurés froid/chaud avant priorisation | Comparaison par rôle, exactitude des montants et invalidation contrôlée |
+
+Les quatre constats sont locaux et statiques. Ils ne remplacent pas P0-006, n’établissent pas de p95 ou de mémoire représentatifs et n’autorisent aucun test de charge, canari ni écriture production.
+
 ## Scope
 
 ### MLK-IMP-P2-001 — Pagination SQL de la boîte de demandes
@@ -102,5 +115,6 @@ La Phase 2 est terminée lorsque les écrans à volume sont bornés, les résult
 ## Documents liés
 
 - [Cockpit](README.md)
+- [Runbook d’exécution et de validation Phase 2](PHASE_2_EXECUTION_RUNBOOK.md)
 - [Phase 1](PHASE_1_QUICK_PERFORMANCE_WINS.md)
 - [Journal de validation](VALIDATION_LOG.md)

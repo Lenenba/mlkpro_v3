@@ -10,7 +10,9 @@ import DateTimePicker from '@/Components/DateTimePicker.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
+import PublicResponsiveImage from '@/Components/Public/PublicResponsiveImage.vue';
 import PublicSectionsRenderer from '@/Components/Public/PublicSectionsRenderer.vue';
+import CompanyBrandLogo from '@/Components/CompanyBrandLogo.vue';
 import FlashToaster from '@/Components/UI/FlashToaster.vue';
 import Price from '@/Components/Store/Price.vue';
 import ProductCard from '@/Components/Store/ProductCard.vue';
@@ -1051,23 +1053,22 @@ const submitCheckout = async () => {
             >
                 <div class="mx-auto w-full px-4 sm:px-6 lg:px-10">
                 <div class="flex items-center gap-4 py-2 sm:py-3">
-                    <Link :href="route('welcome')" class="flex items-center gap-3">
-                        <div :class="['h-9 w-9 overflow-hidden rounded-sm border sm:h-10 sm:w-10', headerIsCustom ? 'border-white/20 bg-white/10' : 'border-slate-700 bg-slate-800']">
-                            <img
-                                v-if="company?.logo_url"
-                                :src="company.logo_url"
-                                :alt="companyName"
-                                class="h-full w-full object-cover"
-                                loading="lazy"
-                                decoding="async"
-                            >
-                            <div v-else class="flex h-full w-full items-center justify-center text-sm font-semibold text-slate-200">
-                                {{ companyName.charAt(0) }}
-                            </div>
-                        </div>
-                        <div class="hidden flex-col sm:flex">
-                            <span class="text-sm font-semibold text-white">{{ companyName }}</span>
-                            <span class="text-[11px] text-slate-400">/store/{{ company?.slug }}</span>
+                    <Link
+                        :href="route('public.store.show', { slug: company.slug }, false)"
+                        :aria-label="companyName"
+                        class="flex items-center gap-3"
+                    >
+                        <CompanyBrandLogo
+                            :company="company"
+                            :name="companyName"
+                            :show-fallback-name="false"
+                            container-class="h-9 w-9 p-0.5 sm:h-10 sm:w-10"
+                            class="shrink-0 border-white/20 shadow-none"
+                            loading="lazy"
+                        />
+                        <div class="flex min-w-0 max-w-32 flex-col sm:max-w-48">
+                            <span class="truncate text-sm font-semibold text-white">{{ companyName }}</span>
+                            <span class="hidden truncate text-[11px] text-slate-400 sm:block">/store/{{ company?.slug }}</span>
                         </div>
                     </Link>
 
@@ -1170,15 +1171,17 @@ const submitCheckout = async () => {
                     <div class="hero-stage">
                         <div class="hero-stage-main">
                             <Transition name="hero-fade" mode="out-in">
-                                <img
+                                <PublicResponsiveImage
                                     v-if="heroSlides.length"
                                     :key="heroSlides[heroBackgroundIndex]"
                                     :src="heroSlides[heroBackgroundIndex]"
-                                    :alt="companyName"
+                                    :alt="heroProduct?.name || pageTitle"
                                     class="hero-stage-image"
-                                    loading="lazy"
+                                    :loading="heroBackgroundIndex === 0 ? 'eager' : 'lazy'"
+                                    :fetch-priority="heroBackgroundIndex === 0 ? 'high' : null"
                                     decoding="async"
-                                >
+                                    sizes="100vw"
+                                />
                             </Transition>
                             <div v-if="!heroSlides.length" class="hero-stage-placeholder">
                                 {{ companyName }}
@@ -1574,8 +1577,9 @@ const submitCheckout = async () => {
         </main>
 
         <footer class="border-t border-slate-200 bg-white py-6">
-            <div class="mx-auto w-full px-4 text-sm text-slate-500 sm:px-6 lg:px-10">
-                {{ t('public_store.hints.login_to_order') }}
+            <div class="mx-auto flex w-full flex-col gap-2 px-4 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-10">
+                <span>{{ t('public_store.hints.login_to_order') }}</span>
+                <span class="text-xs">{{ t('account.branding.powered_by') }}</span>
             </div>
         </footer>
 

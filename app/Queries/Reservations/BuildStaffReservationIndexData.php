@@ -18,11 +18,26 @@ use App\Services\ReservationAvailabilityService;
 use App\Services\ReservationQueueService;
 use App\Support\DataTablePagination;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 
 class BuildStaffReservationIndexData
 {
+    private const QUICK_FILTERS = [
+        'pending',
+        'today',
+        'upcoming',
+        'past',
+        'completed',
+        'no_show',
+        'cancelled',
+    ];
+
     public function __construct(
         private readonly ReservationAvailabilityService $availabilityService,
         private readonly ReservationQueueService $queueService
@@ -32,57 +47,106 @@ class BuildStaffReservationIndexData
     {
         $filters = $this->normalizeFilters($request, $access);
         $ownerOnlyMode = $this->ownerOnlyMode($account);
+        $accountTimezone = $this->availabilityService->timezoneForAccount($account);
 
-        if ($ownerOnlyMode) {
+        if ($ownerOnlyMode && (bool) ($access['is_account_owner'] ?? false)) {
             $filters['team_member_id'] = '';
             $filters['scope'] = 'all';
         }
 
-        $query = $this->reservationQuery($account->id)
-            ->tap(fn (Builder $builder) => $this->applyReservationFilters($builder, $filters, $access));
-        $this->applyReservationSort($query, $filters['sort']);
+        $canManageReservations = (bool) ($access['can_manage'] ?? false);
+        $query = $this->reservationQuery($account->id, true, $canManageReservations)
+            ->tap(fn (Builder $builder) => $this->applyReservationFilters(
+                $builder,
+                $filters,
+                $access,
+                $account->id,
+                $accountTimezone
+            ));
+        $this->applyReservationSort($query, $filters['sort'], $account->id);
 
-        $reservations = (clone $query)
-            ->paginate((int) ($filters['per_page'] ?? DataTablePagination::defaultPerPage()))
-            ->withQueryString();
+        $reservations = function () use ($query, $filters, $canManageReservations, $access, $ownerOnlyMode): LengthAwarePaginator {
+            $reservations = (clone $query)
+                ->paginate((int) ($filters['per_page'] ?? DataTablePagination::defaultPerPage()))
+                ->withQueryString();
+            $reservations->setCollection(
+                $reservations->getCollection()
+                    ->map(fn (Reservation $reservation) => $this->mapReservationListItem(
+                        $reservation,
+                        $canManageReservations,
+                        $access,
+                        $ownerOnlyMode
+                    ))
+            );
 
-        $events = $this->reservationEventQuery($account->id)
-            ->tap(fn (Builder $builder) => $this->applyReservationFilters($builder, $filters, $access))
-            ->whereDate('starts_at', '>=', now()->subDays(7)->toDateString())
-            ->whereDate('starts_at', '<=', now()->addDays(35)->toDateString())
-            ->orderBy('starts_at')
-            ->get([
-                'id',
-                'team_member_id',
-                'client_id',
-                'prospect_id',
-                'service_id',
-                'status',
-                'source',
-                'starts_at',
-                'ends_at',
-                'internal_notes',
-                'client_notes',
-            ])
-            ->map(fn (Reservation $reservation) => $this->mapEvent($reservation))
-            ->values();
+            return $reservations;
+        };
 
-        $statsQuery = $this->reservationQuery($account->id, false)
-            ->tap(fn (Builder $builder) => $this->applyReservationFilters($builder, $filters, $access, [
-                'status' => false,
-                'date' => false,
-                'quick' => false,
-            ]));
+        $events = function () use ($account, $filters, $access, $accountTimezone): Collection {
+            $eventWindowStart = now($accountTimezone)->subDays(7)->startOfDay()->utc();
+            $eventWindowEnd = now($accountTimezone)->addDays(36)->startOfDay()->utc();
 
-        $stats = [
-            'total' => (clone $statsQuery)->count(),
-            'pending' => (clone $statsQuery)->where('status', Reservation::STATUS_PENDING)->count(),
-            'confirmed' => (clone $statsQuery)->where('status', Reservation::STATUS_CONFIRMED)->count(),
-            'cancelled' => (clone $statsQuery)->where('status', Reservation::STATUS_CANCELLED)->count(),
-            'today' => (clone $statsQuery)->whereDate('starts_at', now()->toDateString())->count(),
-        ];
+            return $this->reservationEventQuery($account->id)
+                ->tap(fn (Builder $builder) => $this->applyReservationFilters(
+                    $builder,
+                    $filters,
+                    $access,
+                    $account->id,
+                    $accountTimezone
+                ))
+                ->where('starts_at', '>=', $eventWindowStart)
+                ->where('starts_at', '<', $eventWindowEnd)
+                ->orderBy('starts_at')
+                ->get([
+                    'id',
+                    'team_member_id',
+                    'client_id',
+                    'prospect_id',
+                    'service_id',
+                    'status',
+                    'outcome_review_required_at',
+                    'outcome_review_reason_code',
+                    'source',
+                    'starts_at',
+                    'ends_at',
+                ])
+                ->map(fn (Reservation $reservation) => $this->mapEvent($reservation))
+                ->values();
+        };
 
-        $teamMembers = ! $ownerOnlyMode
+        $stats = function () use ($account, $filters, $access, $accountTimezone): array {
+            $statsQuery = $this->reservationQuery($account->id, false)
+                ->tap(fn (Builder $builder) => $this->applyReservationFilters(
+                    $builder,
+                    $filters,
+                    $access,
+                    $account->id,
+                    $accountTimezone,
+                    [
+                        'status' => false,
+                        'date' => false,
+                        'quick' => false,
+                    ]
+                ));
+
+            [$todayStart, $tomorrowStart] = $this->localDayBounds(
+                now($accountTimezone)->toDateString(),
+                $accountTimezone
+            );
+
+            return [
+                'total' => (clone $statsQuery)->count(),
+                'pending' => (clone $statsQuery)->where('status', Reservation::STATUS_PENDING)->count(),
+                'confirmed' => (clone $statsQuery)->where('status', Reservation::STATUS_CONFIRMED)->count(),
+                'cancelled' => (clone $statsQuery)->where('status', Reservation::STATUS_CANCELLED)->count(),
+                'today' => (clone $statsQuery)
+                    ->where('starts_at', '>=', $todayStart)
+                    ->where('starts_at', '<', $tomorrowStart)
+                    ->count(),
+            ];
+        };
+
+        $teamMembers = fn (): Collection => ! $ownerOnlyMode
             ? tap(
                 TeamMember::query()
                     ->forAccount($account->id)
@@ -105,26 +169,47 @@ class BuildStaffReservationIndexData
                 ->values()
             : collect();
 
-        $services = Product::query()
+        $services = fn (): Collection => Product::query()
             ->services()
             ->where('user_id', $account->id)
             ->where('is_active', true)
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        $clients = Customer::query()
-            ->byUser($account->id)
-            ->orderBy('company_name')
-            ->orderBy('last_name')
-            ->get(['id', 'first_name', 'last_name', 'company_name', 'email']);
+        $clients = fn (): Collection => $canManageReservations
+            ? Customer::query()
+                ->byUser($account->id)
+                ->orderBy('company_name')
+                ->orderBy('last_name')
+                ->get(['id', 'first_name', 'last_name', 'company_name', 'email', 'phone'])
+                ->map(fn (Customer $client) => [
+                    'id' => (int) $client->id,
+                    'first_name' => $client->first_name,
+                    'last_name' => $client->last_name,
+                    'company_name' => $client->company_name,
+                    'email' => $client->email,
+                    'phone' => $client->phone,
+                ])
+                ->values()
+            : collect();
 
-        $settings = $this->availabilityService->resolveSettings($account->id, null);
-        $performance = $this->buildPerformanceMetrics($account, $filters, $access, $settings);
+        $resolvedSettings = null;
+        $settings = function () use ($account, &$resolvedSettings): array {
+            return $resolvedSettings ??= $this->availabilityService->resolveSettings($account->id, null);
+        };
+        $performance = fn (): array => $this->buildPerformanceMetrics($account, $filters, $access, $settings(), $accountTimezone);
         $waitlistQuery = ReservationWaitlist::query()
             ->forAccount($account->id)
             ->with([
-                'client:id,first_name,last_name,company_name,email',
-                'service:id,name',
+                'client' => fn (BelongsTo $relation) => $relation
+                    ->byUser($account->id)
+                    ->select(['id', 'user_id', 'first_name', 'last_name', 'company_name', 'email']),
+                'service' => fn (BelongsTo $relation) => $relation
+                    ->byUser($account->id)
+                    ->select(['id', 'user_id', 'name']),
+                'teamMember' => fn (BelongsTo $relation) => $relation
+                    ->forAccount($account->id)
+                    ->select(['id', 'account_id', 'user_id']),
                 'teamMember.user:id,name',
             ]);
         if (! $access['can_view_all'] && $access['own_team_member_id']) {
@@ -134,7 +219,7 @@ class BuildStaffReservationIndexData
             });
         }
 
-        $waitlists = (clone $waitlistQuery)
+        $waitlists = fn (): Collection => (clone $waitlistQuery)
             ->orderByRaw("CASE status
                 WHEN 'pending' THEN 1
                 WHEN 'released' THEN 2
@@ -149,30 +234,35 @@ class BuildStaffReservationIndexData
             ->map(fn (ReservationWaitlist $waitlist) => $this->mapWaitlistEntry($waitlist, $access))
             ->values();
 
-        $waitlistStats = [
+        $waitlistStats = fn (): array => [
             'pending' => (clone $waitlistQuery)->where('status', ReservationWaitlist::STATUS_PENDING)->count(),
             'released' => (clone $waitlistQuery)->where('status', ReservationWaitlist::STATUS_RELEASED)->count(),
             'booked' => (clone $waitlistQuery)->where('status', ReservationWaitlist::STATUS_BOOKED)->count(),
         ];
-        $queuePayload = $this->queueService->boardForStaff($account->id, $access, $settings);
+        $resolvedQueue = null;
+        $queuePayload = function () use ($account, $access, $settings, &$resolvedQueue): array {
+            return $resolvedQueue ??= $this->queueService->boardForStaff($account->id, $access, $settings());
+        };
 
         return [
             'filters' => $filters,
             'reservations' => $reservations,
+            'reservationCount' => fn (): int => (clone $query)->count(),
             'events' => $events,
             'statuses' => Reservation::STATUSES,
             'stats' => $stats,
-            'quickCounts' => $this->quickCounts($account->id, $filters, $access),
+            'quickCounts' => fn (): array => $this->quickCounts($account->id, $filters, $access, $accountTimezone),
             'access' => [
                 'can_view_all' => $access['can_view_all'],
                 'can_manage' => $access['can_manage'],
+                'can_create_customer' => (bool) ($access['can_create_customer'] ?? false),
                 'can_update_status' => $access['can_update_status'],
                 'own_team_member_id' => $access['own_team_member_id'],
             ],
             'teamMembers' => $teamMembers,
             'services' => $services,
             'clients' => $clients,
-            'timezone' => $this->availabilityService->timezoneForAccount($account),
+            'timezone' => $accountTimezone,
             'defaults' => [
                 'duration_minutes' => 60,
                 'status' => Reservation::STATUS_CONFIRMED,
@@ -181,8 +271,8 @@ class BuildStaffReservationIndexData
             'performance' => $performance,
             'waitlists' => $waitlists,
             'waitlistStats' => $waitlistStats,
-            'queueItems' => $queuePayload['items'] ?? [],
-            'queueStats' => $queuePayload['stats'] ?? ['waiting' => 0, 'called' => 0, 'in_service' => 0],
+            'queueItems' => fn (): array => $queuePayload()['items'] ?? [],
+            'queueStats' => fn (): array => $queuePayload()['stats'] ?? ['waiting' => 0, 'called' => 0, 'in_service' => 0],
         ];
     }
 
@@ -193,17 +283,25 @@ class BuildStaffReservationIndexData
         return $planKey ? app(BillingPlanService::class)->isOwnerOnlyPlan($planKey) : false;
     }
 
-    public function events(int $accountId, array $access, Request $request, array $validated): array
-    {
+    public function events(
+        int $accountId,
+        array $access,
+        Request $request,
+        array $validated,
+        string $accountTimezone = 'UTC'
+    ): array {
         $filters = $this->normalizeFilters($request, $access);
         $start = Carbon::parse((string) $validated['start'])->utc();
         $end = Carbon::parse((string) $validated['end'])->utc();
 
         return $this->reservationEventQuery($accountId)
-            ->tap(fn (Builder $builder) => $this->applyReservationFilters($builder, $filters, $access, [
-                'search' => false,
-                'date' => false,
-            ]))
+            ->tap(fn (Builder $builder) => $this->applyReservationFilters(
+                $builder,
+                $filters,
+                $access,
+                $accountId,
+                $accountTimezone
+            ))
             ->where('starts_at', '<', $end)
             ->where('ends_at', '>', $start)
             ->orderBy('starts_at')
@@ -214,33 +312,205 @@ class BuildStaffReservationIndexData
                 'prospect_id',
                 'service_id',
                 'status',
+                'outcome_review_required_at',
+                'outcome_review_reason_code',
                 'source',
                 'starts_at',
                 'ends_at',
-                'internal_notes',
-                'client_notes',
             ])
             ->map(fn (Reservation $reservation) => $this->mapEvent($reservation))
             ->values()
             ->all();
     }
 
-    private function reservationQuery(int $accountId, bool $withRelations = true): Builder
-    {
-        $query = Reservation::query()->forAccount($accountId);
+    private function reservationQuery(
+        int $accountId,
+        bool $withRelations = true,
+        bool $includeNotes = false
+    ): Builder {
+        $query = Reservation::query()->where('reservations.account_id', $accountId);
         if (! $withRelations) {
             return $query;
         }
 
-        return $query->with([
-            'teamMember.user:id,name',
-            'client:id,first_name,last_name,company_name,email,phone,portal_user_id',
-            'prospect:id,contact_name,contact_email,contact_phone,status,converted_at,converted_customer_id,customer_id,meta,public_booking_link_id',
-            'publicBookingLink:id,name,slug',
-            'service:id,name,price,item_type',
-            'creator:id,name',
-            'canceller:id,name',
+        $columns = [
+            'reservations.id',
+            'reservations.account_id',
+            'reservations.team_member_id',
+            'reservations.client_id',
+            'reservations.prospect_id',
+            'reservations.service_id',
+            'reservations.status',
+            'reservations.outcome_review_required_at',
+            'reservations.outcome_review_reason_code',
+            'reservations.source',
+            'reservations.timezone',
+            'reservations.starts_at',
+            'reservations.ends_at',
+            'reservations.duration_minutes',
+            'reservations.buffer_minutes',
+        ];
+        if ($includeNotes) {
+            $columns = [...$columns, 'reservations.internal_notes', 'reservations.client_notes'];
+        }
+
+        return $query->select($columns)->with([
+            'teamMember' => fn (BelongsTo $relation) => $relation
+                ->forAccount($accountId)
+                ->select(['id', 'account_id', 'user_id', 'title']),
+            'teamMember.user:id,name,profile_picture',
+            'client' => fn (BelongsTo $relation) => $relation
+                ->byUser($accountId)
+                ->select([
+                    'id',
+                    'user_id',
+                    'first_name',
+                    'last_name',
+                    'company_name',
+                    'client_type',
+                    'logo',
+                ]),
+            'prospect' => fn (BelongsTo $relation) => $relation
+                ->byUser($accountId)
+                ->select(['id', 'user_id', 'contact_name']),
+            'service' => fn (BelongsTo $relation) => $relation
+                ->byUser($accountId)
+                ->select(['id', 'user_id', 'name', 'image', 'item_type']),
         ]);
+    }
+
+    private function mapReservationListItem(
+        Reservation $reservation,
+        bool $includeNotes,
+        array $access,
+        bool $ownerOnlyMode
+    ): array {
+        $clientDisplayName = $reservation->client?->company_name
+            ?: trim(($reservation->client?->first_name ?? '').' '.($reservation->client?->last_name ?? ''));
+        $permissions = $this->reservationListPermissions($reservation, $access, $ownerOnlyMode);
+        $item = [
+            'id' => (int) $reservation->id,
+            'team_member_id' => $reservation->teamMember?->id
+                ? (int) $reservation->teamMember->id
+                : null,
+            'client_id' => $reservation->client?->id ? (int) $reservation->client->id : null,
+            'prospect_id' => $reservation->prospect?->id ? (int) $reservation->prospect->id : null,
+            'service_id' => $reservation->service?->id ? (int) $reservation->service->id : null,
+            'status' => (string) $reservation->status,
+            'outcome_review_required_at' => $reservation->outcome_review_required_at?->toIso8601String(),
+            'outcome_review_reason_code' => $reservation->outcome_review_reason_code,
+            'source' => (string) $reservation->source,
+            'timezone' => (string) $reservation->timezone,
+            'starts_at' => $reservation->starts_at?->toIso8601String(),
+            'ends_at' => $reservation->ends_at?->toIso8601String(),
+            'duration_minutes' => (int) $reservation->duration_minutes,
+            'buffer_minutes' => (int) $reservation->buffer_minutes,
+            'client' => $reservation->client ? [
+                'id' => (int) $reservation->client->id,
+                'display_name' => $clientDisplayName ?: null,
+                'first_name' => $reservation->client->first_name,
+                'last_name' => $reservation->client->last_name,
+                'company_name' => $reservation->client->company_name,
+                'avatar_url' => $reservation->client->logo_url,
+            ] : null,
+            'prospect' => $reservation->prospect ? [
+                'id' => (int) $reservation->prospect->id,
+                'contact_name' => $reservation->prospect->contact_name,
+            ] : null,
+            'service' => $reservation->service ? [
+                'id' => (int) $reservation->service->id,
+                'name' => (string) $reservation->service->name,
+                'image_url' => $reservation->service->image_url,
+                'has_image' => $this->hasCustomServiceImage($reservation->service),
+            ] : null,
+            'team_member' => $reservation->teamMember ? [
+                'id' => (int) $reservation->teamMember->id,
+                'name' => $reservation->teamMember->user?->name,
+                'title' => $reservation->teamMember->title,
+                'avatar_url' => $reservation->teamMember->user?->profile_picture_url,
+                'user' => $reservation->teamMember->user ? [
+                    'name' => (string) $reservation->teamMember->user->name,
+                ] : null,
+            ] : null,
+            'permissions' => $permissions,
+        ];
+
+        if ($includeNotes) {
+            $item['internal_notes'] = $reservation->internal_notes;
+            $item['client_notes'] = $reservation->client_notes;
+        }
+
+        return $item;
+    }
+
+    private function reservationListPermissions(
+        Reservation $reservation,
+        array $access,
+        bool $ownerOnlyMode
+    ): array {
+        $ownTeamMemberId = (int) ($access['own_team_member_id'] ?? 0);
+        $isAssigned = $ownTeamMemberId > 0
+            && (int) $reservation->team_member_id === $ownTeamMemberId;
+        $canView = (bool) ($access['can_view_all'] ?? false) || $isAssigned;
+        $canManage = $canView
+            && ! $ownerOnlyMode
+            && (bool) ($access['can_manage'] ?? false);
+        $canUpdateStatus = $canView
+            && ! $ownerOnlyMode
+            && ($canManage || $isAssigned);
+
+        return [
+            'can_view' => $canView,
+            'can_edit' => $canManage,
+            'can_delete' => $canManage,
+            'can_update_status' => $canUpdateStatus,
+            'can_convert' => $canManage && (bool) $reservation->prospect && ! $reservation->client_id,
+            'allowed_status_transitions' => $this->allowedStatusTransitions($reservation, $canUpdateStatus),
+        ];
+    }
+
+    private function allowedStatusTransitions(Reservation $reservation, bool $canUpdateStatus): array
+    {
+        if (! $canUpdateStatus) {
+            return [];
+        }
+
+        $transitions = match ((string) $reservation->status) {
+            Reservation::STATUS_PENDING => [Reservation::STATUS_CONFIRMED],
+            Reservation::STATUS_CONFIRMED => [Reservation::STATUS_PENDING],
+            Reservation::STATUS_RESCHEDULED => [Reservation::STATUS_CONFIRMED, Reservation::STATUS_PENDING],
+            Reservation::STATUS_CANCELLED => [Reservation::STATUS_CONFIRMED],
+            default => [],
+        };
+
+        if (! in_array($reservation->status, Reservation::ACTIVE_STATUSES, true)) {
+            return $transitions;
+        }
+
+        if ($reservation->ends_at && ! $reservation->ends_at->isFuture()) {
+            if (in_array($reservation->status, [Reservation::STATUS_CONFIRMED, Reservation::STATUS_RESCHEDULED], true)) {
+                $transitions[] = Reservation::STATUS_COMPLETED;
+            }
+        }
+
+        if ($reservation->starts_at && ! $reservation->starts_at->isFuture()) {
+            $transitions[] = Reservation::STATUS_NO_SHOW;
+        }
+
+        $transitions[] = Reservation::STATUS_CANCELLED;
+
+        return array_values(array_unique($transitions));
+    }
+
+    private function hasCustomServiceImage(Product $service): bool
+    {
+        $path = ltrim(trim((string) $service->image), '/');
+
+        return $path !== '' && ! in_array($path, [
+            Product::LEGACY_DEFAULT_IMAGE_PATH,
+            Product::DEFAULT_PRODUCT_IMAGE_PATH,
+            Product::DEFAULT_SERVICE_IMAGE_PATH,
+        ], true);
     }
 
     private function reservationEventQuery(int $accountId): Builder
@@ -248,10 +518,19 @@ class BuildStaffReservationIndexData
         return Reservation::query()
             ->forAccount($accountId)
             ->with([
+                'teamMember' => fn (BelongsTo $query) => $query
+                    ->forAccount($accountId)
+                    ->select(['id', 'account_id', 'user_id']),
                 'teamMember.user:id,name',
-                'client:id,first_name,last_name,company_name',
-                'prospect:id,contact_name',
-                'service:id,name',
+                'client' => fn (BelongsTo $query) => $query
+                    ->byUser($accountId)
+                    ->select(['id', 'user_id', 'first_name', 'last_name', 'company_name']),
+                'prospect' => fn (BelongsTo $query) => $query
+                    ->byUser($accountId)
+                    ->select(['id', 'user_id', 'contact_name']),
+                'service' => fn (BelongsTo $query) => $query
+                    ->byUser($accountId)
+                    ->select(['id', 'user_id', 'name']),
             ]);
     }
 
@@ -268,13 +547,34 @@ class BuildStaffReservationIndexData
             $scope = $ownTeamMemberId ? 'mine' : 'all';
         }
 
-        $quick = (string) $request->input('quick', '');
-        if (! in_array($quick, ['', 'pending', 'today', 'upcoming', 'past'], true)) {
-            $quick = '';
+        $quickInput = $request->input('quick_filters');
+        if (! array_key_exists('quick_filters', $request->all())) {
+            $legacyQuick = $request->input('quick');
+            $quickInput = is_scalar($legacyQuick) ? [$legacyQuick] : [];
         }
+        $quickFilters = collect(Arr::wrap($quickInput))
+            ->filter(static fn (mixed $filter): bool => is_scalar($filter))
+            ->map(static fn (mixed $filter): string => trim((string) $filter))
+            ->filter(static fn (string $filter): bool => in_array($filter, self::QUICK_FILTERS, true))
+            ->unique()
+            ->values()
+            ->all();
+        $quickFilterMode = $request->input('quick_filter_mode') === 'any' ? 'any' : 'all';
 
         $sort = (string) $request->input('sort', 'date_asc');
-        if (! in_array($sort, ['date_asc', 'date_desc', 'status'], true)) {
+        if (! in_array($sort, [
+            'date_asc',
+            'date_desc',
+            'status',
+            'status_asc',
+            'status_desc',
+            'client_asc',
+            'client_desc',
+            'service_asc',
+            'service_desc',
+            'team_member_asc',
+            'team_member_desc',
+        ], true)) {
             $sort = 'date_asc';
         }
 
@@ -283,6 +583,8 @@ class BuildStaffReservationIndexData
             $teamMemberId = (string) $ownTeamMemberId;
         } elseif (! $canViewAll) {
             $teamMemberId = $ownTeamMemberId ? (string) $ownTeamMemberId : '';
+        } else {
+            $teamMemberId = $this->normalizePositiveId($teamMemberId);
         }
 
         $status = (string) $request->input('status', '');
@@ -290,23 +592,93 @@ class BuildStaffReservationIndexData
             $status = '';
         }
 
+        $viewMode = (string) $request->input('view_mode', 'calendar');
+        if (! in_array($viewMode, ['calendar', 'list'], true)) {
+            $viewMode = 'calendar';
+        }
+
+        $calendarView = $request->input('calendar_view', 'week');
+        if (! in_array($calendarView, ['day', 'week', 'month', 'year'], true)) {
+            $calendarView = 'week';
+        }
+        $dataTab = $request->input('data_tab', 'reservations');
+        if (! in_array($dataTab, ['reservations', 'queue', 'waitlist'], true)) {
+            $dataTab = 'reservations';
+        }
+        $calendarDate = $request->input('calendar_date');
+
+        $dateFrom = $this->normalizeDate($request->input('date_from'));
+        $dateTo = $this->normalizeDate($request->input('date_to'));
+
         return [
             'status' => $status,
             'team_member_id' => (string) ($teamMemberId ?? ''),
-            'service_id' => (string) ($request->input('service_id', '') ?? ''),
-            'date_from' => (string) ($request->input('date_from', '') ?? ''),
-            'date_to' => (string) ($request->input('date_to', '') ?? ''),
-            'search' => (string) ($request->input('search', '') ?? ''),
-            'view_mode' => (string) ($request->input('view_mode', 'calendar') ?: 'calendar'),
+            'service_id' => $this->normalizePositiveId($request->input('service_id')),
+            'date_from' => $dateFrom,
+            'date_to' => $dateTo,
+            'search' => Str::limit(trim((string) ($request->input('search', '') ?? '')), 120, ''),
+            'view_mode' => $viewMode,
+            'calendar_view' => $calendarView,
+            'calendar_date' => is_string($calendarDate) ? $this->normalizeDate($calendarDate) : '',
+            'data_tab' => $dataTab,
             'scope' => $scope,
-            'quick' => $quick,
+            'quick' => count($quickFilters) === 1 ? $quickFilters[0] : '',
+            'quick_filters' => $quickFilters,
+            'quick_filter_mode' => $quickFilterMode,
             'sort' => $sort,
             'per_page' => DataTablePagination::fromRequest($request),
         ];
     }
 
-    private function applyReservationFilters(Builder $query, array $filters, array $access, array $options = []): void
+    private function normalizePositiveId(mixed $value): string
     {
+        $normalized = trim((string) ($value ?? ''));
+        if ($normalized === '' || ! ctype_digit($normalized)) {
+            return '';
+        }
+
+        $id = (int) $normalized;
+
+        return $id > 0 ? (string) $id : '';
+    }
+
+    private function normalizeDate(mixed $value): string
+    {
+        $normalized = trim((string) ($value ?? ''));
+        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $normalized)) {
+            return '';
+        }
+
+        try {
+            $date = Carbon::createFromFormat('!Y-m-d', $normalized, 'UTC');
+        } catch (\Throwable) {
+            return '';
+        }
+
+        return $date && $date->format('Y-m-d') === $normalized ? $normalized : '';
+    }
+
+    /**
+     * @return array{0: Carbon, 1: Carbon}
+     */
+    private function localDayBounds(string $date, string $timezone): array
+    {
+        $start = Carbon::createFromFormat('!Y-m-d', $date, $timezone)->startOfDay();
+
+        return [
+            $start->copy()->utc(),
+            $start->copy()->addDay()->utc(),
+        ];
+    }
+
+    private function applyReservationFilters(
+        Builder $query,
+        array $filters,
+        array $access,
+        int $accountId,
+        string $accountTimezone,
+        array $options = []
+    ): void {
         $options = array_merge([
             'search' => true,
             'status' => true,
@@ -320,80 +692,126 @@ class BuildStaffReservationIndexData
         $canViewAll = (bool) ($access['can_view_all'] ?? false);
 
         if (($filters['scope'] ?? 'all') === 'mine' && $ownTeamMemberId) {
-            $query->where('team_member_id', (int) $ownTeamMemberId);
+            $query->where('reservations.team_member_id', (int) $ownTeamMemberId);
         }
 
         if ($options['team'] && ! empty($filters['team_member_id'])) {
             $teamMemberId = (int) $filters['team_member_id'];
             if ($teamMemberId > 0) {
                 if ($canViewAll) {
-                    $query->where('team_member_id', $teamMemberId);
+                    $query->whereHas('teamMember', fn (Builder $teamMemberQuery) => $teamMemberQuery
+                        ->forAccount($accountId)
+                        ->whereKey($teamMemberId));
                 } elseif ($ownTeamMemberId && $teamMemberId === (int) $ownTeamMemberId) {
-                    $query->where('team_member_id', $teamMemberId);
+                    $query->where('reservations.team_member_id', $teamMemberId);
                 }
             }
         }
 
         if ($options['service'] && ! empty($filters['service_id'])) {
-            $query->where('service_id', (int) $filters['service_id']);
+            $serviceId = (int) $filters['service_id'];
+            $query->whereHas('service', fn (Builder $serviceQuery) => $serviceQuery
+                ->byUser($accountId)
+                ->whereKey($serviceId));
         }
 
         if ($options['status'] && ! empty($filters['status'])) {
-            $query->where('status', (string) $filters['status']);
+            $query->where('reservations.status', (string) $filters['status']);
         }
 
         if ($options['date']) {
             if (! empty($filters['date_from'])) {
-                $query->whereDate('starts_at', '>=', (string) $filters['date_from']);
+                [$rangeStart] = $this->localDayBounds((string) $filters['date_from'], $accountTimezone);
+                $query->where('reservations.starts_at', '>=', $rangeStart);
             }
             if (! empty($filters['date_to'])) {
-                $query->whereDate('starts_at', '<=', (string) $filters['date_to']);
+                [, $rangeEnd] = $this->localDayBounds((string) $filters['date_to'], $accountTimezone);
+                $query->where('reservations.starts_at', '<', $rangeEnd);
             }
         }
 
         if ($options['search'] && ! empty($filters['search'])) {
             $search = (string) $filters['search'];
-            $query->where(function (Builder $subQuery) use ($search) {
-                $subQuery->whereHas('client', function (Builder $clientQuery) use ($search) {
-                    $clientQuery->where('company_name', 'like', '%'.$search.'%')
-                        ->orWhere('first_name', 'like', '%'.$search.'%')
-                        ->orWhere('last_name', 'like', '%'.$search.'%')
-                        ->orWhere('email', 'like', '%'.$search.'%');
-                })->orWhereHas('service', function (Builder $serviceQuery) use ($search) {
-                    $serviceQuery->where('name', 'like', '%'.$search.'%');
-                })->orWhereHas('prospect', function (Builder $prospectQuery) use ($search) {
-                    $prospectQuery->where('contact_name', 'like', '%'.$search.'%')
-                        ->orWhere('contact_email', 'like', '%'.$search.'%')
-                        ->orWhere('contact_phone', 'like', '%'.$search.'%');
+            $query->where(function (Builder $subQuery) use ($search, $accountId) {
+                $subQuery->whereHas('client', function (Builder $clientQuery) use ($search, $accountId) {
+                    $clientQuery->byUser($accountId)
+                        ->where(function (Builder $clientFields) use ($search) {
+                            $clientFields->where('company_name', 'like', '%'.$search.'%')
+                                ->orWhere('first_name', 'like', '%'.$search.'%')
+                                ->orWhere('last_name', 'like', '%'.$search.'%')
+                                ->orWhere('email', 'like', '%'.$search.'%');
+                        });
+                })->orWhereHas('service', function (Builder $serviceQuery) use ($search, $accountId) {
+                    $serviceQuery->byUser($accountId)
+                        ->where('name', 'like', '%'.$search.'%');
+                })->orWhereHas('prospect', function (Builder $prospectQuery) use ($search, $accountId) {
+                    $prospectQuery->byUser($accountId)
+                        ->where(function (Builder $prospectFields) use ($search) {
+                            $prospectFields->where('contact_name', 'like', '%'.$search.'%')
+                                ->orWhere('contact_email', 'like', '%'.$search.'%')
+                                ->orWhere('contact_phone', 'like', '%'.$search.'%');
+                        });
                 });
             });
         }
 
         if ($options['quick']) {
-            $quick = (string) ($filters['quick'] ?? '');
-            if ($quick === 'pending') {
-                $query->where('status', Reservation::STATUS_PENDING);
-            } elseif ($quick === 'today') {
-                $query->whereDate('starts_at', now()->toDateString());
-            } elseif ($quick === 'upcoming') {
-                $query->where('starts_at', '>', now())
-                    ->whereIn('status', Reservation::ACTIVE_STATUSES);
-            } elseif ($quick === 'past') {
-                $query->where('ends_at', '<', now());
+            $quickFilters = $filters['quick_filters'] ?? [];
+            if (($filters['quick_filter_mode'] ?? 'all') === 'any' && $quickFilters !== []) {
+                $query->where(function (Builder $group) use ($quickFilters, $accountTimezone): void {
+                    foreach ($quickFilters as $filter) {
+                        $group->orWhere(function (Builder $branch) use ($filter, $accountTimezone): void {
+                            $this->applyQuickFilterPredicate($branch, $filter, $accountTimezone);
+                        });
+                    }
+                });
+            } else {
+                foreach ($quickFilters as $filter) {
+                    $query->where(function (Builder $branch) use ($filter, $accountTimezone): void {
+                        $this->applyQuickFilterPredicate($branch, $filter, $accountTimezone);
+                    });
+                }
             }
         }
     }
 
-    private function applyReservationSort(Builder $query, string $sort): void
+    private function applyQuickFilterPredicate(Builder $query, string $filter, string $accountTimezone): void
+    {
+        if ($filter === 'pending') {
+            $query->where('reservations.status', Reservation::STATUS_PENDING);
+        } elseif ($filter === 'today') {
+            [$todayStart, $tomorrowStart] = $this->localDayBounds(
+                now($accountTimezone)->toDateString(),
+                $accountTimezone
+            );
+            $query->where('reservations.starts_at', '>=', $todayStart)
+                ->where('reservations.starts_at', '<', $tomorrowStart);
+        } elseif ($filter === 'upcoming') {
+            $query->where('reservations.starts_at', '>', now())
+                ->whereIn('reservations.status', Reservation::ACTIVE_STATUSES);
+        } elseif ($filter === 'past') {
+            $query->where('reservations.ends_at', '<', now());
+        } elseif ($filter === 'completed') {
+            $query->where('reservations.status', Reservation::STATUS_COMPLETED);
+        } elseif ($filter === 'no_show') {
+            $query->where('reservations.status', Reservation::STATUS_NO_SHOW);
+        } elseif ($filter === 'cancelled') {
+            $query->where('reservations.status', Reservation::STATUS_CANCELLED);
+        }
+    }
+
+    private function applyReservationSort(Builder $query, string $sort, int $accountId): void
     {
         if ($sort === 'date_desc') {
-            $query->orderByDesc('starts_at');
+            $query->orderByDesc('reservations.starts_at')
+                ->orderByDesc('reservations.id');
 
             return;
         }
 
-        if ($sort === 'status') {
-            $query->orderByRaw("CASE status
+        if (in_array($sort, ['status', 'status_asc', 'status_desc'], true)) {
+            $direction = $sort === 'status_desc' ? 'DESC' : 'ASC';
+            $query->orderByRaw("CASE reservations.status
                 WHEN 'pending' THEN 1
                 WHEN 'confirmed' THEN 2
                 WHEN 'rescheduled' THEN 3
@@ -402,37 +820,117 @@ class BuildStaffReservationIndexData
                 WHEN 'cancelled' THEN 6
                 WHEN 'expired' THEN 7
                 ELSE 99
-            END ASC");
-            $query->orderBy('starts_at');
+            END {$direction}");
+            $query->orderBy('reservations.starts_at')
+                ->orderBy('reservations.id');
 
             return;
         }
 
-        $query->orderBy('starts_at');
+        if (in_array($sort, ['client_asc', 'client_desc'], true)) {
+            $direction = $sort === 'client_desc' ? 'desc' : 'asc';
+            $query
+                ->leftJoin('customers as reservation_sort_clients', function ($join) use ($accountId) {
+                    $join->on('reservation_sort_clients.id', '=', 'reservations.client_id')
+                        ->where('reservation_sort_clients.user_id', '=', $accountId);
+                })
+                ->leftJoin('requests as reservation_sort_prospects', function ($join) use ($accountId) {
+                    $join->on('reservation_sort_prospects.id', '=', 'reservations.prospect_id')
+                        ->where('reservation_sort_prospects.user_id', '=', $accountId);
+                })
+                ->orderByRaw(
+                    "COALESCE(NULLIF(reservation_sort_clients.company_name, ''), NULLIF(reservation_sort_clients.last_name, ''), NULLIF(reservation_sort_clients.first_name, ''), NULLIF(reservation_sort_prospects.contact_name, ''), '') {$direction}"
+                )
+                ->orderBy('reservations.starts_at')
+                ->orderBy('reservations.id');
+
+            return;
+        }
+
+        if (in_array($sort, ['service_asc', 'service_desc'], true)) {
+            $direction = $sort === 'service_desc' ? 'desc' : 'asc';
+            $query
+                ->leftJoin('products as reservation_sort_services', function ($join) use ($accountId) {
+                    $join->on('reservation_sort_services.id', '=', 'reservations.service_id')
+                        ->where('reservation_sort_services.user_id', '=', $accountId);
+                })
+                ->orderBy('reservation_sort_services.name', $direction)
+                ->orderBy('reservations.starts_at')
+                ->orderBy('reservations.id');
+
+            return;
+        }
+
+        if (in_array($sort, ['team_member_asc', 'team_member_desc'], true)) {
+            $direction = $sort === 'team_member_desc' ? 'desc' : 'asc';
+            $query
+                ->leftJoin('team_members as reservation_sort_members', function ($join) use ($accountId) {
+                    $join->on('reservation_sort_members.id', '=', 'reservations.team_member_id')
+                        ->where('reservation_sort_members.account_id', '=', $accountId);
+                })
+                ->leftJoin('users as reservation_sort_member_users', function ($join) {
+                    $join->on('reservation_sort_member_users.id', '=', 'reservation_sort_members.user_id');
+                })
+                ->orderBy('reservation_sort_member_users.name', $direction)
+                ->orderBy('reservations.starts_at')
+                ->orderBy('reservations.id');
+
+            return;
+        }
+
+        $query->orderBy('reservations.starts_at')
+            ->orderBy('reservations.id');
     }
 
-    private function quickCounts(int $accountId, array $filters, array $access): array
-    {
+    private function quickCounts(
+        int $accountId,
+        array $filters,
+        array $access,
+        string $accountTimezone
+    ): array {
         $summaryQuery = $this->reservationQuery($accountId, false)
-            ->tap(fn (Builder $builder) => $this->applyReservationFilters($builder, $filters, $access, [
-                'status' => false,
-                'date' => false,
-                'quick' => false,
-            ]));
+            ->tap(fn (Builder $builder) => $this->applyReservationFilters(
+                $builder,
+                $filters,
+                $access,
+                $accountId,
+                $accountTimezone,
+                [
+                    'status' => false,
+                    'date' => false,
+                    'quick' => false,
+                ]
+            ));
+
+        [$todayStart, $tomorrowStart] = $this->localDayBounds(
+            now($accountTimezone)->toDateString(),
+            $accountTimezone
+        );
 
         return [
             'pending' => (clone $summaryQuery)->where('status', Reservation::STATUS_PENDING)->count(),
-            'today' => (clone $summaryQuery)->whereDate('starts_at', now()->toDateString())->count(),
+            'today' => (clone $summaryQuery)
+                ->where('starts_at', '>=', $todayStart)
+                ->where('starts_at', '<', $tomorrowStart)
+                ->count(),
             'upcoming' => (clone $summaryQuery)
                 ->where('starts_at', '>', now())
                 ->whereIn('status', Reservation::ACTIVE_STATUSES)
                 ->count(),
             'past' => (clone $summaryQuery)->where('ends_at', '<', now())->count(),
+            'completed' => (clone $summaryQuery)->where('status', Reservation::STATUS_COMPLETED)->count(),
+            'no_show' => (clone $summaryQuery)->where('status', Reservation::STATUS_NO_SHOW)->count(),
+            'cancelled' => (clone $summaryQuery)->where('status', Reservation::STATUS_CANCELLED)->count(),
         ];
     }
 
-    private function buildPerformanceMetrics(User $account, array $filters, array $access, array $settings): array
-    {
+    private function buildPerformanceMetrics(
+        User $account,
+        array $filters,
+        array $access,
+        array $settings,
+        string $accountTimezone
+    ): array {
         $windowDays = 30;
         $windowStart = now('UTC')->subDays($windowDays)->startOfDay();
         $windowEnd = now('UTC')->endOfDay();
@@ -444,12 +942,19 @@ class BuildStaffReservationIndexData
         ];
 
         $reservationWindowQuery = $this->reservationQuery($account->id, false)
-            ->tap(fn (Builder $builder) => $this->applyReservationFilters($builder, $filters, $access, [
-                'search' => false,
-                'status' => false,
-                'date' => false,
-                'quick' => false,
-            ]))
+            ->tap(fn (Builder $builder) => $this->applyReservationFilters(
+                $builder,
+                $filters,
+                $access,
+                $account->id,
+                $accountTimezone,
+                [
+                    'search' => false,
+                    'status' => false,
+                    'date' => false,
+                    'quick' => false,
+                ]
+            ))
             ->where('starts_at', '>=', $windowStart)
             ->where('starts_at', '<=', $windowEnd);
 
@@ -462,11 +967,15 @@ class BuildStaffReservationIndexData
 
         $avgServiceValue = round((float) ((clone $reservationWindowQuery)
             ->where('status', Reservation::STATUS_COMPLETED)
-            ->leftJoin('products', 'reservations.service_id', '=', 'products.id')
+            ->leftJoin('products', function ($join) use ($account) {
+                $join->on('reservations.service_id', '=', 'products.id')
+                    ->where('products.user_id', '=', $account->id);
+            })
             ->avg('products.price')), 2);
 
         $teamMemberIds = $this->resolvePerformanceTeamMemberIds($account->id, $filters, $access);
         $teamUserIds = TeamMember::query()
+            ->forAccount($account->id)
             ->whereIn('id', $teamMemberIds)
             ->pluck('user_id')
             ->map(fn ($id) => (int) $id)
@@ -672,23 +1181,28 @@ class BuildStaffReservationIndexData
         $clientName = $waitlist->client?->company_name
             ?: trim(($waitlist->client?->first_name ?? '').' '.($waitlist->client?->last_name ?? ''));
 
-        return [
+        $item = [
             'id' => $waitlist->id,
             'status' => $waitlist->status,
             'client_name' => $clientName ?: ($waitlist->client?->email ?? null),
-            'service_id' => $waitlist->service_id,
+            'service_id' => $waitlist->service?->id ? (int) $waitlist->service->id : null,
             'service_name' => $waitlist->service?->name,
-            'team_member_id' => $waitlist->team_member_id,
+            'team_member_id' => $waitlist->teamMember?->id ? (int) $waitlist->teamMember->id : null,
             'team_member_name' => $waitlist->teamMember?->user?->name,
             'requested_start_at' => $waitlist->requested_start_at?->toIso8601String(),
             'requested_end_at' => $waitlist->requested_end_at?->toIso8601String(),
             'duration_minutes' => (int) ($waitlist->duration_minutes ?? 0),
             'party_size' => $waitlist->party_size,
-            'notes' => $waitlist->notes,
-            'resource_filters' => $waitlist->resource_filters,
             'can_update_status' => $this->canManageWaitlistStatus($access, $waitlist),
             'created_at' => $waitlist->created_at?->toIso8601String(),
         ];
+
+        if ($access['can_manage'] ?? false) {
+            $item['notes'] = $waitlist->notes;
+            $item['resource_filters'] = $waitlist->resource_filters;
+        }
+
+        return $item;
     }
 
     private function mapEvent(Reservation $reservation): array
@@ -698,24 +1212,27 @@ class BuildStaffReservationIndexData
         if (! $clientLabel) {
             $clientLabel = $reservation->prospect?->contact_name;
         }
-        $serviceLabel = $reservation->service?->name ?: 'Reservation';
-        $memberLabel = $reservation->teamMember?->user?->name ?: 'Team';
-        $title = trim($serviceLabel.' · '.($clientLabel ?: 'Client'));
+        $serviceLabel = $reservation->service?->name;
+        $memberLabel = $reservation->teamMember?->user?->name;
+        $title = implode(' · ', array_values(array_filter([
+            $serviceLabel,
+            $clientLabel,
+        ], fn ($label) => filled($label))));
 
         return [
             'id' => $reservation->id,
-            'title' => $title,
+            'title' => $title ?: null,
             'start' => $reservation->starts_at?->toIso8601String(),
             'end' => $reservation->ends_at?->toIso8601String(),
             'classNames' => ['reservation-event', 'status-'.$reservation->status],
             'extendedProps' => [
                 'status' => $reservation->status,
-                'team_member_id' => $reservation->team_member_id,
-                'team_member_name' => $memberLabel,
+                'outcome_review_required_at' => $reservation->outcome_review_required_at?->toIso8601String(),
+                'outcome_review_reason_code' => $reservation->outcome_review_reason_code,
+                'team_member_id' => $reservation->teamMember?->id,
+                'team_member_name' => $memberLabel ?: null,
                 'client_name' => $clientLabel ?: null,
-                'service_name' => $serviceLabel,
-                'internal_notes' => $reservation->internal_notes,
-                'client_notes' => $reservation->client_notes,
+                'service_name' => $serviceLabel ?: null,
                 'source' => $reservation->source,
             ],
         ];

@@ -8,9 +8,11 @@ import DatePicker from '@/Components/DatePicker.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import Modal from '@/Components/UI/Modal.vue';
 import { humanizeDate } from '@/utils/date';
 import { useCurrencyFormatter } from '@/utils/currency';
+import { buildSparklinePoints } from '@/utils/kpi';
 import { useI18n } from 'vue-i18n';
 
 const props = defineProps({
@@ -80,6 +82,27 @@ const movements = computed(() => Array.isArray(props.pettyCash?.movements) ? pro
 const movementLinks = computed(() => Array.isArray(props.pettyCash?.movementLinks) ? props.pettyCash.movementLinks : []);
 const movementCount = computed(() => Number(props.pettyCash?.movementCount ?? movements.value.length));
 const closures = computed(() => Array.isArray(props.pettyCash?.closures) ? props.pettyCash.closures : []);
+const balanceSeries = computed(() => {
+    const historicalBalances = [...closures.value]
+        .reverse()
+        .map((closure) => closure?.counted_balance)
+        .filter((value) => value !== null && value !== undefined && Number.isFinite(Number(value)))
+        .map(Number);
+    const currentBalance = account.value.current_balance;
+
+    if (
+        historicalBalances.length === 0
+        || currentBalance === null
+        || currentBalance === undefined
+        || !Number.isFinite(Number(currentBalance))
+    ) {
+        return [];
+    }
+
+    const values = [...historicalBalances, Number(currentBalance)];
+
+    return values.every((value) => value >= 0) ? values : [];
+});
 const canCreate = computed(() => Boolean(props.pettyCash?.canCreate));
 const canPost = computed(() => Boolean(props.pettyCash?.canPost));
 const canManage = computed(() => Boolean(props.pettyCash?.canManage));
@@ -363,6 +386,49 @@ const exportPettyCash = () => {
 const formatNumber = (value) =>
     Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
 
+const kpiMetrics = computed(() => [
+    {
+        key: 'balance',
+        label: t('expenses.petty_cash.kpis.balance'),
+        value: formatCurrency(account.value.current_balance, account.value.currency_code),
+        context: hasLowBalance.value ? t('expenses.petty_cash.low_balance') : '',
+        tone: hasLowBalance.value ? 'amber' : 'emerald',
+        points: balanceSeries.value.length >= 2
+            ? buildSparklinePoints(balanceSeries.value)
+            : [],
+    },
+    {
+        key: 'inflows',
+        label: t('expenses.petty_cash.kpis.inflows'),
+        value: formatCurrency(stats.value.period_inflows, account.value.currency_code),
+        tone: 'sky',
+    },
+    {
+        key: 'outflows',
+        label: t('expenses.petty_cash.kpis.outflows'),
+        value: formatCurrency(stats.value.period_outflows, account.value.currency_code),
+        tone: 'rose',
+    },
+    {
+        key: 'drafts',
+        label: t('expenses.petty_cash.kpis.drafts'),
+        value: formatNumber(stats.value.draft_count),
+        tone: 'amber',
+    },
+    {
+        key: 'missing-receipts',
+        label: t('expenses.petty_cash.kpis.missing_receipts'),
+        value: formatNumber(stats.value.missing_receipt_count),
+        tone: 'orange',
+    },
+    {
+        key: 'unlinked',
+        label: t('expenses.petty_cash.kpis.unlinked'),
+        value: formatNumber(stats.value.unlinked_expense_count),
+        tone: 'violet',
+    },
+]);
+
 const formatSignedCurrency = (value, currencyCode = account.value.currency_code) => {
     const amount = Number(value || 0);
     const prefix = amount > 0 ? '+' : '';
@@ -446,59 +512,7 @@ const canRunAction = (movement, action) => Array.isArray(movement.available_acti
             </div>
         </div>
 
-        <div class="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-            <div class="rounded-sm border border-t-4 border-stone-200 border-t-emerald-600 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                <div class="text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-neutral-400">
-                    {{ $t('expenses.petty_cash.kpis.balance') }}
-                </div>
-                <div class="mt-2 text-xl font-semibold text-stone-900 dark:text-neutral-100">
-                    {{ formatCurrency(account.current_balance, account.currency_code) }}
-                </div>
-                <div v-if="hasLowBalance" class="mt-2 text-xs font-medium text-amber-700 dark:text-amber-300">
-                    {{ $t('expenses.petty_cash.low_balance') }}
-                </div>
-            </div>
-            <div class="rounded-sm border border-t-4 border-stone-200 border-t-sky-600 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                <div class="text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-neutral-400">
-                    {{ $t('expenses.petty_cash.kpis.inflows') }}
-                </div>
-                <div class="mt-2 text-lg font-semibold text-stone-900 dark:text-neutral-100">
-                    {{ formatCurrency(stats.period_inflows, account.currency_code) }}
-                </div>
-            </div>
-            <div class="rounded-sm border border-t-4 border-stone-200 border-t-rose-500 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                <div class="text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-neutral-400">
-                    {{ $t('expenses.petty_cash.kpis.outflows') }}
-                </div>
-                <div class="mt-2 text-lg font-semibold text-stone-900 dark:text-neutral-100">
-                    {{ formatCurrency(stats.period_outflows, account.currency_code) }}
-                </div>
-            </div>
-            <div class="rounded-sm border border-t-4 border-stone-200 border-t-amber-500 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                <div class="text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-neutral-400">
-                    {{ $t('expenses.petty_cash.kpis.drafts') }}
-                </div>
-                <div class="mt-2 text-lg font-semibold text-stone-900 dark:text-neutral-100">
-                    {{ formatNumber(stats.draft_count) }}
-                </div>
-            </div>
-            <div class="rounded-sm border border-t-4 border-stone-200 border-t-orange-500 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                <div class="text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-neutral-400">
-                    {{ $t('expenses.petty_cash.kpis.missing_receipts') }}
-                </div>
-                <div class="mt-2 text-lg font-semibold text-stone-900 dark:text-neutral-100">
-                    {{ formatNumber(stats.missing_receipt_count) }}
-                </div>
-            </div>
-            <div class="rounded-sm border border-t-4 border-stone-200 border-t-violet-500 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                <div class="text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-neutral-400">
-                    {{ $t('expenses.petty_cash.kpis.unlinked') }}
-                </div>
-                <div class="mt-2 text-lg font-semibold text-stone-900 dark:text-neutral-100">
-                    {{ formatNumber(stats.unlinked_expense_count) }}
-                </div>
-            </div>
-        </div>
+        <KpiMetricGrid class="mt-5" :metrics="kpiMetrics" />
 
         <div class="mt-4 grid gap-3 lg:grid-cols-[1.1fr,0.9fr]">
             <div class="rounded-sm border border-stone-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900">

@@ -26,6 +26,15 @@
         font-weight: 700;
         margin-bottom: 2px;
       }
+      .logo {
+        display: block;
+        max-width: 160px;
+        max-height: 48px;
+        width: auto;
+        height: auto;
+        object-fit: contain;
+        margin: 0 auto 6px;
+      }
       .divider {
         border-top: 1px dashed #d6d3d1;
         margin: 8px 0;
@@ -90,7 +99,13 @@
   </head>
   <body>
     @php
-      $companyName = $company?->company_name ?: config('app.name');
+      $companyBranding = app(\App\Services\TenantBrandingResolver::class)->forAccountOwner($company);
+      $companyName = $companyBranding['name'];
+      $companyLogo = $companyBranding['custom_logo_url'];
+      $companyLogoUrl = null;
+      if (! empty($companyLogo)) {
+          $companyLogoUrl = str_starts_with($companyLogo, '/') ? url($companyLogo) : $companyLogo;
+      }
       $customerLabel = $customer?->company_name
         ?: trim(($customer?->first_name ?? '') . ' ' . ($customer?->last_name ?? ''));
       $customerLabel = $customerLabel ?: 'Client';
@@ -132,6 +147,9 @@
     @endphp
 
     <div class="center">
+      @if(! empty($companyLogoUrl))
+        <img src="{{ $companyLogoUrl }}" alt="{{ $companyName }}" class="logo">
+      @endif
       <div class="title">{{ $companyName }}</div>
       <div class="muted">Recu de vente {{ $orderNumber }}</div>
       <div class="muted">{{ $formatShortDate($sale->created_at) }}</div>

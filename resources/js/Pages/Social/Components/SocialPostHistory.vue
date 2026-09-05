@@ -7,6 +7,12 @@ import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
+import {
+    needsSocialDeliveryVerification,
+    socialStatusAxes,
+    socialStatusToneClass,
+} from '@/utils/socialStatusAxes';
 
 const props = defineProps({
     initialPosts: {
@@ -58,11 +64,41 @@ const filters = ref(normalizeFilters(props.initialFilters));
 const access = ref(normalizeAccess(props.initialAccess));
 const isLoading = ref(false);
 const busy = ref(false);
+const retryingPostId = ref(null);
 const error = ref('');
 const info = ref('');
 
 const canManage = computed(() => Boolean(access.value.can_manage_posts));
 const canApprove = computed(() => Boolean(access.value.can_approve));
+const historyMetrics = computed(() => ([
+    {
+        key: 'total',
+        label: t('social.history_manager.summary.total'),
+        value: Number(summary.value.total || 0),
+        tone: 'stone',
+        colorClass: 'bg-stone-400/70 dark:bg-neutral-500/50',
+        trend: null,
+        points: [],
+    },
+    {
+        key: 'published',
+        label: t('social.history_manager.summary.published'),
+        value: Number(summary.value.published || 0),
+        tone: 'emerald',
+        colorClass: 'bg-emerald-500/70 dark:bg-emerald-400/50',
+        trend: null,
+        points: [],
+    },
+    {
+        key: 'attention',
+        label: t('social.history_manager.summary.attention'),
+        value: Number(summary.value.attention || 0),
+        tone: 'rose',
+        colorClass: 'bg-rose-500/70 dark:bg-rose-400/50',
+        trend: null,
+        points: [],
+    },
+]));
 const statusFilterOptions = computed(() => [
     { value: '', label: t('social.history_manager.filters.all_statuses') },
     ...props.initialStatusFilters.map((statusOption) => ({
@@ -189,7 +225,7 @@ const statusClass = (status) => {
         return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300';
     }
 
-    if (status === 'partial_failed' || status === 'failed') {
+    if (status === 'partial_failed' || status === 'failed' || status === 'canceled') {
         return 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300';
     }
 
@@ -202,6 +238,32 @@ const statusClass = (status) => {
     }
 
     return 'border-stone-200 bg-stone-50 text-stone-700 dark:border-neutral-700 dark:bg-neutral-800/70 dark:text-neutral-300';
+};
+
+const targetStatusLabel = (status) => {
+    const normalizedStatus = String(status || 'pending');
+    const key = `social.history_manager.target_statuses.${normalizedStatus}`;
+    const translated = t(key);
+
+    return translated === key ? normalizedStatus : translated;
+};
+
+const statusAxesFor = (record, includeEditorial = true) => socialStatusAxes(record, { includeEditorial });
+const statusAxisLabel = (axis) => t(`social.delivery_axes.labels.${axis.key}`);
+const statusAxisValueLabel = (axis) => {
+    const key = `social.delivery_axes.statuses.${axis.key}.${axis.value}`;
+    const translated = t(key);
+
+    return translated === key ? axis.value.replace(/_/gu, ' ') : translated;
+};
+
+const canEditPost = (post) => {
+    if (typeof post?.is_editable === 'boolean') {
+        return post.is_editable;
+    }
+
+    return ['draft', 'scheduled'].includes(String(post?.status || ''))
+        && !post?.metadata?.publish_requested_at;
 };
 
 const qualityClass = (status) => ({
@@ -359,6 +421,32 @@ const createEditableCopy = async (post, mode = 'duplicate') => {
     }
 };
 
+const retryPost = async (post) => {
+    if (!post?.can_retry) {
+        return;
+    }
+
+    busy.value = true;
+    retryingPostId.value = post.id;
+    error.value = '';
+    info.value = '';
+
+    try {
+        const response = await axios.post(route('social.posts.retry', post.id));
+
+        await load();
+
+        if (error.value === '') {
+            info.value = String(response.data?.message || t('social.history_manager.messages.retry_success'));
+        }
+    } catch (requestError) {
+        error.value = requestErrorMessage(requestError, t('social.history_manager.messages.retry_error'));
+    } finally {
+        retryingPostId.value = null;
+        busy.value = false;
+    }
+};
+
 const resolveApproval = async (post, decision) => {
     if (!canApprove.value || String(post?.status || '') !== 'pending_approval') {
         return;
@@ -394,7 +482,7 @@ const resolveApproval = async (post, decision) => {
 </script>
 
 <template>
-    <div class="space-y-5">
+    <div class="space-y-5" :aria-busy="busy || isLoading">
         <div class="flex flex-wrap justify-end gap-2">
             <SecondaryButton :disabled="busy || isLoading" @click="load">
                 {{ t('social.history_manager.actions.reload') }}
@@ -414,6 +502,8 @@ const resolveApproval = async (post, decision) => {
 
         <div
             v-if="error"
+            role="alert"
+            aria-live="assertive"
             class="rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300"
         >
             {{ error }}
@@ -421,6 +511,8 @@ const resolveApproval = async (post, decision) => {
 
         <div
             v-if="info"
+            role="status"
+            aria-live="polite"
             class="rounded-3xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300"
         >
             {{ info }}
@@ -437,32 +529,11 @@ const resolveApproval = async (post, decision) => {
                     </p>
                 </div>
 
-                <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
-                    <div class="rounded-2xl bg-stone-100 px-3 py-2 text-sm dark:bg-neutral-800">
-                        <div class="text-xs uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
-                            {{ t('social.history_manager.summary.total') }}
-                        </div>
-                        <div class="mt-1 text-lg font-semibold text-stone-900 dark:text-neutral-100">
-                            {{ Number(summary.total || 0) }}
-                        </div>
-                    </div>
-                    <div class="rounded-2xl bg-stone-100 px-3 py-2 text-sm dark:bg-neutral-800">
-                        <div class="text-xs uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
-                            {{ t('social.history_manager.summary.published') }}
-                        </div>
-                        <div class="mt-1 text-lg font-semibold text-stone-900 dark:text-neutral-100">
-                            {{ Number(summary.published || 0) }}
-                        </div>
-                    </div>
-                    <div class="rounded-2xl bg-stone-100 px-3 py-2 text-sm dark:bg-neutral-800">
-                        <div class="text-xs uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
-                            {{ t('social.history_manager.summary.attention') }}
-                        </div>
-                        <div class="mt-1 text-lg font-semibold text-stone-900 dark:text-neutral-100">
-                            {{ Number(summary.attention || 0) }}
-                        </div>
-                    </div>
-                </div>
+                <KpiMetricGrid
+                    :metrics="historyMetrics"
+                    grid-class="grid-cols-1 md:grid-cols-3"
+                    :aria-label="t('social.history_manager.filters_title')"
+                />
             </div>
 
             <div class="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[1.2fr,0.8fr,0.8fr,auto]">
@@ -522,6 +593,42 @@ const resolveApproval = async (post, decision) => {
                             {{ draftLabel(post) }}
                         </h4>
 
+                        <dl
+                            v-if="statusAxesFor(post).length"
+                            class="flex flex-wrap gap-2"
+                            :aria-label="t('social.delivery_axes.summary_label')"
+                        >
+                            <div
+                                v-for="axis in statusAxesFor(post)"
+                                :key="`${post.id}-${axis.key}`"
+                                class="inline-flex items-center gap-1.5"
+                            >
+                                <dt class="text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ statusAxisLabel(axis) }}
+                                </dt>
+                                <dd
+                                    class="inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold"
+                                    :class="socialStatusToneClass(axis.value)"
+                                >
+                                    {{ statusAxisValueLabel(axis) }}
+                                </dd>
+                            </div>
+                        </dl>
+
+                        <div
+                            v-if="needsSocialDeliveryVerification(post)"
+                            role="alert"
+                            aria-live="assertive"
+                            class="rounded-2xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100"
+                        >
+                            <div class="font-semibold">
+                                {{ t('social.delivery_axes.verification.title') }}
+                            </div>
+                            <div class="mt-1">
+                                {{ t('social.delivery_axes.verification.description') }}
+                            </div>
+                        </div>
+
                         <a
                             v-if="post.link_url"
                             :href="linkHrefFor(post.link_url)"
@@ -542,9 +649,12 @@ const resolveApproval = async (post, decision) => {
 
                         <p
                             v-if="post.failure_reason"
+                            role="status"
+                            aria-live="polite"
                             class="rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300"
                         >
-                            {{ post.failure_reason }}
+                            <span class="font-semibold">{{ t('social.delivery_axes.failure_reason_label') }}</span>
+                            <span class="mt-1 block break-words">{{ post.failure_reason }}</span>
                         </p>
 
                         <p
@@ -592,9 +702,19 @@ const resolveApproval = async (post, decision) => {
                         </details>
                     </div>
 
-                    <div v-if="canManage || canApprove" class="flex flex-wrap gap-2">
+                    <div v-if="canManage || canApprove || post.can_retry" class="flex flex-wrap gap-2">
+                        <PrimaryButton
+                            v-if="post.can_retry"
+                            type="button"
+                            :disabled="busy"
+                            @click="retryPost(post)"
+                        >
+                            {{ retryingPostId === post.id
+                                ? t('social.history_manager.actions.retrying_post')
+                                : t('social.history_manager.actions.retry_post') }}
+                        </PrimaryButton>
                         <SecondaryButton
-                            v-if="canManage && (post.status === 'draft' || post.status === 'scheduled')"
+                            v-if="canManage && canEditPost(post)"
                             type="button"
                             :disabled="busy"
                             @click="openDraft(post)"
@@ -657,12 +777,47 @@ const resolveApproval = async (post, decision) => {
                                 :key="target.id"
                                 class="rounded-2xl border border-stone-200 bg-white px-3 py-2 dark:border-neutral-700 dark:bg-neutral-900"
                             >
-                                <div class="font-medium text-stone-900 dark:text-neutral-100">
-                                    {{ target.label || t('social.history_manager.empty_value') }}
+                                <div class="flex flex-wrap items-start justify-between gap-2">
+                                    <div class="font-medium text-stone-900 dark:text-neutral-100">
+                                        {{ target.label || t('social.history_manager.empty_value') }}
+                                    </div>
+                                    <span
+                                        class="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold"
+                                        :class="statusClass(target.status)"
+                                    >
+                                        {{ targetStatusLabel(target.status) }}
+                                    </span>
                                 </div>
                                 <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
                                     {{ target.provider_label || target.platform || t('social.history_manager.empty_value') }}
                                 </div>
+                                <dl
+                                    v-if="statusAxesFor(target, false).length"
+                                    class="mt-2 flex flex-wrap gap-2"
+                                    :aria-label="t('social.delivery_axes.summary_label')"
+                                >
+                                    <div
+                                        v-for="axis in statusAxesFor(target, false)"
+                                        :key="`${target.id}-${axis.key}`"
+                                        class="inline-flex items-center gap-1"
+                                    >
+                                        <dt class="text-[11px] text-stone-500 dark:text-neutral-400">
+                                            {{ statusAxisLabel(axis) }}
+                                        </dt>
+                                        <dd
+                                            class="inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold"
+                                            :class="socialStatusToneClass(axis.value)"
+                                        >
+                                            {{ statusAxisValueLabel(axis) }}
+                                        </dd>
+                                    </div>
+                                </dl>
+                                <p
+                                    v-if="target.failure_reason"
+                                    class="mt-2 rounded-xl border border-rose-200 bg-rose-50 px-2 py-1.5 text-xs text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300"
+                                >
+                                    {{ t('social.history_manager.target_failure_reason', { reason: target.failure_reason }) }}
+                                </p>
                             </div>
                         </div>
                         <div v-else class="mt-3 text-sm text-stone-500 dark:text-neutral-400">

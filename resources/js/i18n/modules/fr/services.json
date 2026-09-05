@@ -30,6 +30,7 @@
       "edit_service": "Modifier service",
       "cancel": "Annuler",
       "create_service": "Creer service",
+      "save_and_create_another": "Enregistrer et creer un nouveau",
       "update_service": "Mettre a jour service",
       "archive": "Archiver",
       "restore": "Restaurer"

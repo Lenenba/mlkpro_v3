@@ -1,12 +1,84 @@
 {
   "account": {
     "default_name": "Account",
+    "open_menu": "Open {name}'s account menu",
+    "avatar_alt": "Profile picture for {name}",
+    "open_settings": "Open settings",
+    "client_portal": {
+      "title": "Client portal",
+      "company_fallback": "Your company",
+      "navigation": "Client portal navigation",
+      "open_navigation": "Open client portal navigation"
+    },
+    "profile_page": {
+      "title": "My account",
+      "subtitle": "Manage your personal information and account security.",
+      "sections_label": "Account sections",
+      "tabs": {
+        "identity": "Identity",
+        "identity_description": "Name, contact details, and photo",
+        "password": "Password",
+        "password_description": "Secure my access",
+        "deletion": "Deletion",
+        "deletion_description": "Close my account"
+      },
+      "information": {
+        "title": "Profile information",
+        "subtitle": "Update your contact details and email address.",
+        "photo_label": "Profile photo or icon",
+        "upload_photo": "Upload a photo",
+        "choose_avatar": "Or choose an avatar icon",
+        "avatar_choice": "Choose avatar {number}",
+        "default_avatar": "Default",
+        "clear_avatar": "Remove icon",
+        "name": "Name",
+        "email": "Email address",
+        "phone": "Phone",
+        "email_unverified": "Your email address is not verified.",
+        "resend_verification": "Resend the verification email.",
+        "verification_sent": "A new verification link has been sent to you."
+      },
+      "password": {
+        "title": "Update password",
+        "subtitle": "Use a long, unique password to protect your account.",
+        "current": "Current password",
+        "new": "New password",
+        "confirm": "Confirm password"
+      },
+      "deletion": {
+        "title": "Delete account",
+        "subtitle": "Deleting your account and its related data is permanent.",
+        "confirm_title": "Are you sure you want to delete your account?",
+        "confirm_body": "This action cannot be undone. Enter your password to permanently delete your account.",
+        "password": "Password"
+      },
+      "actions": {
+        "save": "Save",
+        "saving": "Saving…",
+        "saved": "Saved.",
+        "cancel": "Cancel",
+        "delete": "Delete account",
+        "deleting": "Deleting…"
+      }
+    },
     "company_label": "Company",
     "settings": "Settings",
     "billing": "Billing",
     "profile": "My account",
     "dark_mode": "Dark mode",
     "logout": "Sign out",
-    "language": "Language"
+    "language": "Language",
+    "branding": {
+      "powered_by": "Powered by Malikia Pro",
+      "footer": {
+        "aria_label": "Malikia Pro footer",
+        "navigation_aria_label": "Footer links",
+        "copyright": "© {year} Malikia Pro inc. All rights reserved.",
+        "support": "Support",
+        "privacy": "Privacy",
+        "terms": "Terms of use",
+        "cookie_preferences": "Cookie preferences"
+      }
+    }
   }
 }

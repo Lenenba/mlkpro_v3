@@ -79,7 +79,7 @@ defineExpose({ focus: () => input.value?.focus() });
 </script>
 
 <template>
-    <div class="relative">
+    <div class="relative min-w-0">
         <input
             :id="inputId"
             v-model="value"
@@ -88,34 +88,29 @@ defineExpose({ focus: () => input.value?.focus() });
             :type="type"
             :disabled="disabled"
             :readonly="readonly"
+            :required="required"
+            :aria-required="required ? 'true' : undefined"
             :autocomplete="resolvedAutocomplete"
-            class="peer p-4 block w-full border-stone-200 rounded-sm text-sm placeholder-transparent focus:border-green-600 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-400 dark:focus:ring-neutral-600
-                focus:pt-6
-                focus:pb-2
-                [&:not(:placeholder-shown)]:pt-6
-                [&:not(:placeholder-shown)]:pb-2
-                autofill:pt-6
-                autofill:pb-2"
+            class="app-field-control peer"
             :placeholder="resolvedPlaceholder"
         />
         <label
             :for="inputId"
-            class="absolute top-0 left-0 p-4 h-full text-sm truncate pointer-events-none transition ease-in-out duration-100 origin-[0_0] dark:text-white peer-disabled:opacity-50 peer-disabled:pointer-events-none
+            :title="label"
+            class="app-floating-label
                 scale-90
                 translate-x-0.5
                 -translate-y-1.5
-                text-stone-500 dark:text-neutral-500
                 peer-placeholder-shown:scale-100
                 peer-placeholder-shown:translate-x-0
                 peer-placeholder-shown:translate-y-0
-                peer-placeholder-shown:text-stone-500 dark:peer-placeholder-shown:text-neutral-500
                 peer-focus:scale-90
                 peer-focus:translate-x-0.5
-                peer-focus:-translate-y-1.5
-                peer-focus:text-stone-500 dark:peer-focus:text-neutral-500"
+                peer-focus:-translate-y-1.5"
         >
-            <span>{{ label }}</span>
-            <span v-if="required" class="text-red-500 dark:text-red-400"> *</span>
+            <span class="app-floating-label-content">
+                {{ label }}<span v-if="required" class="text-red-500 dark:text-red-400"> *</span>
+            </span>
         </label>
     </div>
 </template>

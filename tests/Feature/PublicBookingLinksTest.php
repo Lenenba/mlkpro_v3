@@ -6,6 +6,7 @@ use App\Models\ProductCategory;
 use App\Models\PublicBookingLink;
 use App\Models\Request as LeadRequest;
 use App\Models\Reservation;
+use App\Models\ReservationSetting;
 use App\Models\Role;
 use App\Models\TeamMember;
 use App\Models\User;
@@ -16,6 +17,8 @@ use App\Notifications\ReservationDatabaseNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -121,8 +124,20 @@ function publicBookingLinkFor(User $owner, Product $service): PublicBookingLink
     return $link;
 }
 
+function configurePublicBookingKiosk(User $owner, bool $queueModeEnabled): void
+{
+    ReservationSetting::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => null,
+        'business_preset' => 'salon',
+        'queue_mode_enabled' => $queueModeEnabled,
+    ]);
+}
+
 it('exposes the ai assistant widget on public booking links when enabled', function () {
-    $owner = publicBookingOwner();
+    $owner = publicBookingOwner([
+        'company_logo' => 'https://assets.example.test/public-booking.png',
+    ]);
     $service = publicBookingService($owner);
     $link = publicBookingLinkFor($owner, $service);
 
@@ -139,12 +154,137 @@ it('exposes the ai assistant widget on public booking links when enabled', funct
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('Public/PublicBooking')
-            ->where('company.logo_url', null)
+            ->where('company.logo_url', 'https://assets.example.test/public-booking.png')
+            ->where('company.custom_logo_url', 'https://assets.example.test/public-booking.png')
+            ->where('company.has_custom_logo', true)
             ->where('ai_assistant.enabled', true)
             ->where('ai_assistant.name', 'Reception Booking')
             ->where('ai_assistant.company_slug', $owner->company_slug)
             ->where('ai_assistant.endpoints.create', route('public.ai-assistant.conversations.store'))
+            ->where('ai_assistant.endpoints.show', route('public.ai-assistant.conversations.show', ['conversation' => '__conversation__']))
         );
+});
+
+it('exposes service images and identifies placeholder fallbacks on the public booking page', function () {
+    $owner = publicBookingOwner();
+    $service = publicBookingService($owner);
+    $service->update([
+        'image' => 'https://assets.example.test/services/consultation.jpg',
+    ]);
+    $serviceWithoutImage = publicBookingService($owner);
+    $serviceWithoutImage->update([
+        'name' => 'Suivi',
+    ]);
+    $link = publicBookingLinkFor($owner, $service);
+    $link->services()->attach($serviceWithoutImage->id);
+
+    $this->get(route('public.booking.show', [
+        'company' => $owner->company_slug,
+        'slug' => $link->slug,
+    ]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Public/PublicBooking')
+            ->has('services', 2)
+            ->where('services.0.id', $service->id)
+            ->where('services.0.image_url', 'https://assets.example.test/services/consultation.jpg')
+            ->where('services.0.has_image', true)
+            ->where('services.1.id', $serviceWithoutImage->id)
+            ->where('services.1.has_image', false)
+        );
+});
+
+it('exposes the account kiosk image on the public booking page', function () {
+    Storage::fake('public');
+
+    $owner = publicBookingOwner();
+    $service = publicBookingService($owner);
+    $link = publicBookingLinkFor($owner, $service);
+    $imagePath = 'reservations/kiosk/'.$owner->id.'/booking-cover.jpg';
+
+    ReservationSetting::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => null,
+        'business_preset' => 'salon',
+        'kiosk_image_path' => $imagePath,
+    ]);
+
+    $this->get(route('public.booking.show', [
+        'company' => $owner->company_slug,
+        'slug' => $link->slug,
+    ]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Public/PublicBooking')
+            ->where('settings.kiosk_image_url', Storage::disk('public')->url($imagePath))
+        );
+});
+
+it('does not expose another account kiosk image on the public booking page', function () {
+    Storage::fake('public');
+
+    $owner = publicBookingOwner();
+    $service = publicBookingService($owner);
+    $link = publicBookingLinkFor($owner, $service);
+    $otherOwner = publicBookingOwner([
+        'email' => 'other.public.booking.owner@example.com',
+        'company_name' => 'Other Public Booking Co',
+        'company_slug' => 'other-public-booking-co',
+    ]);
+
+    ReservationSetting::query()->create([
+        'account_id' => $otherOwner->id,
+        'team_member_id' => null,
+        'business_preset' => 'salon',
+        'kiosk_image_path' => 'reservations/kiosk/'.$otherOwner->id.'/private-cover.jpg',
+    ]);
+
+    $this->get(route('public.booking.show', [
+        'company' => $owner->company_slug,
+        'slug' => $link->slug,
+    ]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Public/PublicBooking')
+            ->where('settings.kiosk_image_url', null)
+        );
+});
+
+it('exposes a signed kiosk navigation url when the public kiosk is available', function () {
+    $owner = publicBookingOwner();
+    $service = publicBookingService($owner);
+    $link = publicBookingLinkFor($owner, $service);
+    configurePublicBookingKiosk($owner, true);
+    $kioskUrl = URL::signedRoute('public.kiosk.reservations.show', [
+        'account' => $owner->id,
+    ]);
+
+    $this->get(route('public.booking.show', [
+        'company' => $owner->company_slug,
+        'slug' => $link->slug,
+    ]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Public/PublicBooking')
+            ->where('public_navigation.kiosk_url', $kioskUrl));
+
+    $this->get($kioskUrl)->assertOk();
+});
+
+it('hides the kiosk navigation url when queue mode is disabled', function () {
+    $owner = publicBookingOwner();
+    $service = publicBookingService($owner);
+    $link = publicBookingLinkFor($owner, $service);
+    configurePublicBookingKiosk($owner, false);
+
+    $this->get(route('public.booking.show', [
+        'company' => $owner->company_slug,
+        'slug' => $link->slug,
+    ]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Public/PublicBooking')
+            ->where('public_navigation.kiosk_url', null));
 });
 
 it('generates slug based public booking links when the account has no public slug', function () {
@@ -239,11 +379,13 @@ it('creates a prospect and reservation from a public booking link without creati
         ->and($prospect->public_booking_link_id)->toBe($link->id)
         ->and($prospect->customer_id)->toBeNull()
         ->and(data_get($prospect->meta, 'public_booking.status'))->toBe(LeadRequest::PUBLIC_STATUS_BOOKING_REQUESTED)
+        ->and(data_get($prospect->meta, 'public_booking.team_member_name'))->toBe('Public Booking Staff')
         ->and($reservation)->not->toBeNull()
         ->and($reservation->prospect_id)->toBe($prospect->id)
         ->and($reservation->public_booking_link_id)->toBe($link->id)
         ->and($reservation->client_id)->toBeNull()
-        ->and($reservation->source)->toBe(Reservation::SOURCE_PUBLIC_BOOKING);
+        ->and($reservation->source)->toBe(Reservation::SOURCE_PUBLIC_BOOKING)
+        ->and(data_get($reservation->metadata, 'public_booking.team_member_name'))->toBe('Public Booking Staff');
 
     $this->assertDatabaseHas('notifications', [
         'notifiable_type' => User::class,
@@ -429,7 +571,9 @@ it('auto assigns an available team member when the public guest has no preferenc
     $reservation = Reservation::query()->firstOrFail();
 
     expect($reservation->team_member_id)->toBe($member->id)
-        ->and(data_get($reservation->metadata, 'public_booking.assignment_mode'))->toBe('auto');
+        ->and(data_get($reservation->metadata, 'public_booking.assignment_mode'))->toBe('auto')
+        ->and(data_get($reservation->metadata, 'public_booking.team_member_name'))->toBe('Public Booking Staff')
+        ->and(data_get($reservation->prospect->meta, 'public_booking.team_member_name'))->toBe('Public Booking Staff');
 });
 
 it('rejects a public booking when the selected slot has just been taken', function () {

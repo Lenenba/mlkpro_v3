@@ -154,6 +154,13 @@
           "one_hour": "1 heure avant"
         }
       },
+      "past_reconciliation": {
+        "title": "Suivi des réservations passées",
+        "description": "Signale les réservations dont l’heure de fin et le délai de grâce sont dépassés sans décision finale.",
+        "signal_only_badge": "Signalement uniquement",
+        "enabled": "Activer le suivi automatique pour cette entreprise",
+        "safety_notice": "Le système ne change aucun statut, ne facture aucun frais d’absence et ne contacte pas le client. Il crée seulement une alerte interne auditée à traiter."
+      },
       "queue": {
         "assignment_modes": {
           "per_staff": "File par employe",
@@ -193,6 +200,8 @@
         "deposit_amount": "Montant de l acompte",
         "no_show_fee_enabled": "Activer les frais d absence",
         "no_show_fee_amount": "Montant frais d absence",
+        "past_reservation_grace_minutes": "Délai avant signalement (minutes)",
+        "past_reservation_max_catchup_days": "Fenêtre normale de rattrapage (jours)",
         "allow_client_cancel": "Autoriser l annulation client",
         "allow_client_reschedule": "Autoriser le deplacement client"
       },
@@ -328,6 +337,11 @@
         "title": "Profil entreprise",
         "description": "Identite, adresse et activite de la societe."
       },
+      "currency": {
+        "label": "Devise principale de l'entreprise",
+        "change_hint": "Les nouveaux éléments du catalogue et les paiements en ligne Stripe utiliseront cette devise.",
+        "locked_hint": "La devise ne peut plus être modifiée, car l'entreprise possède déjà une activité commerciale."
+      },
       "store": {
         "title": "Parametres de la boutique",
         "description": "Personnalisez l en-tete et le produit vedette.",
@@ -384,15 +398,15 @@
       "fields": {
         "name": "Nom de l'entreprise",
         "public_slug": "Slug public (boutique)",
-        "public_slug_hint": "Utilise pour l'URL publique: /{path}/{slug}.",
+        "public_slug_hint": "Utilisé pour l'URL publique : /{path}/{slug}.",
         "logo_optional": "Logo (optionnel)",
-        "logo_upload": "Telecharger votre logo",
-        "description_optional": "Description (optionnel)",
+        "logo_upload": "Téléverser votre logo",
+        "description_optional": "Description (optionnelle)",
         "country_optional": "Pays (optionnel)",
         "country_other": "Pays (autre)",
-        "province_optional": "Province / Etat (optionnel)",
-        "province_other": "Province / Etat (autre)",
-        "city_optional": "Ville (optionnel)",
+        "province_optional": "Province / État (optionnelle)",
+        "province_other": "Province / État (autre)",
+        "city_optional": "Ville (optionnelle)",
         "city_other": "Ville (autre)",
         "timezone": "Fuseau horaire",
         "timezone_placeholder": "Selectionner un fuseau horaire",

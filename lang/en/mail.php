@@ -5,6 +5,8 @@ return [
         'preheader' => ':company update via :platform',
         'platform_tagline' => 'Sales, operations, and client experience.',
         'powered_by' => 'Powered by :platform',
+        'company_logo_alt' => ':company logo',
+        'platform_logo_alt' => ':platform logo',
         'footer_blurb' => ':company uses :platform to keep sales handoffs, operations, and client experience aligned.',
         'pill_sales' => 'Sales',
         'pill_operations' => 'Operations',

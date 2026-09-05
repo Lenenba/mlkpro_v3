@@ -2,6 +2,7 @@
 
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Models\TeamMember;
 use App\Models\User;
 use App\Modules\AiAssistant\Models\AiAction;
 use App\Modules\AiAssistant\Models\AiAssistantSetting;
@@ -13,6 +14,7 @@ test('public ai assistant page renders the chat shell', function () {
     $owner = User::factory()->create([
         'company_slug' => 'studio-lumiere',
         'company_name' => 'Studio Lumiere',
+        'company_logo' => 'customers/customer.png',
     ]);
     AiAssistantSetting::factory()->create([
         'tenant_id' => $owner->id,
@@ -28,8 +30,11 @@ test('public ai assistant page renders the chat shell', function () {
             ->component('Public/AiAssistantChat')
             ->where('company.slug', 'studio-lumiere')
             ->where('company.logo_url', null)
+            ->where('company.custom_logo_url', null)
+            ->where('company.has_custom_logo', false)
             ->where('assistant.name', 'Reception Lumiere')
             ->where('endpoints.create', route('public.ai-assistant.conversations.store'))
+            ->where('endpoints.show', route('public.ai-assistant.conversations.show', ['conversation' => '__conversation__']))
         );
 });
 
@@ -134,8 +139,8 @@ test('public reservation chat uses booking context instead of falling back to hu
     $assistantReply = (string) $messageResponse->json('messages.1.content');
 
     expect($assistantReply)->toContain('Bonjour Jules, ravi de vous aider.')
-        ->and($assistantReply)->toContain('nom complet')
-        ->and($assistantReply)->toContain('numéro de téléphone')
+        ->and($assistantReply)->toContain('nom de famille')
+        ->and($assistantReply)->not->toContain('numéro de téléphone')
         ->and($assistantReply)->not->toContain('transmettre');
 
     $shortPhoneResponse = $this->postJson(route('public.ai-assistant.conversations.messages.store', [
@@ -248,6 +253,183 @@ test('public ai assistant stores user and assistant messages', function () {
     expect($conversation->intent)->toBe(AiConversation::INTENT_RESERVATION)
         ->and($conversation->detected_language)->toBe(AiAssistantSetting::LANGUAGE_FR)
         ->and($conversation->messages)->toHaveCount(2);
+});
+
+test('public ai assistant resumes only the matching tenant conversation with quick replies', function () {
+    $owner = User::factory()->create([
+        'company_slug' => 'salon-reprise',
+    ]);
+    $otherOwner = User::factory()->create([
+        'company_slug' => 'autre-salon',
+    ]);
+    AiAssistantSetting::factory()->create([
+        'tenant_id' => $owner->id,
+        'enabled' => true,
+    ]);
+    AiAssistantSetting::factory()->create([
+        'tenant_id' => $otherOwner->id,
+        'enabled' => true,
+    ]);
+    $conversation = AiConversation::factory()->create([
+        'tenant_id' => $owner->id,
+        'channel' => AiConversation::CHANNEL_PUBLIC_RESERVATION,
+        'metadata' => [
+            'reservation_draft' => [
+                'proposed_slots' => [
+                    [
+                        'index' => 1,
+                        'date' => '2026-09-10',
+                        'time' => '09:30',
+                        'team_member_name' => 'Alice Tremblay',
+                    ],
+                    [
+                        'index' => 2,
+                        'date' => '2026-09-10',
+                        'time' => '10:00',
+                        'team_member_name' => 'Maya Kone',
+                    ],
+                ],
+            ],
+        ],
+    ]);
+    AiMessage::query()->create([
+        'conversation_id' => $conversation->id,
+        'sender_type' => AiMessage::SENDER_USER,
+        'content' => 'Je voudrais reserver.',
+    ]);
+    AiMessage::query()->create([
+        'conversation_id' => $conversation->id,
+        'sender_type' => AiMessage::SENDER_ASSISTANT,
+        'content' => 'Voici deux creneaux.',
+    ]);
+
+    $this->getJson(route('public.ai-assistant.conversations.show', [
+        'conversation' => $conversation->public_uuid,
+        'company' => $owner->company_slug,
+        'channel' => AiConversation::CHANNEL_PUBLIC_RESERVATION,
+    ]))
+        ->assertOk()
+        ->assertHeader('Cache-Control', 'no-store, private')
+        ->assertJsonPath('conversation.uuid', $conversation->public_uuid)
+        ->assertJsonPath('messages.0.content', 'Je voudrais reserver.')
+        ->assertJsonPath('messages.1.content', 'Voici deux creneaux.')
+        ->assertJsonPath('quick_replies.0.message', '1')
+        ->assertJsonPath('quick_replies.1.message', '2');
+
+    $this->getJson(route('public.ai-assistant.conversations.show', [
+        'conversation' => $conversation->public_uuid,
+        'company' => $otherOwner->company_slug,
+        'channel' => AiConversation::CHANNEL_PUBLIC_RESERVATION,
+    ]))->assertNotFound();
+
+    $this->getJson(route('public.ai-assistant.conversations.show', [
+        'conversation' => $conversation->public_uuid,
+        'company' => $owner->company_slug,
+        'channel' => AiConversation::CHANNEL_WEB_CHAT,
+    ]))->assertNotFound();
+});
+
+test('public reservation chat synchronizes explicit booking choices before replying', function () {
+    $owner = User::factory()->create([
+        'company_slug' => 'salon-synchronise',
+        'company_timezone' => 'America/Toronto',
+    ]);
+    $category = ProductCategory::query()->create([
+        'user_id' => $owner->id,
+        'name' => 'Coiffure',
+    ]);
+    $firstService = Product::query()->create([
+        'name' => 'Coupe classique',
+        'description' => 'Premiere coupe',
+        'category_id' => $category->id,
+        'user_id' => $owner->id,
+        'price' => 35,
+        'stock' => 0,
+        'minimum_stock' => 0,
+        'item_type' => Product::ITEM_TYPE_SERVICE,
+        'is_active' => true,
+        'currency_code' => 'CAD',
+    ]);
+    $secondService = Product::query()->create([
+        'name' => 'Coupe premium',
+        'description' => 'Deuxieme coupe',
+        'category_id' => $category->id,
+        'user_id' => $owner->id,
+        'price' => 55,
+        'stock' => 0,
+        'minimum_stock' => 0,
+        'item_type' => Product::ITEM_TYPE_SERVICE,
+        'is_active' => true,
+        'currency_code' => 'CAD',
+    ]);
+    $staffUser = User::factory()->create(['name' => 'Alice Tremblay']);
+    $teamMember = TeamMember::factory()->create([
+        'account_id' => $owner->id,
+        'user_id' => $staffUser->id,
+        'is_active' => true,
+    ]);
+    AiAssistantSetting::factory()->create([
+        'tenant_id' => $owner->id,
+        'enabled' => true,
+        'default_language' => AiAssistantSetting::LANGUAGE_FR,
+        'supported_languages' => [AiAssistantSetting::LANGUAGE_FR],
+    ]);
+
+    $createResponse = $this->postJson(route('public.ai-assistant.conversations.store'), [
+        'company' => $owner->company_slug,
+        'channel' => AiConversation::CHANNEL_PUBLIC_RESERVATION,
+        'metadata' => [
+            'source' => 'public_booking_link',
+            'booking_link_id' => 12,
+            'selected_service_id' => $firstService->id,
+            'selected_date' => '2026-09-08',
+            'selected_time' => '09:00',
+        ],
+    ])->assertCreated();
+
+    $conversation = AiConversation::query()
+        ->where('public_uuid', $createResponse->json('conversation.uuid'))
+        ->firstOrFail();
+    $metadata = $conversation->metadata;
+    data_set($metadata, 'reservation_draft.proposed_slots', [['index' => 1, 'date' => '2026-09-08', 'time' => '09:00']]);
+    data_set($metadata, 'reservation_draft.selected_slot', ['index' => 1, 'date' => '2026-09-08', 'time' => '09:00']);
+    data_set($metadata, 'booking_confirmation', [
+        'summary_shown' => true,
+        'awaiting_user_confirmation' => true,
+    ]);
+    $conversation->update(['metadata' => $metadata]);
+
+    $this->postJson(route('public.ai-assistant.conversations.messages.store', [
+        'conversation' => $conversation->public_uuid,
+    ]), [
+        'company' => $owner->company_slug,
+        'channel' => AiConversation::CHANNEL_PUBLIC_RESERVATION,
+        'visitor_name' => 'Pierre Jean',
+        'message' => 'Bonjour',
+        'metadata' => [
+            'source' => 'public_booking_link',
+            'booking_link_id' => 12,
+            'selected_service_id' => $secondService->id,
+            'selected_service_name' => 'Nom fourni par le navigateur',
+            'selected_date' => '2026-09-12',
+            'selected_time' => '2026-09-12T14:30:00-04:00',
+            'selected_team_member_id' => $teamMember->id,
+        ],
+    ])->assertOk();
+
+    $conversation->refresh();
+    $draft = (array) data_get($conversation->metadata, 'reservation_draft', []);
+
+    expect($conversation->visitor_name)->toBe('Pierre Jean')
+        ->and($draft['service_id'])->toBe($secondService->id)
+        ->and($draft['service_name'])->toBe('Coupe premium')
+        ->and($draft['preferred_date'])->toBe('2026-09-12')
+        ->and($draft['preferred_time'])->toBe('14:30')
+        ->and($draft['preferred_team_member_id'])->toBe($teamMember->id)
+        ->and($draft['preferred_team_member_name'])->toBe('Alice Tremblay')
+        ->and($draft)->not->toHaveKeys(['proposed_slots', 'selected_slot'])
+        ->and(data_get($conversation->metadata, 'booking_confirmation'))->toBeNull()
+        ->and(data_get($conversation->metadata, 'public_context.selected_service_name'))->toBe('Coupe premium');
 });
 
 test('public ai assistant rejects disabled assistants and raw tenant identifiers', function () {

@@ -1,6 +1,10 @@
 {
   "invoices": {
     "title": "Factures",
+    "history": {
+      "title": "Historique des factures et paiements",
+      "subtitle": "Consultez vos factures, paiements et soldes restants."
+    },
     "company_fallback": "Entreprise",
     "view": {
       "table": "Table",
@@ -125,7 +129,12 @@
       "line_items_empty": "Aucun element.",
       "summary": {
         "subtotal": "Sous-total",
+        "taxes": "Taxes",
+        "invoice_total": "Total de la facture",
         "paid": "Payee",
+        "paid_toward_invoice": "Payé sur la facture",
+        "tips": "Pourboire",
+        "charged_total": "Total encaissé",
         "total_amount": "Montant total",
         "balance_due": "Solde du"
       },
@@ -162,6 +171,7 @@
       "invoices": "Aucune facture pour le moment."
     },
     "pagination": {
+      "label": "Pagination des factures",
       "previous": "Precedent",
       "next": "Suivant",
       "of": "sur"

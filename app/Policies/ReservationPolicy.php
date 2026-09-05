@@ -19,7 +19,7 @@ class ReservationPolicy
 
     public function view(User $user, Reservation $reservation): bool
     {
-        if ($reservation->account_id !== $this->targetAccountId($user)) {
+        if ((int) $reservation->account_id !== $this->targetAccountId($user)) {
             return false;
         }
 
@@ -27,7 +27,25 @@ class ReservationPolicy
             return $this->ownsReservation($user, $reservation);
         }
 
-        return $this->isInternalMember($user, $reservation->account_id);
+        if ($this->canManageInternal($user, (int) $reservation->account_id)) {
+            return true;
+        }
+
+        $membership = TeamMember::query()
+            ->forAccount((int) $reservation->account_id)
+            ->active()
+            ->where('user_id', $user->id)
+            ->first();
+
+        if (! $membership) {
+            return false;
+        }
+
+        if ($membership->hasPermission('view_all_reservations')) {
+            return true;
+        }
+
+        return (int) $reservation->team_member_id === (int) $membership->id;
     }
 
     public function create(User $user): bool
@@ -72,7 +90,7 @@ class ReservationPolicy
             ->where('user_id', $user->id)
             ->first();
 
-        if (!$membership) {
+        if (! $membership) {
             return false;
         }
 
@@ -108,7 +126,7 @@ class ReservationPolicy
             return false;
         }
 
-        if (!$user->isClient()) {
+        if (! $user->isClient()) {
             return false;
         }
 
@@ -132,7 +150,7 @@ class ReservationPolicy
     private function ownsReservation(User $user, Reservation $reservation): bool
     {
         $customer = $this->clientCustomer($user);
-        if (!$customer) {
+        if (! $customer) {
             return false;
         }
 
@@ -168,7 +186,7 @@ class ReservationPolicy
             ->where('user_id', $user->id)
             ->first();
 
-        if (!$membership) {
+        if (! $membership) {
             return false;
         }
 

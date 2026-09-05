@@ -32,10 +32,10 @@ class InventoryController extends Controller
             ->byUser($accountId)
             ->when($filters['name'] ?? null, function ($query, $name) {
                 $query->where(function ($query) use ($name) {
-                    $query->where('name', 'like', '%' . $name . '%')
-                        ->orWhere('description', 'like', '%' . $name . '%')
-                        ->orWhere('sku', 'like', '%' . $name . '%')
-                        ->orWhere('barcode', 'like', '%' . $name . '%');
+                    $query->where('name', 'like', '%'.$name.'%')
+                        ->orWhere('description', 'like', '%'.$name.'%')
+                        ->orWhere('sku', 'like', '%'.$name.'%')
+                        ->orWhere('barcode', 'like', '%'.$name.'%');
                 });
             })
             ->when($filters['category_id'] ?? null, fn ($query, $categoryId) => $query->where('category_id', $categoryId))
@@ -73,6 +73,7 @@ class InventoryController extends Controller
         if ((int) $product->user_id !== (int) $accountId) {
             abort(403);
         }
+        $this->ensureProductItem($product);
 
         return response()->json([
             'product' => $product->load([
@@ -109,7 +110,7 @@ class InventoryController extends Controller
         $accountId = $request->user()?->accountOwnerId() ?? $request->user()?->id;
 
         $query = ProductStockMovement::query()
-            ->whereHas('product', fn ($query) => $query->byUser($accountId))
+            ->whereHas('product', fn ($query) => $query->products()->byUser($accountId))
             ->when($filters['product_id'] ?? null, fn ($query, $productId) => $query->where('product_id', $productId))
             ->when($filters['warehouse_id'] ?? null, fn ($query, $warehouseId) => $query->where('warehouse_id', $warehouseId))
             ->when($filters['type'] ?? null, fn ($query, $type) => $query->where('type', $type))
@@ -135,6 +136,7 @@ class InventoryController extends Controller
         if ((int) $product->user_id !== (int) $accountId) {
             abort(403);
         }
+        $this->ensureProductItem($product);
 
         $data = $request->validate([
             'type' => 'required|in:in,out,adjust,damage,spoilage',
@@ -149,13 +151,13 @@ class InventoryController extends Controller
             'unit_cost' => 'nullable|numeric|min:0',
         ]);
 
-        if (!empty($data['warehouse_id'])) {
+        if (! empty($data['warehouse_id'])) {
             $warehouseExists = Warehouse::query()
                 ->forAccount($accountId)
                 ->whereKey($data['warehouse_id'])
                 ->exists();
 
-            if (!$warehouseExists) {
+            if (! $warehouseExists) {
                 throw ValidationException::withMessages([
                     'warehouse_id' => ['Invalid warehouse selection.'],
                 ]);
@@ -228,7 +230,7 @@ class InventoryController extends Controller
 
         $expiringLots = ProductLot::query()
             ->whereDate('expires_at', '<=', $threshold)
-            ->whereHas('product', fn ($query) => $query->byUser($accountId))
+            ->whereHas('product', fn ($query) => $query->products()->byUser($accountId))
             ->with(['product:id,name', 'warehouse:id,name'])
             ->orderBy('expires_at')
             ->limit(50)
@@ -244,13 +246,20 @@ class InventoryController extends Controller
     private function ensureAbility(Request $request, string $ability): void
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             abort(401);
         }
 
         $token = $user->currentAccessToken();
-        if ($token && !$user->tokenCan($ability)) {
+        if ($token && ! $user->tokenCan($ability)) {
             abort(403);
+        }
+    }
+
+    private function ensureProductItem(Product $product): void
+    {
+        if ($product->item_type !== Product::ITEM_TYPE_PRODUCT) {
+            abort(404);
         }
     }
 }

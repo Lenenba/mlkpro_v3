@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { BACKGROUND_PRESET_WELCOME_HERO, resolveBackgroundPreset } from '@/utils/backgroundPresets';
+import PublicResponsiveImage from '@/Components/Public/PublicResponsiveImage.vue';
 
 const props = defineProps({
     eyebrow: {
@@ -46,12 +47,14 @@ const resolvedImageAlt = computed(() => props.imageAlt || props.title || 'Page h
             <div class="public-front-hero__panels" aria-hidden="true">
                 <div class="public-front-hero__panel public-front-hero__panel--brand" :style="brandPanelStyle"></div>
                 <div class="public-front-hero__panel public-front-hero__panel--image">
-                    <img
+                    <PublicResponsiveImage
                         :src="imageSrc"
                         :alt="resolvedImageAlt"
                         class="public-front-hero__image"
                         loading="eager"
+                        fetch-priority="high"
                         decoding="async"
+                        sizes="(max-width: 960px) 100vw, 48vw"
                     />
                 </div>
                 <div class="public-front-hero__veil"></div>
@@ -228,4 +231,3 @@ const resolvedImageAlt = computed(() => props.imageAlt || props.title || 'Page h
     }
 }
 </style>
-

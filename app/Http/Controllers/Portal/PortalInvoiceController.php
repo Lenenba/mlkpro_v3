@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Notifications\ActionEmailNotification;
 use App\Services\Portal\PortalAccessService;
 use App\Services\StripeInvoiceService;
+use App\Services\TenantBrandingResolver;
 use App\Services\TenantPaymentMethodGuardService;
 use App\Support\NotificationDispatcher;
 use App\Support\TenantPaymentMethodsResolver;
@@ -24,8 +25,87 @@ use Inertia\Inertia;
 class PortalInvoiceController extends Controller
 {
     public function __construct(
-        private readonly PortalAccessService $portalAccess
+        private readonly PortalAccessService $portalAccess,
+        private readonly TenantBrandingResolver $tenantBrandingResolver,
     ) {}
+
+    public function index(Request $request)
+    {
+        $customer = $this->portalAccess->customer($request);
+
+        $invoices = Invoice::query()
+            ->where('customer_id', $customer->id)
+            ->where('user_id', $customer->user_id)
+            ->select([
+                'id',
+                'customer_id',
+                'user_id',
+                'number',
+                'status',
+                'total',
+                'currency_code',
+                'created_at',
+            ])
+            ->with([
+                'payments' => fn ($query) => $query
+                    ->select([
+                        'id',
+                        'invoice_id',
+                        'amount',
+                        'currency_code',
+                        'tip_amount',
+                        'tip_reversed_amount',
+                        'charged_total',
+                        'method',
+                        'provider',
+                        'status',
+                        'reference',
+                        'paid_at',
+                        'created_at',
+                    ])
+                    ->latest('paid_at')
+                    ->latest('id'),
+            ])
+            ->latest('created_at')
+            ->paginate(15)
+            ->through(function (Invoice $invoice): array {
+                return [
+                    'id' => $invoice->id,
+                    'number' => $invoice->number,
+                    'status' => $invoice->status,
+                    'total' => (float) $invoice->total,
+                    'total_paid' => $invoice->amount_paid,
+                    'balance_due' => $invoice->balance_due,
+                    'currency_code' => $invoice->currency_code,
+                    'created_at' => $invoice->created_at,
+                    'receipt_url' => (string) $invoice->status === 'paid'
+                        ? URL::temporarySignedRoute(
+                            'public.invoices.receipt',
+                            now()->addDays(90),
+                            ['invoice' => $invoice->id]
+                        )
+                        : null,
+                    'payments' => $invoice->payments->map(fn ($payment): array => [
+                        'id' => $payment->id,
+                        'amount' => (float) $payment->amount,
+                        'tip_amount' => (float) ($payment->tip_amount ?? 0),
+                        'tip_reversed_amount' => (float) ($payment->tip_reversed_amount ?? 0),
+                        'charged_total' => $payment->charged_total === null ? null : (float) $payment->charged_total,
+                        'currency_code' => $payment->currency_code,
+                        'method' => $payment->method,
+                        'provider' => $payment->provider,
+                        'status' => $payment->status,
+                        'reference' => $payment->reference,
+                        'paid_at' => $payment->paid_at,
+                        'created_at' => $payment->created_at,
+                    ])->values(),
+                ];
+            });
+
+        return Inertia::render('Portal/InvoicesIndex', [
+            'invoices' => $invoices,
+        ]);
+    }
 
     public function show(Request $request, Invoice $invoice)
     {
@@ -39,15 +119,33 @@ class PortalInvoiceController extends Controller
             'work.quote.property',
             'payments.tipAssignee:id,name',
         ]);
+        if ((string) $invoice->status === 'paid') {
+            $invoice->setAttribute('receipt_url', URL::temporarySignedRoute(
+                'public.invoices.receipt',
+                now()->addDays(90),
+                ['invoice' => $invoice->id]
+            ));
+        }
+        $invoice->makeHidden([
+            'receipt_delivery_status',
+            'receipt_delivery_queued_at',
+            'receipt_delivery_started_at',
+            'receipt_delivery_claim_token',
+            'receipt_delivery_attempts',
+            'receipt_delivery_last_error',
+        ]);
 
-        $owner = User::find($invoice->user_id);
+        $owner = $this->portalAccess->ownerForCustomer($customer);
+        $tenantBranding = $this->tenantBrandingResolver->forAccountOwner($owner);
 
         return Inertia::render('Portal/InvoiceShow', [
             'invoice' => $invoice,
             'company' => [
-                'name' => $owner?->company_name ?: config('app.name'),
-                'logo_url' => $owner?->company_logo_url,
-                'currency_code' => $owner?->businessCurrencyCode(),
+                'name' => $tenantBranding['name'],
+                'logo_url' => $tenantBranding['custom_logo_url'],
+                'custom_logo_url' => $tenantBranding['custom_logo_url'],
+                'has_custom_logo' => $tenantBranding['has_custom_logo'],
+                'currency_code' => $owner->businessCurrencyCode(),
             ],
             'paymentMethodSettings' => TenantPaymentMethodsResolver::forAccountId((int) $invoice->user_id),
         ]);
@@ -56,7 +154,7 @@ class PortalInvoiceController extends Controller
     public function storePayment(Request $request, Invoice $invoice)
     {
         $customer = $this->portalAccess->customer($request);
-        [$canPay, $message] = $this->resolvePaymentAvailability($invoice, $customer);
+        [$canPay, $message] = $this->resolvePaymentAvailability($invoice, $customer, allowPaid: true);
         if (! $canPay) {
             if ($this->shouldReturnJson($request)) {
                 return response()->json([
@@ -69,7 +167,11 @@ class PortalInvoiceController extends Controller
             ]);
         }
 
+        $request->merge([
+            'idempotency_key' => $request->input('idempotency_key', $request->header('Idempotency-Key')),
+        ]);
         $validated = $request->validate([
+            'idempotency_key' => 'nullable|string|max:128',
             'amount' => 'required|numeric|min:0.01',
             'tip_enabled' => 'nullable|boolean',
             'tip_mode' => ['nullable', Rule::in(['none', 'percent', 'fixed'])],
@@ -99,44 +201,32 @@ class PortalInvoiceController extends Controller
             ]);
         }
 
-        $amount = (float) $validated['amount'];
-        if ($amount > (float) $invoice->balance_due) {
-            if ($this->shouldReturnJson($request)) {
-                return response()->json([
-                    'message' => 'Amount exceeds the balance due.',
-                ], 422);
-            }
-
-            return redirect()->back()->withErrors([
-                'amount' => 'Amount exceeds the balance due.',
-            ]);
-        }
-
         $result = app(CreateInvoicePaymentAction::class)->execute(
             $invoice,
             $validated,
             (string) ($methodDecision['canonical_method'] ?? 'cash'),
             $request->user(),
             (int) $invoice->user_id,
-            'Payment recorded by client'
+            'Payment recorded by client',
+            clientInitiated: true,
         );
 
         $payment = $result['payment'];
         $invoice = $result['invoice'];
-        $isCashPayment = $result['is_cash_payment'];
+        $isPending = $result['pending_confirmation'];
 
         $owner = User::find($invoice->user_id);
-        if ($owner && $owner->email) {
+        if ($owner && $owner->email && ! $result['replayed']) {
             $customerLabel = $customer->company_name
                 ?: trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''));
             $tipAmount = (float) ($payment->tip_amount ?? 0);
-            $notificationTitle = $isCashPayment
-                ? 'Cash payment pending collection'
+            $notificationTitle = $isPending
+                ? 'Payment pending confirmation'
                 : 'Payment received from client';
-            $notificationMessage = $isCashPayment
+            $notificationMessage = $isPending
                 ? ($customerLabel
-                    ? $customerLabel.' recorded a cash payment pending collection.'
-                    : 'A client recorded a cash payment pending collection.')
+                    ? $customerLabel.' declared a payment pending confirmation by the company.'
+                    : 'A client declared a payment pending confirmation by the company.')
                 : ($customerLabel
                     ? $customerLabel.' recorded a payment.'
                     : 'A client recorded a payment.');
@@ -178,6 +268,7 @@ class PortalInvoiceController extends Controller
                     'amount' => $payment->amount,
                     'tip_amount' => $payment->tip_amount,
                     'method' => $payment->method,
+                    'status' => $payment->status,
                     'paid_at' => $payment->paid_at,
                 ],
             ]);
@@ -286,7 +377,7 @@ class PortalInvoiceController extends Controller
         return redirect()->away($session['url']);
     }
 
-    private function resolvePaymentAvailability(Invoice $invoice, Customer $customer): array
+    private function resolvePaymentAvailability(Invoice $invoice, Customer $customer, bool $allowPaid = false): array
     {
         $this->portalAccess->assertInvoice($customer, $invoice);
 
@@ -298,7 +389,7 @@ class PortalInvoiceController extends Controller
             return [false, 'This invoice cannot be paid.'];
         }
 
-        if ($invoice->balance_due <= 0) {
+        if (! $allowPaid && $invoice->balance_due <= 0) {
             return [false, 'This invoice is already paid.'];
         }
 

@@ -43,10 +43,13 @@ class DemoWorkspaceAccessMail extends Mailable
 
     public function build(): self
     {
-        $mail = $this->subject(__('mail.demo_access.subject', ['company' => $this->companyName]))
+        $companyName = trim($this->companyName) ?: (string) config('app.name');
+        $companyLogo = filled($this->companyLogo) ? trim((string) $this->companyLogo) : null;
+        $mail = $this->subject(__('mail.demo_access.subject', ['company' => $companyName]))
             ->view('emails.demo_workspaces.access', [
-                'companyName' => $this->companyName,
-                'companyLogo' => $this->companyLogo,
+                'companyName' => $companyName,
+                'companyLogo' => $companyLogo,
+                'showPoweredBy' => true,
                 'recipientName' => $this->recipientName,
                 'prospectCompany' => $this->prospectCompany,
                 'workspaceName' => $this->workspaceName,

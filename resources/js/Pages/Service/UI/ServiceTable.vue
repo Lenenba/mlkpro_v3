@@ -176,8 +176,13 @@ const serviceLinks = computed(() => props.services?.links || []);
 const currentPerPage = computed(() => resolveDataTablePerPage(props.services?.per_page, props.filters?.per_page));
 const serviceResultsLabel = computed(() => `${props.count} ${t('services.pagination.results')}`);
 
+// Bumped on every create so the form gets a fresh instance, even when the
+// previous one was abandoned without saving.
+const createFormInstance = ref(0);
+
 const openCreate = () => {
     editingService.value = null;
+    createFormInstance.value += 1;
 };
 
 const openEdit = (service) => {
@@ -421,7 +426,7 @@ const destroyService = (service) => {
 
         <Modal :title="editingService ? $t('services.actions.edit_service') : $t('services.actions.new_service')" :id="'hs-service-upsert'">
             <ServiceForm
-                :key="editingService?.id || 'new'"
+                :key="editingService?.id || `new-${createFormInstance}`"
                 :id="'hs-service-upsert'"
                 :categories="selectableCategories"
                 :materialProducts="materialProducts"

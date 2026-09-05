@@ -10,6 +10,7 @@ use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
+use Laravel\Sanctum\Sanctum;
 
 uses(RefreshDatabase::class);
 
@@ -121,6 +122,74 @@ it('renders the pulse accounts workspace page in read only mode for authorized t
         );
 });
 
+it('never exposes oauth secrets or arbitrary connection metadata to read only team members', function () {
+    $owner = pulseOwner();
+    $member = pulseTeamMember($owner, ['social.view']);
+
+    SocialAccountConnection::query()->create([
+        'user_id' => $owner->id,
+        'platform' => SocialAccountConnection::PLATFORM_X,
+        'label' => 'Sensitive X profile',
+        'credentials' => [
+            'access_token' => 'frontend-must-not-see-access-token',
+            'refresh_token' => 'frontend-must-not-see-refresh-token',
+        ],
+        'status' => SocialAccountConnection::STATUS_PENDING,
+        'is_active' => false,
+        'oauth_state' => 'frontend-must-not-see-state',
+        'oauth_code_verifier' => 'frontend-must-not-see-verifier',
+        'oauth_state_expires_at' => now()->addMinutes(10),
+        'metadata' => [
+            'connection_flow' => 'oauth',
+            'oauth_code_verifier' => 'legacy-verifier-must-not-leak',
+            'provider_secret' => 'arbitrary-metadata-must-not-leak',
+        ],
+    ]);
+
+    $response = $this->actingAs($member)
+        ->getJson(route('social.accounts.index'));
+
+    $response->assertOk()
+        ->assertJsonPath('access.can_view', true)
+        ->assertJsonPath('access.can_manage_accounts', false)
+        ->assertJsonPath('connections.0.metadata.connection_flow', 'oauth')
+        ->assertJsonMissingPath('connections.0.credentials')
+        ->assertJsonMissingPath('connections.0.oauth_state')
+        ->assertJsonMissingPath('connections.0.oauth_code_verifier')
+        ->assertJsonMissingPath('connections.0.metadata.oauth_code_verifier')
+        ->assertJsonMissingPath('connections.0.metadata.provider_secret');
+
+    $encodedResponse = json_encode($response->json(), JSON_THROW_ON_ERROR);
+
+    expect($encodedResponse)
+        ->not->toContain('frontend-must-not-see-access-token')
+        ->not->toContain('frontend-must-not-see-refresh-token')
+        ->not->toContain('frontend-must-not-see-state')
+        ->not->toContain('frontend-must-not-see-verifier')
+        ->not->toContain('legacy-verifier-must-not-leak')
+        ->not->toContain('arbitrary-metadata-must-not-leak');
+
+    Sanctum::actingAs($member);
+
+    $apiResponse = $this->getJson('/api/v1/social/accounts');
+
+    $apiResponse->assertOk()
+        ->assertJsonPath('connections.0.metadata.connection_flow', 'oauth')
+        ->assertJsonMissingPath('connections.0.credentials')
+        ->assertJsonMissingPath('connections.0.oauth_state')
+        ->assertJsonMissingPath('connections.0.oauth_code_verifier')
+        ->assertJsonMissingPath('connections.0.metadata.oauth_code_verifier')
+        ->assertJsonMissingPath('connections.0.metadata.provider_secret');
+
+    expect(json_encode($apiResponse->json(), JSON_THROW_ON_ERROR))
+        ->not->toContain('frontend-must-not-see-access-token')
+        ->not->toContain('frontend-must-not-see-refresh-token')
+        ->not->toContain('frontend-must-not-see-state')
+        ->not->toContain('frontend-must-not-see-verifier')
+        ->not->toContain('legacy-verifier-must-not-leak')
+        ->not->toContain('arbitrary-metadata-must-not-leak');
+});
+
 it('lets the owner create list update disconnect and delete pulse social account drafts', function () {
     $owner = pulseOwner();
 
@@ -168,12 +237,25 @@ it('lets the owner create list update disconnect and delete pulse social account
         ->assertJsonPath('connection.display_name', 'Malikia Studio CA')
         ->assertJsonPath('connection.account_handle', '@malikia.ca');
 
+    SocialAccountConnection::query()->findOrFail($connectionId)->forceFill([
+        'oauth_code_verifier' => 'disconnect-pkce-verifier',
+        'metadata' => [
+            'connection_flow' => 'oauth',
+            'oauth_code_verifier' => 'legacy-disconnect-verifier',
+        ],
+    ])->save();
+
     $this->actingAs($owner)
         ->postJson(route('social.accounts.disconnect', $connectionId))
         ->assertOk()
         ->assertJsonPath('connection.status', SocialAccountConnection::STATUS_DISCONNECTED)
         ->assertJsonPath('connection.is_active', false)
         ->assertJsonPath('connection.permissions', []);
+
+    $disconnected = SocialAccountConnection::query()->findOrFail($connectionId);
+
+    expect($disconnected->oauth_code_verifier)->toBeNull()
+        ->and($disconnected->metadata)->not->toHaveKey('oauth_code_verifier');
 
     $this->actingAs($owner)
         ->deleteJson(route('social.accounts.destroy', $connectionId))
@@ -202,6 +284,25 @@ it('lets the owner create a local pulse test connection for scheduling without o
         ->assertJsonPath('connection.metadata.test_connection', true);
 
     $connectionId = (int) $create->json('connection.id');
+
+    SocialAccountConnection::query()->findOrFail($connectionId)->forceFill([
+        'oauth_state' => 'stale-local-test-state',
+        'oauth_code_verifier' => 'stale-local-test-verifier',
+        'oauth_state_expires_at' => now()->addMinutes(10),
+    ])->save();
+
+    $this->actingAs($owner)
+        ->postJson(route('social.accounts.test-connection.store'), [
+            'platform' => SocialAccountConnection::PLATFORM_FACEBOOK,
+        ])
+        ->assertCreated()
+        ->assertJsonPath('connection.id', $connectionId);
+
+    $reusedConnection = SocialAccountConnection::query()->findOrFail($connectionId);
+
+    expect($reusedConnection->oauth_state)->toBeNull()
+        ->and($reusedConnection->oauth_code_verifier)->toBeNull()
+        ->and($reusedConnection->oauth_state_expires_at)->toBeNull();
 
     $this->actingAs($owner)
         ->getJson(route('social.accounts.index'))
@@ -280,6 +381,9 @@ it('marks the pulse social account as reconnect required when the owner tests a 
         'status' => SocialAccountConnection::STATUS_CONNECTED,
         'is_active' => true,
         'connected_at' => now()->subHour(),
+        'oauth_state' => 'stale-test-state',
+        'oauth_code_verifier' => 'stale-test-verifier',
+        'oauth_state_expires_at' => now()->addMinutes(10),
     ]);
 
     $this->actingAs($owner)
@@ -293,7 +397,59 @@ it('marks the pulse social account as reconnect required when the owner tests a 
 
     expect($connection->status)->toBe(SocialAccountConnection::STATUS_RECONNECT_REQUIRED)
         ->and(data_get($connection->metadata, 'last_test_status'))->toBe('failed')
-        ->and($connection->last_error)->toContain('must be reconnected');
+        ->and($connection->last_error)->toContain('must be reconnected')
+        ->and($connection->oauth_state)->toBeNull()
+        ->and($connection->oauth_code_verifier)->toBeNull()
+        ->and($connection->oauth_state_expires_at)->toBeNull();
+});
+
+it('does not mutate a social account while its oauth callback is being finalized', function () {
+    $owner = pulseOwner();
+    $connection = SocialAccountConnection::query()->create([
+        'user_id' => $owner->id,
+        'platform' => SocialAccountConnection::PLATFORM_X,
+        'label' => 'Authorizing X profile',
+        'status' => SocialAccountConnection::STATUS_AUTHORIZING,
+        'is_active' => false,
+        'oauth_state' => 'callback:active-claim',
+        'oauth_state_expires_at' => now()->addMinute(),
+        'metadata' => ['connection_flow' => 'oauth'],
+    ]);
+    $beforeTest = $connection->fresh()->getAttributes();
+
+    $this->actingAs($owner)
+        ->postJson(route('social.accounts.test', $connection))
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('connection');
+
+    expect($connection->fresh()->getAttributes())->toBe($beforeTest);
+});
+
+it('does not replace an active oauth callback claim with a local test connection', function () {
+    config()->set('services.social.allow_test_connections', true);
+
+    $owner = pulseOwner();
+    $connection = SocialAccountConnection::query()->create([
+        'user_id' => $owner->id,
+        'platform' => SocialAccountConnection::PLATFORM_FACEBOOK,
+        'label' => 'Authorizing Facebook page',
+        'external_account_id' => sprintf('pulse-test-%d-%s', $owner->id, SocialAccountConnection::PLATFORM_FACEBOOK),
+        'status' => SocialAccountConnection::STATUS_AUTHORIZING,
+        'is_active' => false,
+        'oauth_state' => 'callback:active-local-claim',
+        'oauth_state_expires_at' => now()->addMinute(),
+        'metadata' => ['connection_flow' => 'oauth'],
+    ]);
+    $beforeReplacement = $connection->fresh()->getAttributes();
+
+    $this->actingAs($owner)
+        ->postJson(route('social.accounts.test-connection.store'), [
+            'platform' => SocialAccountConnection::PLATFORM_FACEBOOK,
+        ])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('platform');
+
+    expect($connection->fresh()->getAttributes())->toBe($beforeReplacement);
 });
 
 it('lets the owner create multiple pulse accounts on the same platform and blocks duplicate external ids', function () {

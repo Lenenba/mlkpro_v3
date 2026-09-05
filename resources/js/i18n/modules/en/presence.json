@@ -17,6 +17,7 @@
       "last_in": "Last clock-in",
       "last_out": "Last clock-out",
       "method": "Method",
+      "reservations_today": "Appointments today",
       "jobs_today": "Jobs today",
       "tasks_today": "Tasks today",
       "availability": "Availability",

@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { Head, usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
+import { resolveCompanyLogoUrl } from '@/utils/companyBranding';
 
 const page = usePage();
 const { t, locale } = useI18n();
@@ -262,14 +263,16 @@ const pageImage = computed(() => firstNonEmpty(
     firstSectionImage.value,
 ));
 
+const companyLogo = computed(() => resolveCompanyLogoUrl(page.props.company));
+
 const showcaseImage = computed(() => firstNonEmpty(
     page.props.hero_service?.image_url,
-    page.props.company?.logo_url,
+    companyLogo.value,
 ));
 
 const storeImage = computed(() => firstNonEmpty(
     page.props.hero_product?.image_url,
-    page.props.company?.logo_url,
+    companyLogo.value,
 ));
 
 const metaImage = computed(() => {

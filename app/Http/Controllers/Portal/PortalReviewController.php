@@ -25,8 +25,8 @@ class PortalReviewController extends Controller
         return $this->portalAccess->saleContext(
             $request,
             $sale,
-            'products',
-            ['id', 'company_type']
+            null,
+            ['id']
         );
     }
 

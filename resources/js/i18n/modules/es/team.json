@@ -17,10 +17,16 @@
       "active": "Activo",
       "inactive": "Inactivo"
     },
+    "view": {
+      "label": "Vista de miembros del equipo",
+      "table": "Tabla",
+      "cards": "Tarjetas"
+    },
     "actions": {
       "clear": "Limpiar",
       "add_member": "Agregar miembro",
-      "member_actions": "Acciones del miembro",
+      "member_actions": "Acciones para {name}",
+      "view_member": "Ver la ficha de {name}",
       "details": "Detalles",
       "edit": "Editar",
       "deactivate": "Desactivar",
@@ -117,7 +123,7 @@
         "campaigns_view": "Ver campanas",
         "campaigns_manage": "Crear y editar campanas",
         "campaigns_send": "Enviar campanas",
-        "social_view": "Ver Malikia Pulse",
+        "social_view": "Ver Pulse",
         "social_manage": "Crear y editar publicaciones sociales",
         "social_publish": "Publicar y programar publicaciones sociales",
         "social_approve": "Aprobar publicaciones sociales",

@@ -22,6 +22,8 @@ class Customer extends Model implements HasLocalePreferenceContract
 
     public const DEFAULT_LOGO_PATH = '/images/presets/company-1.svg';
 
+    public const DEFAULT_AVATAR_PATH = '/images/presets/avatar-1.svg';
+
     /**
      * The attributes that are mass assignable.
      *
@@ -36,6 +38,7 @@ class Customer extends Model implements HasLocalePreferenceContract
         'number',
         'first_name',
         'last_name',
+        'birth_date',
         'company_name',
         'client_type',
         'registration_number',
@@ -90,6 +93,7 @@ class Customer extends Model implements HasLocalePreferenceContract
         'auto_validate_invoices' => 'boolean',
         'tags' => 'array',
         'vip_since_at' => 'datetime',
+        'birth_date' => 'date',
         'billing_delay_days' => 'integer',
         'discount_rate' => 'decimal:2',
         'loyalty_points_balance' => 'integer',
@@ -300,7 +304,7 @@ class Customer extends Model implements HasLocalePreferenceContract
 
     public function getLogoUrlAttribute(): ?string
     {
-        $path = $this->logo ?: self::DEFAULT_LOGO_PATH;
+        $path = $this->logo ?: self::defaultLogoPathFor($this->client_type, $this->company_name);
 
         if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
             return $path;
@@ -311,6 +315,15 @@ class Customer extends Model implements HasLocalePreferenceContract
         }
 
         return Storage::url($path);
+    }
+
+    public static function defaultLogoPathFor(mixed $clientType, ?string $companyName = null): string
+    {
+        $resolvedType = CustomerClientType::infer($clientType, $companyName);
+
+        return $resolvedType === CustomerClientType::INDIVIDUAL
+            ? (string) config('icon_presets.defaults.avatar', self::DEFAULT_AVATAR_PATH)
+            : (string) config('icon_presets.defaults.company', self::DEFAULT_LOGO_PATH);
     }
 
     public function getHeaderImageUrlAttribute(): ?string

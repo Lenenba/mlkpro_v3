@@ -135,6 +135,8 @@
     "kpi": {
       "revenue_paid": "Ingresos pagados",
       "revenue_billed": "Facturado {amount}",
+      "pos_revenue": "Ventas POS cobradas",
+      "pos_revenue_month": "{amount} cobrados este mes",
       "outstanding_balance": "Saldo pendiente",
       "partial_invoices": "{count} facturas parciales",
       "client_follow_up": "Seguimiento clientes",
@@ -166,6 +168,8 @@
       "pending_actions_label": "Acciones finanzas",
       "pipeline_title": "Pipeline",
       "pipeline_subtitle": "Sigue cotizaciones abiertas y trabajos activos en un solo bloque.",
+      "inventory_title": "Productos e inventario",
+      "inventory_subtitle": "Valor del inventario físico y artículos por reponer.",
       "accepted_label": "Aceptadas",
       "scheduled_label": "Programados",
       "completed_label": "Completados",
@@ -258,6 +262,48 @@
         "void": "Anulada"
       }
     },
+    "scenario": {
+      "eyebrow": "Escenario de demostración",
+      "title": "Situación operativa real",
+      "subtitle": "Métricas calculadas al {date} durante los últimos {months} meses.",
+      "history_title": "Ingresos y gastos de 12 meses",
+      "revenue": "Ingresos",
+      "expenses": "Gastos",
+      "top_services": "Servicios más solicitados",
+      "top_employees": "Empleados más ocupados",
+      "top_products": "Productos más vendidos",
+      "recent_payments": "Pagos recientes",
+      "no_recent_payments": "No hay pagos recientes.",
+      "metrics": {
+        "revenue_month": "Ingresos del mes",
+        "no_comparison": "No hay comparación disponible",
+        "vs_previous": "{value} frente al mes anterior",
+        "reservations_today": "Citas de hoy",
+        "upcoming": "{count} próximas",
+        "occupancy": "Tasa de ocupación",
+        "trailing_days": "Durante los últimos {count} días",
+        "new_customers": "Clientes nuevos",
+        "recurring": "{count} clientes recurrentes",
+        "average_ticket": "Ticket medio de servicio",
+        "completed_services": "Servicios completados este mes",
+        "outstanding": "Facturas pendientes",
+        "invoice_count": "{count} factura(s) abierta(s)",
+        "invoice_and_future": "{count} factura(s) · {future} de ingresos futuros comprometidos",
+        "service_exceptions": "Tasa de ausencias",
+        "cancellations": "Cancelaciones: {value}",
+        "actions": "Acciones por revisar",
+        "action_breakdown": "{quotes} presupuestos · {tasks} tareas · {stock} stock · {notifications} alertas"
+      },
+      "field_operations": {
+        "jobs_today": "Intervenciones de hoy",
+        "capacity_usage": "Capacidad de campo utilizada",
+        "average_job_value": "Valor medio por intervención",
+        "completed_jobs": "Intervenciones completadas este mes",
+        "quality_incidents": "Incidentes de calidad",
+        "top_employees": "Equipo de campo más activo",
+        "top_products": "Consumibles más utilizados"
+      }
+    },
     "marketing_panel": {
       "title": "KPI de marketing",
       "show": "Mostrar panel",
@@ -275,8 +321,11 @@
       "list_count": "{count} lista(s)",
       "customers_count": "{count} clientes",
       "reservations_created": "Reservas creadas: {count}",
+      "reservations_created_label": "Reservas creadas",
       "invoices_paid": "Facturas pagadas: {count}",
+      "invoices_paid_label": "Facturas pagadas",
       "quotes_accepted": "Cotizaciones aceptadas: {count}",
+      "quotes_accepted_label": "Cotizaciones aceptadas",
       "cards": {
         "campaigns_sent": "Campañas enviadas",
         "delivery_success_rate": "Tasa de entrega",

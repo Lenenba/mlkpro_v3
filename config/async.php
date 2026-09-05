@@ -26,11 +26,8 @@ return [
         ],
         'demos' => [
             'queue' => env('ASYNC_QUEUE_DEMOS', 'demo-provisioning'),
-            'run_inline' => env(
-                'ASYNC_DEMOS_INLINE',
-                env('QUEUE_CONNECTION', 'database') === 'sync'
-            ),
             'backoff' => [60, 300, 900],
+            'timeout' => 900,
         ],
         'plan_scans' => [
             'queue' => env('ASYNC_QUEUE_PLAN_SCANS', 'plan-scans'),
@@ -57,6 +54,12 @@ return [
         'social_publish' => [
             'queue' => env('ASYNC_QUEUE_SOCIAL_PUBLISH', 'social-publish'),
             'backoff' => [30, 120, 300],
+            'timeout' => 60,
+        ],
+        'reservation_reconciliation' => [
+            'queue' => env('ASYNC_QUEUE_RESERVATION_RECONCILIATION', 'reservation-reconciliation'),
+            'backoff' => [60, 300, 900],
+            'timeout' => 120,
         ],
     ],
 
@@ -76,6 +79,7 @@ return [
                 'campaigns_maintenance',
                 'social_publish',
                 'social_automation',
+                'reservation_reconciliation',
             ],
         ],
         'operations' => [
@@ -87,6 +91,7 @@ return [
                 'leads',
                 'works',
                 'demos',
+                'reservation_reconciliation',
             ],
         ],
         'plan-scans' => [

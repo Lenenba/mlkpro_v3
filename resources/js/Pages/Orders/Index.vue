@@ -1,6 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, Link } from '@inertiajs/vue3';
+import ModuleKpiSection from '@/Components/Dashboard/ModuleKpiSection.vue';
 import OrdersStats from '@/Components/UI/OrdersStats.vue';
 import SalesTable from '@/Pages/Sales/UI/SalesTable.vue';
 
@@ -29,7 +30,9 @@ const props = defineProps({
         <Head title="Commandes" />
 
         <div class="space-y-4">
-            <OrdersStats :stats="stats" />
+            <ModuleKpiSection module-key="orders">
+                <OrdersStats :stats="stats" />
+            </ModuleKpiSection>
 
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div class="space-y-1">

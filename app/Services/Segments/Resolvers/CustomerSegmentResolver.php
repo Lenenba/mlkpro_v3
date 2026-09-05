@@ -4,8 +4,13 @@ namespace App\Services\Segments\Resolvers;
 
 use App\Models\Customer;
 use App\Models\SavedSegment;
+use App\Models\User;
+use App\Queries\Customers\BuildCustomerOperationalIndexData;
+use App\Queries\Customers\CustomerIndexFilters;
+use App\Services\CompanyFeatureService;
 use App\Services\Segments\Contracts\SegmentModuleResolver;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Arr;
 
 class CustomerSegmentResolver implements SegmentModuleResolver
 {
@@ -16,17 +21,76 @@ class CustomerSegmentResolver implements SegmentModuleResolver
 
     public function resolve(SavedSegment $segment): array
     {
-        $filters = $this->normalizedFilters($segment);
+        $requestedFilters = $this->normalizedFilters($segment);
         $sort = $this->normalizedSort($segment);
         $accountId = (int) $segment->user_id;
+        $accountOwner = User::query()->find($accountId);
+        $operationalIndexData = app(BuildCustomerOperationalIndexData::class);
 
+        if ($accountOwner) {
+            $context = $operationalIndexData->context($accountOwner);
+        } else {
+            $context = [];
+        }
+        $appointmentProfile = ($context['profile'] ?? null) === 'appointment';
+        $featureService = app(CompanyFeatureService::class);
+        $showQuoteOperations = $accountOwner
+            && ! $appointmentProfile
+            && $featureService->hasFeature($accountOwner, 'quotes');
+        $showJobOperations = $accountOwner
+            && ! $appointmentProfile
+            && $featureService->hasFeature($accountOwner, 'jobs');
+
+        if (! $showQuoteOperations) {
+            unset($requestedFilters['has_quotes']);
+        }
+        if (! $showJobOperations) {
+            unset($requestedFilters['has_works']);
+        }
+        if (
+            ($sort['column'] === 'quotes_count' && ! $showQuoteOperations)
+            || ($sort['column'] === 'works_count' && ! $showJobOperations)
+        ) {
+            $sort = [
+                'column' => 'created_at',
+                'direction' => 'desc',
+            ];
+        }
+        if (! ($context['capabilities']['packages'] ?? false)) {
+            unset(
+                $requestedFilters['has_active_package'],
+                $requestedFilters['package_status'],
+                $requestedFilters['package_remaining_lte'],
+                $requestedFilters['package_expires_within_days'],
+                $requestedFilters['package_is_recurring'],
+                $requestedFilters['package_recurrence_status']
+            );
+        }
+
+        if (! $accountOwner) {
+            return [
+                'module' => $this->key(),
+                'model_class' => Customer::class,
+                'ids' => [],
+                'selected_count' => 0,
+                'filters' => [],
+                'sort' => $sort,
+            ];
+        }
+
+        $indexFilters = app(CustomerIndexFilters::class);
+        $filters = $indexFilters->normalize($requestedFilters, $accountOwner, $context, $accountId);
         $query = Customer::query()
-            ->filter($filters)
+            ->filter($indexFilters->modelFilters($filters))
             ->byUser($accountId);
+        $indexFilters->apply($query, $filters, $accountOwner, $context, $accountId);
 
-        if (in_array($sort['column'], ['quotes_count', 'works_count'], true)) {
+        if ($sort['column'] === 'quotes_count') {
             $query->withCount([
                 'quotes as quotes_count' => fn (Builder $builder) => $builder->where('user_id', $accountId),
+            ]);
+        } elseif ($sort['column'] === 'works_count') {
+            $query->withCount([
                 'works as works_count' => fn (Builder $builder) => $builder->where('user_id', $accountId),
             ]);
         }
@@ -57,24 +121,7 @@ class CustomerSegmentResolver implements SegmentModuleResolver
             $filters['name'] = $segment->search_term;
         }
 
-        return [
-            'name' => $filters['name'] ?? null,
-            'city' => $filters['city'] ?? null,
-            'country' => $filters['country'] ?? null,
-            'has_quotes' => $filters['has_quotes'] ?? null,
-            'has_works' => $filters['has_works'] ?? null,
-            'status' => $filters['status'] ?? null,
-            'created_from' => $filters['created_from'] ?? null,
-            'created_to' => $filters['created_to'] ?? null,
-            'is_vip' => $filters['is_vip'] ?? null,
-            'vip_tier_id' => $filters['vip_tier_id'] ?? null,
-            'has_active_package' => $filters['has_active_package'] ?? null,
-            'package_status' => $filters['package_status'] ?? null,
-            'package_remaining_lte' => $filters['package_remaining_lte'] ?? null,
-            'package_expires_within_days' => $filters['package_expires_within_days'] ?? null,
-            'package_is_recurring' => $filters['package_is_recurring'] ?? null,
-            'package_recurrence_status' => $filters['package_recurrence_status'] ?? null,
-        ];
+        return Arr::only($filters, CustomerIndexFilters::INPUT_KEYS);
     }
 
     /**

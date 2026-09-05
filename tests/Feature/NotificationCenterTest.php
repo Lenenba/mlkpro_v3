@@ -1,7 +1,12 @@
 <?php
 
 use App\Models\Customer;
+use App\Models\Invoice;
+use App\Models\Reservation;
+use App\Models\Role;
+use App\Models\Sale;
 use App\Models\User;
+use App\Models\Work;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Notifications\Notification;
@@ -41,6 +46,128 @@ function logInAppNotification(User $user, array $payload): DatabaseNotification
         ->first();
 
     return $notification;
+}
+
+function notificationCenterRoleId(string $name): int
+{
+    return (int) Role::query()->firstOrCreate(
+        ['name' => $name],
+        ['description' => $name.' role'],
+    )->id;
+}
+
+/**
+ * @param  array<string, bool>  $overrides
+ * @return array<string, bool>
+ */
+function notificationCenterFeatureSet(array $overrides = []): array
+{
+    return array_replace([
+        'quotes' => false,
+        'requests' => false,
+        'reservations' => false,
+        'plan_scans' => false,
+        'invoices' => false,
+        'jobs' => false,
+        'products' => false,
+        'performance' => false,
+        'presence' => false,
+        'planning' => false,
+        'sales' => false,
+        'sales_crm' => false,
+        'promotions' => false,
+        'expenses' => false,
+        'accounting' => false,
+        'services' => false,
+        'tasks' => false,
+        'team_members' => false,
+        'assistant' => false,
+        'campaigns' => false,
+        'social' => false,
+        'loyalty' => false,
+    ], $overrides);
+}
+
+/**
+ * @param  array<string, bool>  $features
+ * @return array{owner: User, client: User, customer: Customer}
+ */
+function notificationCenterPortalContext(array $features = []): array
+{
+    $owner = User::factory()->create([
+        'role_id' => notificationCenterRoleId('owner'),
+        'company_name' => 'Notification Center Owner',
+        'company_type' => 'products',
+        'company_features' => notificationCenterFeatureSet($features),
+        'onboarding_completed_at' => now(),
+    ]);
+
+    $client = User::factory()->create([
+        'role_id' => notificationCenterRoleId('client'),
+        'company_name' => null,
+        'company_type' => null,
+        'company_sector' => null,
+        'company_features' => [],
+        'onboarding_completed_at' => now(),
+    ]);
+
+    $customer = Customer::query()->create([
+        'user_id' => $owner->id,
+        'portal_user_id' => $client->id,
+        'portal_access' => true,
+        'first_name' => 'Notification',
+        'last_name' => 'Client',
+        'company_name' => 'Notification Client Company',
+        'email' => $client->email,
+        'phone' => '+15145550101',
+        'auto_accept_quotes' => false,
+        'auto_validate_jobs' => false,
+        'auto_validate_tasks' => false,
+        'auto_validate_invoices' => false,
+    ]);
+
+    return compact('owner', 'client', 'customer');
+}
+
+function notificationCenterWork(User $owner, Customer $customer): Work
+{
+    return Work::query()->create([
+        'user_id' => $owner->id,
+        'customer_id' => $customer->id,
+        'job_title' => 'Notification center work',
+        'instructions' => 'Notification center test work',
+        'status' => Work::STATUS_IN_PROGRESS,
+    ]);
+}
+
+function notificationCenterInvoice(User $owner, Customer $customer): Invoice
+{
+    $work = notificationCenterWork($owner, $customer);
+
+    return Invoice::query()->create([
+        'user_id' => $owner->id,
+        'customer_id' => $customer->id,
+        'work_id' => $work->id,
+        'status' => 'sent',
+        'total' => 150,
+    ]);
+}
+
+function notificationCenterSale(User $owner, Customer $customer): Sale
+{
+    return Sale::query()->create([
+        'user_id' => $owner->id,
+        'customer_id' => $customer->id,
+        'status' => Sale::STATUS_PENDING,
+        'subtotal' => 75,
+        'tax_total' => 0,
+        'discount_rate' => 0,
+        'discount_total' => 0,
+        'total' => 75,
+        'fulfillment_method' => 'delivery',
+        'fulfillment_status' => Sale::FULFILLMENT_PENDING,
+        'source' => 'portal',
+    ]);
 }
 
 test('shared header notifications only include unread non archived items', function () {
@@ -160,6 +287,132 @@ test('opening a notification with a missing linked entity returns a clean warnin
 
     expect($notification->read_at)->not->toBeNull()
         ->and($notification->getAttribute('archived_at'))->toBeNull();
+});
+
+test('client entity notifications open only their owned enabled portal destinations', function () {
+    ['owner' => $owner, 'client' => $client, 'customer' => $customer] = notificationCenterPortalContext([
+        'invoices' => true,
+        'products' => true,
+        'sales' => true,
+        'reservations' => true,
+    ]);
+
+    $invoice = notificationCenterInvoice($owner, $customer);
+    $sale = notificationCenterSale($owner, $customer);
+    $reservation = Reservation::factory()->create([
+        'account_id' => $owner->id,
+        'client_id' => $customer->id,
+        'client_user_id' => $client->id,
+    ]);
+
+    $destinations = [
+        [['invoice_id' => $invoice->id], route('portal.invoices.show', $invoice)],
+        [['order_id' => $sale->id], route('portal.orders.show', $sale)],
+        [['reservation_id' => $reservation->id], route('client.reservations.index')],
+    ];
+
+    foreach ($destinations as [$reference, $destination]) {
+        $notification = logInAppNotification($client, array_merge([
+            'title' => 'Client entity notification',
+            'message' => 'Open an owned portal entity.',
+            'category' => 'system',
+        ], $reference));
+
+        $this->actingAs($client)
+            ->get(route('notifications.open', $notification))
+            ->assertRedirect($destination);
+    }
+});
+
+test('client notifications never expose another client entity or an internal entity', function () {
+    ['client' => $client, 'customer' => $customer] = notificationCenterPortalContext([
+        'products' => true,
+        'sales' => true,
+    ]);
+    ['owner' => $foreignOwner, 'customer' => $foreignCustomer] = notificationCenterPortalContext([
+        'products' => true,
+        'sales' => true,
+    ]);
+    $foreignSale = notificationCenterSale($foreignOwner, $foreignCustomer);
+
+    $notifications = [
+        logInAppNotification($client, [
+            'title' => 'Foreign order notification',
+            'sale_id' => $foreignSale->id,
+            'action_url' => route('portal.orders.show', $foreignSale),
+        ]),
+        logInAppNotification($client, [
+            'title' => 'Internal customer notification',
+            'customer_id' => $customer->id,
+            'action_url' => route('customer.show', $customer),
+        ]),
+    ];
+
+    foreach ($notifications as $notification) {
+        $this->actingAs($client)
+            ->get(route('notifications.open', $notification))
+            ->assertRedirect(route('dashboard'));
+    }
+});
+
+test('client action urls are limited to same origin safe portal surfaces', function () {
+    ['client' => $client, 'customer' => $customer] = notificationCenterPortalContext();
+
+    $safeNotification = logInAppNotification($client, [
+        'title' => 'Profile notification',
+        'action_url' => route('profile.edit', ['from' => 'notification']),
+    ]);
+
+    $this->actingAs($client)
+        ->get(route('notifications.open', $safeNotification))
+        ->assertRedirect(route('profile.edit', ['from' => 'notification']));
+
+    $unsafeNotifications = [
+        logInAppNotification($client, [
+            'title' => 'Back office notification',
+            'action_url' => route('customer.show', $customer),
+        ]),
+        logInAppNotification($client, [
+            'title' => 'External notification',
+            'action_url' => 'https://example.com/account',
+        ]),
+        logInAppNotification($client, [
+            'title' => 'Unknown portal surface notification',
+            'action_url' => url('/portal/internal-tools'),
+        ]),
+        logInAppNotification($client, [
+            'title' => 'Path traversal notification',
+            'action_url' => url('/').'/client/reservations/%2e%2e/%2e%2e/customers',
+        ]),
+    ];
+
+    foreach ($unsafeNotifications as $notification) {
+        $this->actingAs($client)
+            ->get(route('notifications.open', $notification))
+            ->assertRedirect(route('dashboard'));
+    }
+});
+
+test('client notifications fall back to dashboard when their portal capability is disabled', function () {
+    ['owner' => $owner, 'client' => $client, 'customer' => $customer] = notificationCenterPortalContext();
+    $sale = notificationCenterSale($owner, $customer);
+
+    $notifications = [
+        logInAppNotification($client, [
+            'title' => 'Disabled order entity notification',
+            'sale_id' => $sale->id,
+        ]),
+        logInAppNotification($client, [
+            'title' => 'Disabled order action notification',
+            'action_url' => route('portal.orders.show', $sale),
+        ]),
+    ];
+
+    foreach ($notifications as $notification) {
+        $this->actingAs($client)
+            ->get(route('notifications.open', $notification))
+            ->assertRedirect(route('dashboard'));
+    }
 });
 
 test('notifications page keeps full history and filters by status and type', function () {

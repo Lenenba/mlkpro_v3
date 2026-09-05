@@ -52,7 +52,7 @@ class AccountingSyncService
 
         Payment::query()
             ->where('user_id', $accountId)
-            ->with('invoice:id,user_id,number', 'sale:id,user_id,number')
+            ->with('invoice:id,user_id,number,approval_status,status', 'sale:id,user_id,number')
             ->get()
             ->each(function (Payment $payment) use (&$result, $accountId): void {
                 $synced = $this->syncPayment($accountId, $payment);
@@ -136,6 +136,42 @@ class AccountingSyncService
             ?: ($payment->invoice?->number
                 ? 'Payment for '.$payment->invoice->number
                 : 'Payment #'.$payment->id);
+        $baseAmount = max(0, round((float) $payment->amount, 2));
+        $originalTipAmount = max(0, round((float) ($payment->tip_amount ?? 0), 2));
+        $tipReversedAmount = min(
+            $originalTipAmount,
+            max(0, round((float) ($payment->tip_reversed_amount ?? 0), 2))
+        );
+        $tipAmount = max(0, round($originalTipAmount - $tipReversedAmount, 2));
+        $chargedTotal = $this->resolvePaymentChargedTotal($payment, $baseAmount, $tipAmount);
+        $tipAccount = $tipAmount > 0 ? $this->accountByKey($accountId, 'tips_payable') : null;
+        $suspenseAccount = $this->accountByKey($accountId, 'suspense');
+        $chargeVariance = round($chargedTotal - $baseAmount - $tipAmount, 2);
+        $creditSplits = $tipAmount > 0 ? [[
+            'account_id' => $tipAccount?->id,
+            'amount' => $tipAmount,
+            'missing_mapping_key' => 'tips_payable_account_id',
+            'description' => 'Tips collected',
+            'meta' => [
+                'account_key' => 'tips_payable',
+                'payment_id' => (int) $payment->id,
+            ],
+        ]] : [];
+        $debitSplits = [];
+
+        if ($chargeVariance > 0) {
+            $creditSplits[] = $this->paymentVarianceSplit(
+                $suspenseAccount?->id,
+                $chargeVariance,
+                'credit'
+            );
+        } elseif ($chargeVariance < 0) {
+            $debitSplits[] = $this->paymentVarianceSplit(
+                $suspenseAccount?->id,
+                abs($chargeVariance),
+                'debit'
+            );
+        }
 
         return $this->persistBatch(
             accountId: $accountId,
@@ -150,14 +186,22 @@ class AccountingSyncService
             domain: 'payments',
             mappingKey: $eventKey,
             description: 'Payment collected',
-            totalAmount: (float) $payment->amount,
-            baseAmount: (float) $payment->amount,
+            totalAmount: $chargedTotal,
+            baseAmount: $baseAmount,
             taxAmount: 0.0,
             meta: [
                 'payment_status' => $payment->status,
                 'invoice_id' => $payment->invoice_id,
                 'sale_id' => $payment->sale_id,
-            ]
+                'invoice_amount' => $baseAmount,
+                'tip_amount' => $tipAmount,
+                'tip_original_amount' => $originalTipAmount,
+                'tip_reversed_amount' => $tipReversedAmount,
+                'charged_total' => $chargedTotal,
+                'charged_total_variance' => $chargeVariance,
+            ],
+            creditSplits: $creditSplits,
+            debitSplits: $debitSplits
         );
     }
 
@@ -312,6 +356,8 @@ class AccountingSyncService
 
     /**
      * @param  array<string, mixed>  $meta
+     * @param  array<int, array{account_id?: int|null, amount?: float|int|string, missing_mapping_key?: string, review_key?: string, description?: string, meta?: array<string, mixed>}>  $creditSplits
+     * @param  array<int, array{account_id?: int|null, amount?: float|int|string, missing_mapping_key?: string, review_key?: string, description?: string, meta?: array<string, mixed>}>  $debitSplits
      * @return array<string, int>
      */
     private function persistBatch(
@@ -328,7 +374,9 @@ class AccountingSyncService
         float $totalAmount,
         float $baseAmount,
         float $taxAmount,
-        array $meta = []
+        array $meta = [],
+        array $creditSplits = [],
+        array $debitSplits = []
     ): array {
         $existingBatch = AccountingEntryBatch::query()
             ->forUser($accountId)
@@ -360,7 +408,9 @@ class AccountingSyncService
             totalAmount: round($totalAmount, 2),
             baseAmount: round($baseAmount, 2),
             taxAmount: round($taxAmount, 2),
-            existingEntryStates: $existingEntryStates
+            existingEntryStates: $existingEntryStates,
+            creditSplits: $creditSplits,
+            debitSplits: $debitSplits
         );
 
         $batch = AccountingEntryBatch::query()->updateOrCreate(
@@ -409,6 +459,8 @@ class AccountingSyncService
     /**
      * @param  array<string, mixed>|null  $mapping
      * @param  array<string, array<string, mixed>>  $existingEntryStates
+     * @param  array<int, array{account_id?: int|null, amount?: float|int|string, missing_mapping_key?: string, review_key?: string, description?: string, meta?: array<string, mixed>}>  $creditSplits
+     * @param  array<int, array{account_id?: int|null, amount?: float|int|string, missing_mapping_key?: string, review_key?: string, description?: string, meta?: array<string, mixed>}>  $debitSplits
      * @return array{entries: array<int, array<string, mixed>>, status: string, missing_mapping_keys: array<int, string>}
      */
     private function buildLinePayload(
@@ -422,7 +474,9 @@ class AccountingSyncService
         float $totalAmount,
         float $baseAmount,
         float $taxAmount,
-        array $existingEntryStates = []
+        array $existingEntryStates = [],
+        array $creditSplits = [],
+        array $debitSplits = []
     ): array {
         $accountsById = $this->accountsById($accountId);
         $suspenseAccount = $this->accountByKey($accountId, 'suspense');
@@ -443,6 +497,42 @@ class AccountingSyncService
         }
 
         $entries = [];
+        $normalizedDebitSplits = [];
+        $normalizedCreditSplits = [];
+
+        foreach ([
+            AccountingEntry::DIRECTION_DEBIT => $debitSplits,
+            AccountingEntry::DIRECTION_CREDIT => $creditSplits,
+        ] as $direction => $splits) {
+            foreach ($splits as $split) {
+                $amount = max(0, round((float) ($split['amount'] ?? 0), 2));
+                if ($amount <= 0) {
+                    continue;
+                }
+
+                $accountId = $split['account_id'] ?? null;
+                if (! $accountId) {
+                    $missingMappingKeys[] = (string) ($split['missing_mapping_key'] ?? 'split_account_id');
+                    $accountId = $suspenseAccount?->id;
+                }
+                if (! empty($split['review_key'])) {
+                    $missingMappingKeys[] = (string) $split['review_key'];
+                }
+
+                $normalized = [
+                    'account_id' => $accountId,
+                    'amount' => $amount,
+                    'description' => (string) ($split['description'] ?? $description),
+                    'meta' => is_array($split['meta'] ?? null) ? $split['meta'] : [],
+                ];
+                if ($direction === AccountingEntry::DIRECTION_DEBIT) {
+                    $normalizedDebitSplits[] = $normalized;
+                } else {
+                    $normalizedCreditSplits[] = $normalized;
+                }
+            }
+        }
+
         $splitTaxEntry = in_array($domain, ['invoices', 'sales'], true) && $taxAmount > 0;
         $entries[] = [
             'account_id' => $debitAccountId,
@@ -461,9 +551,31 @@ class AccountingSyncService
             ],
         ];
 
-        $revenueOrPrimaryCredit = $splitTaxEntry
+        foreach ($normalizedDebitSplits as $debitSplit) {
+            $accountId = $debitSplit['account_id'];
+            $entries[] = [
+                'account_id' => $accountId,
+                'direction' => AccountingEntry::DIRECTION_DEBIT,
+                'amount' => $debitSplit['amount'],
+                'tax_amount' => 0,
+                'currency_code' => $currencyCode,
+                'entry_date' => $entryDate,
+                'description' => $debitSplit['description'],
+                'review_status' => AccountingEntry::REVIEW_STATUS_UNREVIEWED,
+                'reconciliation_status' => AccountingEntry::REVIEW_STATUS_UNREVIEWED,
+                'meta' => array_merge([
+                    'domain' => $domain,
+                    'mapping_key' => $mappingKey,
+                    'account_key' => $accountsById[$accountId]?->key,
+                ], $debitSplit['meta']),
+            ];
+        }
+
+        $revenueOrPrimaryCredit = $normalizedCreditSplits !== [] || $normalizedDebitSplits !== []
             ? max(0, round($baseAmount, 2))
-            : round($totalAmount, 2);
+            : ($splitTaxEntry
+                ? max(0, round($baseAmount, 2))
+                : round($totalAmount, 2));
 
         if ($revenueOrPrimaryCredit > 0) {
             $entries[] = [
@@ -508,6 +620,26 @@ class AccountingSyncService
             ];
         }
 
+        foreach ($normalizedCreditSplits as $creditSplit) {
+            $accountId = $creditSplit['account_id'];
+            $entries[] = [
+                'account_id' => $accountId,
+                'direction' => AccountingEntry::DIRECTION_CREDIT,
+                'amount' => $creditSplit['amount'],
+                'tax_amount' => 0,
+                'currency_code' => $currencyCode,
+                'entry_date' => $entryDate,
+                'description' => $creditSplit['description'],
+                'review_status' => AccountingEntry::REVIEW_STATUS_UNREVIEWED,
+                'reconciliation_status' => AccountingEntry::REVIEW_STATUS_UNREVIEWED,
+                'meta' => array_merge([
+                    'domain' => $domain,
+                    'mapping_key' => $mappingKey,
+                    'account_key' => $accountsById[$accountId]?->key,
+                ], $creditSplit['meta']),
+            ];
+        }
+
         $entries = array_map(function (array $entry) use ($existingEntryStates): array {
             $signature = $this->entrySignature($entry);
             $existingState = $existingEntryStates[$signature] ?? null;
@@ -545,7 +677,49 @@ class AccountingSyncService
     private function paymentShouldGenerate(Payment $payment): bool
     {
         return $payment->invoice_id !== null
+            && $payment->invoice !== null
+            && in_array(
+                (string) $payment->invoice->approval_status,
+                ['approved', 'processed'],
+                true
+            )
             && in_array($payment->status, Payment::settledStatuses(), true);
+    }
+
+    private function resolvePaymentChargedTotal(Payment $payment, float $baseAmount, float $tipAmount): float
+    {
+        $expectedTotal = round($baseAmount + $tipAmount, 2);
+        $recordedTotal = $payment->charged_total;
+
+        if ($recordedTotal === null) {
+            return $expectedTotal;
+        }
+
+        $reversedTipAmount = min(
+            max(0, round((float) ($payment->tip_amount ?? 0), 2)),
+            max(0, round((float) ($payment->tip_reversed_amount ?? 0), 2))
+        );
+
+        return max(0, round((float) $recordedTotal - $reversedTipAmount, 2));
+    }
+
+    /**
+     * @return array{account_id: int|null, amount: float, missing_mapping_key: string, review_key: string, description: string, meta: array<string, mixed>}
+     */
+    private function paymentVarianceSplit(?int $suspenseAccountId, float $amount, string $direction): array
+    {
+        return [
+            'account_id' => $suspenseAccountId,
+            'amount' => $amount,
+            'missing_mapping_key' => 'suspense_account_id',
+            'review_key' => 'charged_total_variance',
+            'description' => 'Payment charged-total variance',
+            'meta' => [
+                'account_key' => 'suspense',
+                'reason' => 'charged_total_variance',
+                'direction' => $direction,
+            ],
+        ];
     }
 
     private function saleShouldGenerate(Sale $sale): bool
@@ -555,6 +729,13 @@ class AccountingSyncService
 
     private function resolveInvoiceSubtotal(Invoice $invoice): float
     {
+        if ($invoice->subtotal !== null) {
+            return min(
+                max(0, round((float) $invoice->subtotal, 2)),
+                max(0, round((float) $invoice->total, 2))
+            );
+        }
+
         $subtotal = round((float) $invoice->items->sum('total'), 2);
 
         if ($subtotal <= 0) {

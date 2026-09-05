@@ -52,6 +52,10 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    showFeed: {
+        type: Boolean,
+        default: true,
+    },
 });
 
 const emit = defineEmits(['logged']);
@@ -609,7 +613,7 @@ const itemHref = (item) => (typeof props.resolveHref === 'function' ? props.reso
                     {{ translate('subtitle', 'Keep call outcomes, notes, next actions, and meetings in one place.') }}
                 </p>
             </div>
-            <span class="rounded-full bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-600 dark:bg-neutral-700 dark:text-neutral-300">
+            <span v-if="showFeed" class="rounded-full bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-600 dark:bg-neutral-700 dark:text-neutral-300">
                 {{ activityItems.length }}
             </span>
         </div>
@@ -669,7 +673,7 @@ const itemHref = (item) => (typeof props.resolveHref === 'function' ? props.reso
             </div>
         </div>
 
-        <div v-if="activityItems.length" class="mt-4 space-y-3">
+        <div v-if="showFeed && activityItems.length" class="mt-4 space-y-3">
             <div
                 v-for="item in activityItems"
                 :key="item.id"
@@ -725,7 +729,7 @@ const itemHref = (item) => (typeof props.resolveHref === 'function' ? props.reso
             </div>
         </div>
 
-        <p v-else class="mt-4 text-sm text-stone-500 dark:text-neutral-400">
+        <p v-else-if="showFeed" class="mt-4 text-sm text-stone-500 dark:text-neutral-400">
             {{ translate('empty', 'No sales activity yet.') }}
         </p>
 

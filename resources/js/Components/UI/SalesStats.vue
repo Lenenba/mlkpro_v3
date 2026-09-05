@@ -1,6 +1,10 @@
 <script setup>
+import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import { useCurrencyFormatter } from '@/utils/currency';
+import { buildKpiProgress } from '@/utils/kpi';
+
 const props = defineProps({
     stats: {
         type: Object,
@@ -14,98 +18,51 @@ const formatNumber = (value) =>
     Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
 
 const { formatCurrency } = useCurrencyFormatter();
+
+const metrics = computed(() => [
+    {
+        key: 'total',
+        label: t('sales.stats.total'),
+        value: formatNumber(props.stats.total),
+        tone: 'indigo',
+    },
+    {
+        key: 'total_value',
+        label: t('sales.stats.revenue'),
+        value: formatCurrency(props.stats.total_value),
+        tone: 'emerald',
+    },
+    {
+        key: 'paid_value',
+        label: t('sales.stats.collected'),
+        value: formatCurrency(props.stats.paid_value),
+        tone: 'emerald',
+        progress: buildKpiProgress(props.stats.paid_value, props.stats.total_value),
+    },
+    {
+        key: 'pending',
+        label: t('sales.stats.pending'),
+        value: formatNumber(props.stats.pending),
+        tone: 'amber',
+        progress: buildKpiProgress(props.stats.pending, props.stats.total),
+    },
+    {
+        key: 'draft',
+        label: t('sales.stats.draft'),
+        value: formatNumber(props.stats.draft),
+        tone: 'sky',
+        progress: buildKpiProgress(props.stats.draft, props.stats.total),
+    },
+    {
+        key: 'canceled',
+        label: t('sales.stats.canceled'),
+        value: formatNumber(props.stats.canceled),
+        tone: 'rose',
+        progress: buildKpiProgress(props.stats.canceled, props.stats.total),
+    },
+]);
 </script>
 
 <template>
-    <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2 md:gap-3 lg:gap-5">
-        <div
-            class="p-4 sm:p-5 bg-white border border-t-4 border-t-indigo-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700"
-        >
-            <div class="sm:flex sm:gap-x-3">
-                <div class="sm:order-1 grow space-y-1">
-                    <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        {{ $t('sales.stats.total') }}
-                    </h2>
-                    <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
-                        {{ formatNumber(stats.total) }}
-                    </p>
-                </div>
-            </div>
-        </div>
-
-        <div
-            class="p-4 sm:p-5 bg-white border border-t-4 border-t-emerald-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700"
-        >
-            <div class="sm:flex sm:gap-x-3">
-                <div class="sm:order-1 grow space-y-1">
-                    <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        {{ $t('sales.stats.revenue') }}
-                    </h2>
-                    <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
-                        {{ formatCurrency(stats.total_value) }}
-                    </p>
-                </div>
-            </div>
-        </div>
-
-        <div
-            class="p-4 sm:p-5 bg-white border border-t-4 border-t-emerald-700 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700"
-        >
-            <div class="sm:flex sm:gap-x-3">
-                <div class="sm:order-1 grow space-y-1">
-                    <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        {{ $t('sales.stats.collected') }}
-                    </h2>
-                    <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
-                        {{ formatCurrency(stats.paid_value) }}
-                    </p>
-                </div>
-            </div>
-        </div>
-
-        <div
-            class="p-4 sm:p-5 bg-white border border-t-4 border-t-amber-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700"
-        >
-            <div class="sm:flex sm:gap-x-3">
-                <div class="sm:order-1 grow space-y-1">
-                    <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        {{ $t('sales.stats.pending') }}
-                    </h2>
-                    <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
-                        {{ formatNumber(stats.pending) }}
-                    </p>
-                </div>
-            </div>
-        </div>
-
-        <div
-            class="p-4 sm:p-5 bg-white border border-t-4 border-t-sky-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700"
-        >
-            <div class="sm:flex sm:gap-x-3">
-                <div class="sm:order-1 grow space-y-1">
-                    <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        {{ $t('sales.stats.draft') }}
-                    </h2>
-                    <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
-                        {{ formatNumber(stats.draft) }}
-                    </p>
-                </div>
-            </div>
-        </div>
-
-        <div
-            class="p-4 sm:p-5 bg-white border border-t-4 border-t-rose-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700"
-        >
-            <div class="sm:flex sm:gap-x-3">
-                <div class="sm:order-1 grow space-y-1">
-                    <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        {{ $t('sales.stats.canceled') }}
-                    </h2>
-                    <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
-                        {{ formatNumber(stats.canceled) }}
-                    </p>
-                </div>
-            </div>
-        </div>
-    </div>
+    <KpiMetricGrid :metrics="metrics" />
 </template>

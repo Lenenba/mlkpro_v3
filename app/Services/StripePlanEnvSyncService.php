@@ -287,7 +287,7 @@ class StripePlanEnvSyncService
         }
 
         throw new RuntimeException(sprintf(
-            'No active %s Stripe price matched plan [%s] currency [%s]. Configure [%s], add plan_code metadata, or create an active %s price for %.2f %s.',
+            'No active %s Stripe price matched plan [%s] currency [%s]. Configure [%s], add plan_code metadata, or create an active %s price for %.2F %s.',
             $this->periodLabel($billingPeriod),
             $planCode,
             $currencyCode,
@@ -557,7 +557,7 @@ class StripePlanEnvSyncService
 
         if (count($matches) > 1) {
             throw new RuntimeException(sprintf(
-                'Multiple active %s Stripe prices matched plan [%s] currency [%s] by amount %.2f. Configure [%s] or add plan_code metadata to disambiguate.',
+                'Multiple active %s Stripe prices matched plan [%s] currency [%s] by amount %.2F. Configure [%s] or add plan_code metadata to disambiguate.',
                 $this->periodLabel($billingPeriod),
                 $planCode,
                 $currencyCode,

@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\User;
+use App\Services\TenantBrandingResolver;
 use App\Support\LocalePreference;
 use App\Support\QueueWorkload;
 use Illuminate\Bus\Queueable;
@@ -49,12 +50,12 @@ class SendQuoteNotification extends Notification implements ShouldQueue
      */
     public function toMail(object $notifiable): MailMessage
     {
-        $companyUser = $this->quote?->customer?->user
-            ?: $this->quote?->prospect?->user
-            ?: ($this->quote?->user_id ? User::query()->find($this->quote->user_id) : null);
+        $companyUser = $this->quote?->user_id
+            ? User::query()->find($this->quote->user_id)
+            : ($this->quote?->customer?->user ?: $this->quote?->prospect?->user);
+        $branding = app(TenantBrandingResolver::class)->forAccountOwner($companyUser);
         $locale = LocalePreference::forNotifiable($notifiable, $companyUser);
-        $companyName = $companyUser?->company_name ?: config('app.name');
-        $companyLogo = $companyUser?->company_logo_url;
+        $companyName = $branding['name'];
         $customer = $this->quote?->customer;
         $usePublicLink = ! (bool) ($customer?->portal_access ?? true) || ! $customer?->portal_user_id;
         $actionUrl = route('dashboard');
@@ -76,7 +77,7 @@ class SendQuoteNotification extends Notification implements ShouldQueue
             ->view('emails.quotes.send', [
                 'quote' => $this->quote,
                 'companyName' => $companyName,
-                'companyLogo' => $companyLogo,
+                'companyLogo' => $branding['custom_logo_url'],
                 'actionUrl' => $actionUrl,
                 'actionLabel' => $actionLabel,
                 'actionMessage' => $actionMessage,

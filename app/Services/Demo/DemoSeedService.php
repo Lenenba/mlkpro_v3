@@ -18,9 +18,12 @@ use App\Models\User;
 use App\Models\Work;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 
 class DemoSeedService
 {
+    public function __construct(private readonly DemoAccessRoleProvisioner $accessRoleProvisioner) {}
+
     public function seed(User $account, string $type): void
     {
         if (! config('demo.enabled')) {
@@ -32,17 +35,13 @@ class DemoSeedService
         if ($type === DemoAccountService::TYPE_GUIDED) {
             $this->ensureTourSteps();
             $this->seedGuidedDemo($account);
-
-            return;
-        }
-
-        if ($type === DemoAccountService::TYPE_PRODUCT) {
+        } elseif ($type === DemoAccountService::TYPE_PRODUCT) {
             $this->seedProductDemo($account);
-
-            return;
+        } else {
+            $this->seedServiceDemo($account);
         }
 
-        $this->seedServiceDemo($account);
+        $this->accessRoleProvisioner->provision($account);
     }
 
     private function seedServiceDemo(User $account): void
@@ -607,7 +606,7 @@ class DemoSeedService
                 'role' => 'technician',
                 'title' => 'Field Technician',
                 'phone' => '555-0199',
-                'permissions' => ['jobs', 'tasks'],
+                'permissions' => ['jobs.view', 'jobs.edit', 'tasks.view', 'tasks.edit'],
                 'is_active' => true,
             ]
         );
@@ -945,7 +944,7 @@ class DemoSeedService
             'service_demo' => DemoAccountService::TYPE_SERVICE,
             'product_demo' => DemoAccountService::TYPE_PRODUCT,
             'guided_demo' => DemoAccountService::TYPE_GUIDED,
-            default => DemoAccountService::TYPE_SERVICE,
+            default => throw new InvalidArgumentException("Unsupported demo type [{$type}]."),
         };
     }
 }

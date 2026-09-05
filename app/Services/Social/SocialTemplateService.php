@@ -6,6 +6,7 @@ use App\Models\SocialAccountConnection;
 use App\Models\SocialPostTemplate;
 use App\Models\User;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class SocialTemplateService
@@ -54,21 +55,84 @@ class SocialTemplateService
      */
     public function update(User $owner, User $actor, SocialPostTemplate $template, array $payload): SocialPostTemplate
     {
+        return $this->updateWithPreviousMedia($owner, $actor, $template, $payload)['template'];
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array{template: SocialPostTemplate, previous_media_payload: array<int, array<string, mixed>>|null}
+     */
+    public function updateWithPreviousMedia(
+        User $owner,
+        User $actor,
+        SocialPostTemplate $template,
+        array $payload,
+    ): array {
         $this->assertOwnership($owner, $template);
 
-        $template->forceFill([
-            ...$this->templateAttributes($owner, $actor, $payload),
-            'created_by_user_id' => $template->created_by_user_id ?: $actor->id,
-        ])->save();
+        $update = DB::transaction(function () use ($owner, $actor, $template, $payload): array {
+            $lockedTemplate = SocialPostTemplate::query()
+                ->byUser((int) $owner->id)
+                ->whereKey($template->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+            $previousMediaPayload = is_array($lockedTemplate->media_payload)
+                ? $lockedTemplate->media_payload
+                : null;
 
-        return $template->fresh();
+            $lockedTemplate->forceFill([
+                ...$this->templateAttributes($owner, $actor, $payload),
+                'created_by_user_id' => $lockedTemplate->created_by_user_id ?: $actor->id,
+            ])->save();
+
+            return [
+                'template_id' => (int) $lockedTemplate->id,
+                'previous_media_payload' => $previousMediaPayload,
+            ];
+        });
+
+        return [
+            'template' => SocialPostTemplate::query()->findOrFail($update['template_id']),
+            'previous_media_payload' => $update['previous_media_payload'],
+        ];
     }
 
     public function delete(User $owner, SocialPostTemplate $template): void
     {
+        $this->deleteWithPreviousMedia($owner, $template);
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>|null
+     */
+    public function deleteWithPreviousMedia(User $owner, SocialPostTemplate $template): ?array
+    {
         $this->assertOwnership($owner, $template);
 
-        $template->delete();
+        return DB::transaction(function () use ($owner, $template): ?array {
+            $lockedTemplate = SocialPostTemplate::query()
+                ->byUser((int) $owner->id)
+                ->whereKey($template->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+            $previousMediaPayload = is_array($lockedTemplate->media_payload)
+                ? $lockedTemplate->media_payload
+                : null;
+
+            $lockedTemplate->delete();
+
+            return $previousMediaPayload;
+        });
+    }
+
+    public function ensureCanManage(User $owner, SocialPostTemplate $template): void
+    {
+        $this->assertOwnership($owner, $template);
+
+        SocialPostTemplate::query()
+            ->byUser((int) $owner->id)
+            ->whereKey($template->getKey())
+            ->firstOrFail();
     }
 
     /**
@@ -103,6 +167,7 @@ class SocialTemplateService
             'name' => $template->name,
             'text' => $text !== '' ? $text : null,
             'image_url' => $this->mediaAssetService->imageUrl((array) ($template->media_payload ?? [])),
+            'media_assets' => array_values((array) ($template->media_payload ?? [])),
             'link_url' => $template->link_url,
             'link_cta_label' => $this->linkCtaLabel($template->metadata),
             'selected_target_connection_ids' => $selectedTargetIds,
@@ -129,7 +194,7 @@ class SocialTemplateService
     {
         $name = $this->nullableString($payload, 'name');
         $text = $this->nullableString($payload, 'text');
-        $mediaPayload = $this->mediaAssetService->imageMediaPayload($payload);
+        $mediaPayload = $this->mediaAssetService->mediaPayload($payload);
         $linkUrl = $this->nullableString($payload, 'link_url');
         $linkCtaLabel = $linkUrl !== null ? $this->nullableString($payload, 'link_cta_label') : null;
         $targetConnections = $this->resolveTargetConnections($owner, (array) ($payload['target_connection_ids'] ?? []));
@@ -142,7 +207,7 @@ class SocialTemplateService
 
         if ($text === null && $mediaPayload === null && $linkUrl === null) {
             throw ValidationException::withMessages([
-                'text' => 'Add some text, an image, or a destination link before saving this Pulse template.',
+                'text' => 'Add some text, media, or a destination link before saving this Pulse template.',
             ]);
         }
 
@@ -177,7 +242,8 @@ class SocialTemplateService
                     })
                     ->values()
                     ->all(),
-                'has_image' => $mediaPayload !== null,
+                'has_image' => $this->mediaAssetService->imageUrl($mediaPayload) !== null,
+                'has_media' => $mediaPayload !== null,
                 'has_link' => $linkUrl !== null,
                 'template_saved_from' => 'social_composer',
             ],
@@ -210,6 +276,15 @@ class SocialTemplateService
         if ($connections->count() !== $targetIds->count()) {
             throw ValidationException::withMessages([
                 'target_connection_ids' => 'Only active connected social accounts can be saved inside this Pulse template.',
+            ]);
+        }
+
+        if ((bool) config('services.buffer.delivery.enabled', false)
+            && $connections->contains(
+                fn (SocialAccountConnection $connection): bool => ! $connection->usesBufferPublishingTransport(),
+            )) {
+            throw ValidationException::withMessages([
+                'target_connection_ids' => 'Only active channels imported from Buffer can be saved inside a Pulse template.',
             ]);
         }
 

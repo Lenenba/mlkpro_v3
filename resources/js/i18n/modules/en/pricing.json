@@ -9,9 +9,6 @@
     "switch": {
       "label": "Choose your operating context"
     },
-    "currency": {
-      "label": "Currency"
-    },
     "billing_cycle": {
       "label": "Billing cycle",
       "monthly": "Monthly",

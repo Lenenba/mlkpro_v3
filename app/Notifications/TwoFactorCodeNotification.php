@@ -2,6 +2,8 @@
 
 namespace App\Notifications;
 
+use App\Models\User;
+use App\Services\TenantBrandingResolver;
 use App\Support\LocalePreference;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -25,12 +27,20 @@ class TwoFactorCodeNotification extends Notification
         $minutes = $this->expiresAt
             ? max(1, (int) ceil(now()->diffInSeconds($this->expiresAt, true) / 60))
             : null;
+        $brandingResolver = app(TenantBrandingResolver::class);
+        $usesTenantBranding = $notifiable instanceof User
+            && ! $notifiable->isSuperadmin()
+            && ! $notifiable->isPlatformAdmin();
+        $branding = $usesTenantBranding
+            ? $brandingResolver->resolve($notifiable)
+            : $brandingResolver->forAccountOwner(null);
 
         return (new MailMessage)
             ->subject(LocalePreference::trans('mail.auth.two_factor.subject', locale: $locale))
             ->view('emails.auth.two-factor-code', [
-                'companyName' => config('app.name'),
-                'companyLogo' => null,
+                'companyName' => $branding['name'],
+                'companyLogo' => $branding['custom_logo_url'],
+                'showPoweredBy' => $usesTenantBranding,
                 'recipientName' => (string) ($notifiable->name ?? ''),
                 'code' => $this->code,
                 'expiresInMinutes' => $minutes,

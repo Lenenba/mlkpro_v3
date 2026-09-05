@@ -117,6 +117,13 @@ return [
 
     'social' => [
         'allow_test_connections' => env('SOCIAL_ALLOW_TEST_CONNECTIONS'),
+        'media' => [
+            'public_base_url' => env('SOCIAL_MEDIA_PUBLIC_BASE_URL'),
+        ],
+        'oauth' => [
+            'connect_timeout' => env('SOCIAL_OAUTH_CONNECT_TIMEOUT', 5),
+            'timeout' => env('SOCIAL_OAUTH_TIMEOUT', 20),
+        ],
 
         'facebook' => [
             'oauth' => [
@@ -171,6 +178,37 @@ return [
                 'url' => env('SOCIAL_X_PUBLISH_URL'),
                 'timeout' => env('SOCIAL_X_PUBLISH_TIMEOUT', 20),
             ],
+        ],
+    ],
+
+    'buffer' => [
+        'oauth' => [
+            'client_id' => env('BUFFER_OAUTH_CLIENT_ID'),
+            'client_secret' => env('BUFFER_OAUTH_CLIENT_SECRET'),
+            'redirect_uri' => env('BUFFER_OAUTH_REDIRECT_URI'),
+            'authorize_url' => env('BUFFER_OAUTH_AUTHORIZE_URL', 'https://auth.buffer.com/auth'),
+            'token_url' => env('BUFFER_OAUTH_TOKEN_URL', 'https://auth.buffer.com/token'),
+            'scopes' => array_values(array_filter(array_map(
+                static fn (string $scope): string => trim($scope),
+                preg_split('/[\s,]+/', (string) env(
+                    'BUFFER_OAUTH_SCOPES',
+                    'account:read posts:read posts:write offline_access'
+                )) ?: []
+            ))),
+            'connect_timeout' => env('BUFFER_OAUTH_CONNECT_TIMEOUT', 5),
+            'timeout' => env('BUFFER_OAUTH_TIMEOUT', 15),
+        ],
+        'local_connector' => [
+            'enabled' => env('BUFFER_LOCAL_CONNECTOR_ENABLED', false),
+            'owner_id' => env('BUFFER_LOCAL_CONNECTOR_OWNER_ID'),
+            'access_token' => env('BUFFER_LOCAL_CONNECTOR_ACCESS_TOKEN', env('BUFFER_WP1_PROBE_ACCESS_TOKEN')),
+            'api_url' => env('BUFFER_LOCAL_CONNECTOR_API_URL', 'https://api.buffer.com'),
+            'connect_timeout' => env('BUFFER_LOCAL_CONNECTOR_CONNECT_TIMEOUT', 5),
+            'timeout' => env('BUFFER_LOCAL_CONNECTOR_TIMEOUT', 10),
+        ],
+        'delivery' => [
+            'enabled' => env('BUFFER_DELIVERY_ENABLED', false),
+            'required_scopes' => ['posts:read', 'posts:write'],
         ],
     ],
 

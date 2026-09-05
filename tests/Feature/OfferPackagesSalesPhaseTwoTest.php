@@ -179,3 +179,91 @@ it('adds a pack or forfait directly to an editable invoice with metadata snapsho
         ->and(data_get($item->meta, 'offer_package_type'))->toBe(OfferPackage::TYPE_FORFAIT)
         ->and(data_get($item->meta, 'offer_package_items.0.name_snapshot'))->toBe('Massage session');
 });
+
+it('rebuilds a pack or forfait quote snapshot on the server', function () {
+    $owner = offerPackagesPhaseTwoOwner();
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    $product = offerPackagesPhaseTwoProduct($owner);
+    $offer = offerPackagesPhaseTwoOffer($owner, $product, [
+        'name' => 'Forfait protected snapshot',
+        'type' => OfferPackage::TYPE_FORFAIT,
+        'price' => 350,
+        'included_quantity' => 5,
+        'unit_type' => OfferPackage::UNIT_SESSION,
+    ]);
+    $line = app(OfferPackageSalesLineBuilder::class)->quoteLinePayload($offer);
+    $line['source_details']['offer_package']['name'] = 'Forged forfait';
+    $line['source_details']['offer_package']['included_quantity'] = 999;
+
+    $this->actingAs($owner)
+        ->postJson(route('customer.quote.store'), [
+            'customer_id' => $customer->id,
+            'job_title' => 'Protected forfait quote',
+            'status' => 'draft',
+            'product' => [$line],
+            'taxes' => [],
+            'initial_deposit' => 0,
+        ])
+        ->assertCreated();
+
+    $quoteLine = QuoteProduct::query()->firstOrFail();
+
+    expect(data_get($quoteLine->source_details, 'offer_package.name'))->toBe('Forfait protected snapshot')
+        ->and(data_get($quoteLine->source_details, 'offer_package.included_quantity'))->toBe(5);
+});
+
+it('keeps an archived offer snapshot when an existing quote is saved again', function () {
+    $owner = offerPackagesPhaseTwoOwner();
+    $customer = Customer::factory()->create(['user_id' => $owner->id]);
+    $product = offerPackagesPhaseTwoProduct($owner);
+    $offer = offerPackagesPhaseTwoOffer($owner, $product, [
+        'name' => 'Historical forfait',
+        'type' => OfferPackage::TYPE_FORFAIT,
+        'price' => 350,
+        'included_quantity' => 5,
+        'unit_type' => OfferPackage::UNIT_SESSION,
+    ]);
+    $line = app(OfferPackageSalesLineBuilder::class)->quoteLinePayload($offer);
+
+    $this->actingAs($owner)
+        ->postJson(route('customer.quote.store'), [
+            'customer_id' => $customer->id,
+            'job_title' => 'Historical forfait quote',
+            'status' => 'draft',
+            'product' => [$line],
+            'taxes' => [],
+            'initial_deposit' => 0,
+        ])
+        ->assertCreated();
+
+    $quote = Quote::query()->firstOrFail();
+    $quoteLine = QuoteProduct::query()->where('quote_id', $quote->id)->firstOrFail();
+    $offer->update([
+        'status' => OfferPackage::STATUS_ARCHIVED,
+        'name' => 'Changed after archival',
+        'included_quantity' => 99,
+    ]);
+
+    $this->actingAs($owner)
+        ->putJson(route('customer.quote.update', $quote), [
+            'customer_id' => $customer->id,
+            'job_title' => 'Historical forfait quote updated',
+            'status' => 'draft',
+            'product' => [[
+                'id' => $quoteLine->product_id,
+                'item_type' => Product::ITEM_TYPE_SERVICE,
+                'description' => $quoteLine->description,
+                'quantity' => 1,
+                'price' => 350,
+                'source_details' => $quoteLine->source_details,
+            ]],
+            'taxes' => [],
+            'initial_deposit' => 0,
+        ])
+        ->assertOk();
+
+    $savedLine = QuoteProduct::query()->where('quote_id', $quote->id)->firstOrFail();
+
+    expect(data_get($savedLine->source_details, 'offer_package.name'))->toBe('Historical forfait')
+        ->and(data_get($savedLine->source_details, 'offer_package.included_quantity'))->toBe(5);
+});

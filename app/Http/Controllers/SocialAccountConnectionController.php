@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\SocialAccountConnection;
 use App\Models\User;
+use App\Services\Social\Buffer\BufferLocalConnectorService;
 use App\Services\Social\SocialAccountConnectionService;
 use App\Services\Social\SocialPostService;
 use Illuminate\Http\Request;
@@ -15,6 +16,7 @@ class SocialAccountConnectionController extends Controller
     public function __construct(
         private readonly SocialAccountConnectionService $connectionService,
         private readonly SocialPostService $postService,
+        private readonly BufferLocalConnectorService $bufferConnector,
     ) {}
 
     public function index(Request $request)
@@ -27,9 +29,15 @@ class SocialAccountConnectionController extends Controller
         $postSummary = $this->postService->summaryForOwner($owner);
 
         return $this->inertiaOrJson('Social/Accounts', [
-            'provider_definitions' => $this->connectionService->definitions(),
-            'connections' => $this->connectionService->listPayloads($owner),
+            'provider_definitions' => $this->connectionService->directManagementDefinitions(),
+            'connections' => $this->connectionService->listDirectManagementPayloads($owner),
+            'buffer_connections' => $canManageAccounts
+                ? $this->connectionService->listBufferManagementPayloads($owner)
+                : [],
             'summary' => $this->connectionService->summaryForOwner($owner),
+            'buffer_connector' => $canManageAccounts
+                ? $this->bufferConnector->status($owner)
+                : null,
             'workspace_stats' => [
                 'connected_accounts' => (int) $this->connectionService->summaryForOwner($owner)['connected'],
                 'draft_posts' => (int) ($postSummary['drafts'] ?? 0),

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
+use App\Support\LocalePreference;
 use App\Support\Notifications\UserNotificationCenter;
 use Illuminate\Http\Request;
 use Illuminate\Notifications\DatabaseNotification;
@@ -23,7 +24,8 @@ class PortalNotificationController extends Controller
                     'status' => $request->input('status'),
                     'type' => $request->input('type'),
                     'per_page' => $request->input('per_page', $request->input('limit', 30)),
-                ]
+                ],
+                LocalePreference::forRequest($request, $user)
             )
         );
     }

@@ -7,7 +7,12 @@
       "Bash(xargs grep -l \"social\")",
       "Bash(xargs grep -l \"social_\")",
       "Bash(xargs grep -l \"class.*PostStatus\\\\|enum.*PostStatus\")",
-      "PowerShell(. $PROFILE; art --version)"
+      "PowerShell(. $PROFILE; art --version)",
+      "Bash(python -c ' *)",
+      "Bash(ls ~/AppData/Local/ms-playwright 2>/dev/null | head -5 || echo \"NO PLAYWRIGHT BROWSERS\")",
+      "Read(//c/Users/JulesRogerSombangnen/AppData/Local/ms-playwright/**)",
+      "Bash(npx playwright *)",
+      "Bash(grep -n 'button\\\\|$t\\(' c:/Users/JulesRogerSombangnen/Herd/mlkpro_v3/resources/js/Components/UI/CookieBanner.vue)"
     ]
   }
 }

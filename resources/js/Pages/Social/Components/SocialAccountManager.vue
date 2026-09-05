@@ -79,11 +79,12 @@ const modalOpen = computed(() => Boolean(openPlatformKey.value));
 const statusOrder = {
     connected: 0,
     pending: 1,
-    draft: 2,
-    reconnect_required: 3,
-    error: 4,
-    expired: 5,
-    disconnected: 6,
+    authorizing: 2,
+    draft: 3,
+    reconnect_required: 4,
+    error: 5,
+    expired: 6,
+    disconnected: 7,
 };
 
 const sortedConnections = computed(() => [...connections.value].sort((left, right) => {
@@ -228,7 +229,7 @@ const statusClass = (status) => {
         return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300';
     }
 
-    if (status === 'pending') {
+    if (status === 'pending' || status === 'authorizing') {
         return 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-300';
     }
 
@@ -837,7 +838,7 @@ const deleteConnection = async (connection) => {
                                     <SecondaryButton
                                         v-if="selectedConnection.auth_method === 'oauth' && !selectedConnection.is_connected"
                                         type="button"
-                                        :disabled="busy || isLoading"
+                                        :disabled="busy || isLoading || selectedConnection.oauth_callback_active"
                                         @click="authorizeConnection(selectedConnection)"
                                     >
                                         {{ selectedConnection.status === 'draft' || selectedConnection.status === 'disconnected'
@@ -848,7 +849,7 @@ const deleteConnection = async (connection) => {
                                     <SecondaryButton
                                         v-if="selectedConnection.has_credentials"
                                         type="button"
-                                        :disabled="busy || isLoading"
+                                        :disabled="busy || isLoading || selectedConnection.oauth_callback_active"
                                         @click="testConnection(selectedConnection)"
                                     >
                                         {{ t('social.accounts_manager.actions.test_connection') }}

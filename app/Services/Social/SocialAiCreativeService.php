@@ -89,7 +89,7 @@ class SocialAiCreativeService
         $language = $this->languageLabel($locale);
 
         return <<<PROMPT
-You are Malikia Pulse creative autopilot.
+You are the Pulse creative autopilot.
 Return JSON only. Do not include markdown or explanatory prose outside the JSON object.
 
 Write in {$language}. Create concise social post candidates for a small business.

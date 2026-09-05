@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\User;
+use App\Services\TenantBrandingResolver;
 use App\Support\LocalePreference;
 use App\Support\QueueWorkload;
 use Illuminate\Bus\Queueable;
@@ -34,9 +35,12 @@ class WelcomeEmailNotification extends Notification implements ShouldQueue
 
     public function toMail(object $notifiable): MailMessage
     {
-        $locale = LocalePreference::forNotifiable($notifiable, $this->accountOwner);
-        $companyName = $this->accountOwner->company_name ?: config('app.name');
-        $companyLogo = $this->accountOwner->company_logo_url;
+        $brandingResolver = app(TenantBrandingResolver::class);
+        $accountOwner = $brandingResolver->resolveAccountOwner($this->accountOwner) ?: $this->accountOwner;
+        $branding = $brandingResolver->forAccountOwner($accountOwner);
+        $locale = LocalePreference::forNotifiable($notifiable, $accountOwner);
+        $companyName = $branding['name'];
+        $companyLogo = $branding['custom_logo_url'];
         $userName = $this->accountOwner->name ?: $companyName;
         $companyType = $this->accountOwner->company_type === 'products' ? 'products' : 'services';
         $companyTypeLabel = $companyType === 'products' ? 'produits' : 'services';

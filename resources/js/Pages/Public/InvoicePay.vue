@@ -9,6 +9,7 @@ import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import GuestLayout from '@/Layouts/GuestLayout.vue';
 import { humanizeDate } from '@/utils/date';
 import { useCurrencyFormatter } from '@/utils/currency';
+import { createPaymentIdempotencyKey } from '@/utils/paymentIdempotency';
 
 const props = defineProps({
     invoice: Object,
@@ -30,6 +31,7 @@ const props = defineProps({
 const { t, te } = useI18n();
 
 const form = useForm({
+    idempotency_key: createPaymentIdempotencyKey(),
     amount: props.invoice?.balance_due || '',
     tip_enabled: false,
     tip_mode: 'none',
@@ -198,11 +200,17 @@ const submitPayment = () => {
         return;
     }
 
+    if (form.method === 'card') {
+        startStripeCheckout();
+        return;
+    }
+
     applyTipPayloadToForm();
     form.post(props.paymentUrl, {
         preserveScroll: true,
         onSuccess: () => {
-            form.reset('method', 'reference', 'notes');
+            form.idempotency_key = createPaymentIdempotencyKey();
+            form.reset('reference', 'notes');
         },
     });
 };
@@ -257,18 +265,14 @@ const paymentChargedTotal = (payment) => {
 <template>
     <Head :title="headTitle" />
 
-    <GuestLayout :card-class="'mt-6 w-full max-w-3xl rounded-sm border border-stone-200 bg-white px-6 py-6 shadow-md'">
+    <GuestLayout
+        :company="company"
+        logo-href=""
+        :card-class="'mt-6 w-full max-w-3xl rounded-sm border border-stone-200 bg-white px-6 py-6 shadow-md'"
+    >
         <div class="space-y-5">
             <div class="flex flex-wrap items-center justify-between gap-3">
                 <div class="flex items-center gap-3">
-                    <img
-                        v-if="company?.logo_url"
-                        :src="company.logo_url"
-                        :alt="companyName"
-                        class="h-10 w-10 rounded-sm border border-stone-200 object-cover"
-                        loading="lazy"
-                        decoding="async"
-                    />
                     <div>
                         <div class="text-xs uppercase tracking-wide text-stone-500">{{ t('public_invoice.document') }}</div>
                         <div class="text-lg font-semibold text-stone-800">
@@ -493,10 +497,10 @@ const paymentChargedTotal = (payment) => {
                     <div class="space-y-2 pt-1">
                         <button
                             type="submit"
-                            :disabled="!canSubmitPayment || form.processing"
+                            :disabled="!canSubmitPayment || form.processing || (form.method === 'card' && !canUseStripe)"
                             class="inline-flex w-full items-center justify-center rounded-sm border border-transparent bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-50"
                         >
-                            {{ t('public_invoice.actions.pay_invoice') }}
+                            {{ t(form.method === 'card' ? 'public_invoice.actions.pay_invoice' : 'public_invoice.actions.declare_payment') }}
                         </button>
                         <button
                             v-if="canUseStripe"
@@ -509,6 +513,9 @@ const paymentChargedTotal = (payment) => {
                         </button>
                     </div>
 
+                    <p v-if="form.method !== 'card'" class="text-xs text-stone-500">{{ t('public_invoice.confirmation_required') }}</p>
+                    <p v-else-if="!canUseStripe" class="text-xs text-stone-500">{{ t('public_invoice.secure_checkout_unavailable') }}</p>
+                    <div v-if="form.errors.idempotency_key" class="text-xs text-red-600">{{ form.errors.idempotency_key }}</div>
                     <details class="rounded-sm border border-stone-200 bg-stone-50 p-3">
                         <summary class="cursor-pointer text-xs font-semibold text-stone-700">
                             {{ t('public_invoice.details.title') }}

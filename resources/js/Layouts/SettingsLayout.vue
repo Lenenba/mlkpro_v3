@@ -38,6 +38,12 @@ const avatarInitial = computed(() => {
     return label.length ? label[0].toUpperCase() : '?';
 });
 
+const isClient = computed(() => Boolean(page.props.auth?.account?.is_client));
+const resolvedContentClass = computed(() => (
+    isClient.value
+        ? 'w-full min-w-0 max-w-full'
+        : props.contentClass
+));
 const isOwner = computed(() => Boolean(page.props.auth?.account?.is_owner));
 const { hasFeature } = useAccountFeatures();
 const { hasPermission } = usePermissions();
@@ -47,6 +53,17 @@ const canManageRoles = computed(() => hasPermission('manage_roles_permissions'))
 
 const navTabs = computed(() => {
     locale.value;
+
+    if (isClient.value) {
+        return [
+            {
+                id: 'profile',
+                label: t('account.profile'),
+                href: route('profile.edit'),
+            },
+        ];
+    }
+
     const groups = [
         {
             label: t('settings.groups.account'),
@@ -209,12 +226,25 @@ const breadcrumbItems = computed(() => {
             href: route('dashboard'),
             icon: 'home',
         },
+    ];
+
+    if (isClient.value) {
+        return [
+            ...items,
+            {
+                key: 'profile',
+                label: t('account.profile'),
+            },
+        ];
+    }
+
+    items.push(
         {
             key: 'workspace',
             label: t('nav.workspace'),
             href: route('workspace.hubs.show', { category: 'workspace' }),
         },
-    ];
+    );
 
     if (activeNavItem.value) {
         items.push({
@@ -245,9 +275,12 @@ const openCookiePreferences = () => {
             <AppBreadcrumbs :items="breadcrumbItems" />
         </template>
 
-        <div class="settings-shell">
+        <div class="settings-shell w-full min-w-0 max-w-full">
             <header class="settings-hero">
-                <div class="settings-hero__inner" :class="props.contentClass">
+                <div
+                    class="settings-hero__inner"
+                    :class="[resolvedContentClass, { 'settings-hero__inner--client': isClient }]"
+                >
                     <div class="settings-hero__card">
                         <div class="settings-avatar">
                             <img v-if="avatarUrl" :src="avatarUrl" :alt="userName" />
@@ -274,7 +307,10 @@ const openCookiePreferences = () => {
                 </div>
             </header>
 
-            <div class="settings-main" :class="props.contentClass">
+            <div
+                class="settings-main"
+                :class="[resolvedContentClass, { 'settings-main--client': isClient }]"
+            >
                 <SettingsTabs
                     :model-value="props.active"
                     :tabs="navTabs"
@@ -448,6 +484,11 @@ const openCookiePreferences = () => {
     width: 100%;
     margin: 0 auto;
     padding: 0 12px;
+}
+
+.settings-hero__inner--client,
+.settings-main--client {
+    padding-inline: 0;
 }
 
 .settings-content {

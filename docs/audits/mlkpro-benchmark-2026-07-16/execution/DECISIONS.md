@@ -24,6 +24,7 @@ Une proposition n’autorise aucun changement tant qu’elle n’est pas accept�
 | MLK-DEC-008 | Utiliser exclusivement `develop` comme base et cible des travaux automatisés | Acceptée | Jules Roger Sombangnen | Permanente |
 | MLK-DEC-009 | Collecter P0-006 sur un staging isolé avec preuves expurgées | Proposée — reportée par MLK-DEC-010 | Technique / exploitation | À réévaluer avant le 2027-08-04 |
 | MLK-DEC-010 | Dérogation temporaire de sortie P0 sans staging | Acceptée | Jules Roger Sombangnen | 2027-08-04 |
+| MLK-DEC-011 | Pré-sélection conditionnelle des trois premiers tickets P2 | Proposée | Jules Roger Sombangnen | Avant tout GO P2 |
 
 ## MLK-DEC-001 — Phase 0 en premier
 
@@ -133,6 +134,24 @@ Une proposition n’autorise aucun changement tant qu’elle n’est pas accept�
 - Sortie de dérogation : avant l’échéance, fournir un staging, exécuter les quatre canaris P0-005 avec redémarrage et rollback, puis collecter/importer les sept scénarios P0-006 et archiver un rapport strict.
 - Expiration : à défaut de ces preuves au 2027-08-04, la dérogation expire ; P0-005 et P0-006 redeviennent bloqués et toute progression inter-phase ultérieure exige une nouvelle décision explicite.
 - Portée : exception limitée à l’ouverture de la Phase 1. Elle lève les prérequis P0-006 de baseline dynamique pour cette ouverture seulement, sans accepter ni modifier les décisions générales MLK-DEC-001 et MLK-DEC-002.
+
+## MLK-DEC-011 — Pré-sélection conditionnelle des trois premiers tickets Phase 2
+
+- Statut : **proposée**.
+- Date : 2026-08-04.
+- Responsable proposé : Jules Roger Sombangnen, Produit / Technique / Exploitation.
+- Validateurs requis : Produit, Technique et Exploitation à confirmer avant un GO P2.
+- Contexte : l’audit statique identifie des collections non bornées dans la boîte de demandes, le pipeline CRM, la relance devis et le dashboard prospects. P1-003 à P1-005 disposent de preuves techniques, et P1-005 d’une CI distante verte, mais les acceptations humaines restent séparées ; la dérogation `MLK-DEC-010` est explicitement limitée à l’ouverture de la Phase 1.
+- Options considérées :
+  1. commencer par les collections SQL bornées et comparables (`P2-001` → `P2-002` → `P2-003`) ;
+  2. commencer par le cache dashboard (`P2-004`) sans comparaison par rôle/cycle froid-chaud ;
+  3. commencer par Redis (`P2-006`) avant une décision d’infrastructure et une baseline représentative.
+- Décision proposée : lors d’un futur GO explicite de Phase 2, retenir dans cet ordre `P2-001 — Pagination SQL des demandes`, `P2-002 — Pipeline CRM borné`, puis `P2-003 — Relance devis et dashboard prospects en SQL`. `P2-004` demeure le quatrième candidat à comparer après mesure par rôle ; `P2-006` Redis n’est pas inclus dans ce premier lot.
+- Raisons : `BuildRequestInboxIndexData` charge puis filtre/trie/pagine des collections en mémoire ; `BuildSalesPipelineIndexData` charge et fusionne demandes/devis avant de produire les cartes ; `BuildQuoteRecoveryIndexData` et `BuildProspectDashboardData` chargent puis agrègent de larges collections. Ces candidats préservent des Query Objects, DTO et contrats de test existants et n’imposent ni migration Redis ni changement d’exploitation initial.
+- Préconditions impératives : clôture formelle de la Phase 1 et acceptations de ses tickets ; réalisation des preuves P0-005/P0-006 sur staging **ou** nouvelle décision explicite, datée et bornée autorisant un GO P2 malgré ces dettes ; validation de la présente proposition ; `MLK-DEC-005` acceptée, rejetée ou remplacée conformément à son échéance « avant Phase 2 ». Elle reste distincte et n’est pas implicitement acceptée ici.
+- Contrats et mesures : garder les résultats JSON/Inertia, filtres, tris, droits, totaux et cartes identiques ; utiliser le mode ombre et comparer ancien/nouveau avant activation. Mesurer sur données représentatives p50/p95/p99, requêtes, temps SQL, mémoire, taille de réponse, erreurs et différences de résultat. Aucune de ces mesures n’est réputée acquise par la seule analyse statique.
+- Rollback : cette proposition ne modifie aucun code, donnée ou infrastructure. Si elle est rejetée ou remplacée, les tickets P2 restent `en attente`; chaque ticket activé ultérieurement conserve son propre drapeau ou sa double lecture de rollback.
+- Limite : cette entrée ne vaut ni GO P2, ni autorisation de charge, de canari, de staging ou d’écriture production.
 
 ## Gabarit d’une nouvelle décision
 

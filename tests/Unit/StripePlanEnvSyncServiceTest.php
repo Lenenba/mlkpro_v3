@@ -304,7 +304,7 @@ it('matches sibling currencies from the configured stripe product even when conf
         ]);
 });
 
-it('fails clearly when amount fallback is ambiguous', function () {
+it('fails clearly with a canonical amount when amount fallback is ambiguous', function () {
     config()->set('services.stripe.secret', 'sk_test_sync_123');
     config()->set('billing.plans', [
         'starter' => [
@@ -364,9 +364,20 @@ it('fails clearly when amount fallback is ambiguous', function () {
         'plans' => ['starter'],
         'currencies' => ['USD'],
     ]);
+    $expectedMessage = 'Multiple active monthly Stripe prices matched plan [starter] currency [USD] by amount 24.00.';
 
-    expect($run)->toThrow(
-        \RuntimeException::class,
-        'Multiple active monthly Stripe prices matched plan [starter] currency [USD] by amount 24.00.'
-    );
+    expect($run)->toThrow(\RuntimeException::class, $expectedMessage);
+
+    $originalNumericLocale = setlocale(LC_NUMERIC, 0);
+    $commaNumericLocale = setlocale(LC_NUMERIC, 'fr_CA.UTF-8', 'fr_CA', 'fr_FR.UTF-8', 'fr_FR', 'de_DE.UTF-8', 'de_DE');
+
+    try {
+        if (is_string($commaNumericLocale) && localeconv()['decimal_point'] === ',') {
+            expect($run)->toThrow(\RuntimeException::class, $expectedMessage);
+        }
+    } finally {
+        if (is_string($originalNumericLocale)) {
+            setlocale(LC_NUMERIC, $originalNumericLocale);
+        }
+    }
 });

@@ -171,6 +171,11 @@
     },
     "template_manager": {
       "title": "Plantillas",
+      "kpis": {
+        "total": "Plantillas",
+        "email": "Diseños email",
+        "defaults": "Predeterminadas"
+      },
       "template_name": "Nombre de la plantilla",
       "channel": "Canal",
       "campaign_type": "Tipo de campana",
@@ -612,6 +617,96 @@
         "window_days": "Dias de ventana",
         "priority": "Prioridad",
         "remove_rule": "Eliminar"
+      }
+    },
+    "campaign_show": {
+      "cards": {
+        "status": "Estado",
+        "schedule_type": "Planificación",
+        "active_channels": "Canales activos",
+        "offers": "Ofertas",
+        "runs": "Ejecuciones"
+      },
+      "run_summary": {
+        "targeted": "Destinatarios",
+        "sent": "Enviados",
+        "delivered": "Entregados",
+        "opened": "Abiertos",
+        "clicked": "Clics",
+        "converted": "Convertidos",
+        "failed": "Fallidos",
+        "skipped": "Omitidos"
+      },
+      "delivery": {
+        "title": "Entrega — último envío",
+        "latest_run": "Último envío",
+        "ab_split": "Reparto A/B",
+        "no_ab_data": "Sin datos A/B",
+        "holdout": "Grupo de control",
+        "fallback": "Uso alternativo",
+        "fallback_value": "{count} alternativos",
+        "fallback_context": "{rate}% de fallos ({count})"
+      },
+      "funnel": {
+        "prospects": "Prospectos",
+        "contacted": "Contactados",
+        "replied": "Respuestas",
+        "qualified": "Calificados",
+        "leads": "Leads",
+        "customers": "Clientes",
+        "prospect_to_lead_rate": "Prospecto → lead",
+        "lead_to_customer_rate": "Lead → cliente",
+        "overall_customer_rate": "Prospecto → cliente",
+        "not_available": "N/D"
+      },
+      "prospecting": {
+        "total_batches": "Total de lotes",
+        "pending_review_batches": "Lotes por revisar",
+        "ready_for_outreach": "Listos para contactar",
+        "follow_up_due": "Seguimientos vencidos",
+        "converted_leads": "Leads convertidos",
+        "do_not_contact": "No contactar"
+      }
+    },
+    "campaign_wizard": {
+      "results": {
+        "campaign_status": "Estado campaña",
+        "updated": "Actualizado {date}",
+        "save_to_start": "Guarda el borrador para empezar.",
+        "latest_run": "Último envío",
+        "no_run": "Sin envíos",
+        "launch_to_create": "Inicia desde la revisión para crear el primer envío.",
+        "targeted": "Destinatarios",
+        "latest_recipients": "Destinatarios del último envío",
+        "estimated_recipients": "Destinatarios estimados",
+        "delivered": "Entregados",
+        "delivery_context": "{sent} enviados · {failed} fallidos",
+        "metrics_after_launch": "Los datos aparecerán tras el lanzamiento.",
+        "trigger": "Activador",
+        "started": "Inicio",
+        "completed": "Fin",
+        "engagement": "Interacción",
+        "engagement_value": "{opened} abiertos · {clicked} clics"
+      },
+      "prospecting": {
+        "import_modes": {
+          "manual": "Entrada manual",
+          "csv": "Importación CSV",
+          "provider": "Conexión proveedor"
+        },
+        "summary": {
+          "total_batches": "Total de lotes",
+          "analyzed_batches": "Analizados",
+          "approved_batches": "Aprobados",
+          "canceled_batches": "Rechazados"
+        },
+        "kpis": {
+          "accepted": "Aceptados",
+          "duplicates": "Duplicados",
+          "blocked": "Bloqueados",
+          "rejected": "Rechazados",
+          "review_required": "Revisión requerida"
+        }
       }
     },
     "template_page": {

@@ -14,3 +14,15 @@ export const avatarIconPresets = [
 
 export const defaultCompanyIcon = companyIconPresets[0];
 export const defaultAvatarIcon = avatarIconPresets[0];
+
+export const customerIconPresetsForType = (clientType) => (
+    clientType === 'company' ? companyIconPresets : avatarIconPresets
+);
+
+export const defaultCustomerIconForType = (clientType) => (
+    clientType === 'company' ? defaultCompanyIcon : defaultAvatarIcon
+);
+
+export const isCustomerIconPreset = (value) => (
+    [...companyIconPresets, ...avatarIconPresets].includes(value)
+);

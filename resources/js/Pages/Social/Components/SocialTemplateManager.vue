@@ -9,6 +9,12 @@ import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import SocialMediaAssetPicker from '@/Pages/Social/Components/SocialMediaAssetPicker.vue';
+import {
+    normalizeSocialMediaState,
+    serializeSocialMediaAssets,
+    SOCIAL_MEDIA_EXTENSIONS,
+    SOCIAL_MEDIA_MAX_ITEMS,
+} from '@/utils/socialMediaAssets';
 
 const props = defineProps({
     initialConnectedAccounts: {
@@ -65,11 +71,12 @@ const busy = ref(false);
 const isLoading = ref(false);
 const error = ref('');
 const info = ref('');
-const imageFile = ref(null);
+const mediaFiles = ref([]);
 const form = ref({
     name: '',
     text: '',
     image_url: '',
+    media_assets: [],
     link_url: '',
     link_cta_label: '',
     target_connection_ids: [],
@@ -81,26 +88,42 @@ const activeTemplate = computed(() => (
     sortedTemplates.value.find((template) => Number(template.id) === Number(activeTemplateId.value)) || null
 ));
 const imageInputModel = computed({
-    get: () => imageFile.value || String(form.value.image_url || '').trim() || null,
+    get: () => String(form.value.image_url || '').trim() || null,
     set: (value) => {
-        if (value instanceof File) {
-            imageFile.value = value;
-            form.value.image_url = '';
-
+        if (!canManage.value || busy.value) {
             return;
         }
 
         if (typeof value === 'string' && value.trim() !== '') {
-            imageFile.value = null;
             form.value.image_url = value.trim();
 
             return;
         }
 
-        imageFile.value = null;
         form.value.image_url = '';
     },
 });
+const existingMediaItems = computed(() => {
+    const items = form.value.media_assets.map((asset, index) => ({
+        ...asset,
+        template_source: 'media_assets',
+        template_index: index,
+    }));
+    const imageUrl = String(form.value.image_url || '').trim();
+
+    if (imageUrl !== '') {
+        items.unshift({
+            type: 'image',
+            url: imageUrl,
+            template_source: 'image_url',
+        });
+    }
+
+    return items;
+});
+const mediaLimitReached = computed(() => (
+    existingMediaItems.value.length + mediaFiles.value.length >= SOCIAL_MEDIA_MAX_ITEMS
+));
 const normalizeLinkCandidate = (value) => {
     const candidate = String(value || '').trim();
     if (candidate === '') {
@@ -196,11 +219,14 @@ const availableTargetConnectionIds = (targetIds) => {
 };
 
 const syncFormFromTemplate = (template) => {
-    imageFile.value = null;
+    const mediaState = normalizeSocialMediaState(template?.media_assets, template?.image_url);
+
+    mediaFiles.value = [];
     form.value = {
         name: String(template?.name || ''),
         text: String(template?.text || ''),
-        image_url: String(template?.image_url || ''),
+        image_url: mediaState.image_url,
+        media_assets: mediaState.media_assets,
         link_url: String(template?.link_url || ''),
         link_cta_label: String(template?.link_cta_label || ''),
         target_connection_ids: availableTargetConnectionIds(template?.selected_target_connection_ids),
@@ -209,11 +235,12 @@ const syncFormFromTemplate = (template) => {
 
 const resetForm = () => {
     activeTemplateId.value = null;
-    imageFile.value = null;
+    mediaFiles.value = [];
     form.value = {
         name: '',
         text: '',
         image_url: '',
+        media_assets: [],
         link_url: '',
         link_cta_label: '',
         target_connection_ids: [],
@@ -272,15 +299,6 @@ watch(() => props.selectedTemplateId, (value) => {
     activeTemplateId.value = value;
 }, { immediate: true });
 
-watch(() => form.value.image_url, (value, previous) => {
-    const next = String(value || '').trim();
-    const prev = String(previous || '').trim();
-
-    if (next !== '' && next !== prev && imageFile.value instanceof File) {
-        imageFile.value = null;
-    }
-});
-
 watch([sortedTemplates, activeTemplateId], () => {
     if (activeTemplate.value) {
         syncFormFromTemplate(activeTemplate.value);
@@ -333,6 +351,21 @@ const openTemplate = (template) => {
     info.value = '';
 };
 
+const removeExistingMedia = (item) => {
+    if (!canManage.value || busy.value) {
+        return;
+    }
+
+    if (item?.template_source === 'image_url') {
+        form.value.image_url = '';
+
+        return;
+    }
+
+    const index = Number(item?.template_index);
+    form.value.media_assets = form.value.media_assets.filter((_, assetIndex) => assetIndex !== index);
+};
+
 const appendFormDataValue = (formData, key, value) => {
     if (Array.isArray(value)) {
         value.forEach((item) => {
@@ -349,6 +382,10 @@ const appendFormDataValue = (formData, key, value) => {
     }
 
     formData.append(key, value ?? '');
+};
+
+const appendMediaAssets = (formData, assets) => {
+    formData.append('media_assets', JSON.stringify(serializeSocialMediaAssets(assets)));
 };
 
 const usesFormData = (payload) => payload instanceof FormData;
@@ -368,12 +405,13 @@ const templatePayload = () => {
         name: String(form.value.name || '').trim(),
         text: String(form.value.text || '').trim(),
         image_url: String(form.value.image_url || '').trim(),
+        media_assets: serializeSocialMediaAssets(form.value.media_assets),
         link_url: String(form.value.link_url || '').trim(),
         link_cta_label: String(form.value.link_cta_label || '').trim(),
         target_connection_ids: availableTargetConnectionIds(form.value.target_connection_ids),
     };
 
-    if (!(imageFile.value instanceof File)) {
+    if (mediaFiles.value.length === 0) {
         return payload;
     }
 
@@ -382,7 +420,10 @@ const templatePayload = () => {
     appendFormDataValue(formData, 'name', payload.name);
     appendFormDataValue(formData, 'text', payload.text);
     appendFormDataValue(formData, 'image_url', payload.image_url);
-    appendFormDataValue(formData, 'image_file', imageFile.value);
+    mediaFiles.value.forEach((mediaFile) => {
+        formData.append('media_files[]', mediaFile);
+    });
+    appendMediaAssets(formData, form.value.media_assets);
     appendFormDataValue(formData, 'link_url', payload.link_url);
     appendFormDataValue(formData, 'link_cta_label', payload.link_cta_label);
     appendFormDataValue(formData, 'target_connection_ids', payload.target_connection_ids);
@@ -509,16 +550,34 @@ const useTemplateInComposer = (template) => {
                             :disabled="!canManage || busy"
                         />
 
-                        <DropzoneInput
-                            v-model="imageInputModel"
-                            :label="t('social.template_manager.fields.image_file')"
-                        />
+                        <div class="rounded-2xl border border-neutral-200 bg-neutral-50/70 p-4 dark:border-neutral-700 dark:bg-neutral-900/40">
+                            <div class="text-sm font-semibold text-neutral-900 dark:text-white">
+                                {{ t('social.template_manager.fields.media') }}
+                            </div>
+                            <p class="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                                {{ t('social.template_manager.fields.media_help') }}
+                            </p>
 
-                        <SocialMediaAssetPicker
-                            v-model="imageInputModel"
-                            :assets="mediaAssets"
-                            :disabled="!canManage || busy"
-                        />
+                            <div class="mt-4 grid grid-cols-1 gap-4">
+                                <DropzoneInput
+                                    v-model="mediaFiles"
+                                    mode="media"
+                                    multiple
+                                    :max-files="SOCIAL_MEDIA_MAX_ITEMS"
+                                    :existing-items="existingMediaItems"
+                                    :allowed-extensions="SOCIAL_MEDIA_EXTENSIONS"
+                                    :label="t('social.template_manager.fields.media')"
+                                    :disabled="!canManage || busy"
+                                    @remove-existing="removeExistingMedia"
+                                />
+
+                                <SocialMediaAssetPicker
+                                    v-model="imageInputModel"
+                                    :assets="mediaAssets"
+                                    :disabled="!canManage || busy || mediaLimitReached"
+                                />
+                            </div>
+                        </div>
 
                         <FloatingInput
                             v-model="form.image_url"
@@ -526,7 +585,7 @@ const useTemplateInComposer = (template) => {
                             :label="t('social.template_manager.fields.image_url')"
                             placeholder="https://example.com/image.jpg"
                             autocomplete="url"
-                            :disabled="!canManage || busy"
+                            :disabled="!canManage || busy || (mediaLimitReached && !form.image_url)"
                         />
 
                         <FloatingInput

@@ -2,14 +2,27 @@
 
 namespace App\Actions\Quotes;
 
+use App\Models\OfferPackage;
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Services\OfferPackages\OfferPackageSalesLineBuilder;
 use App\Services\ResolveTenantCurrency;
+use Illuminate\Validation\ValidationException;
 
 class BuildQuoteItemsAction
 {
-    public function execute(array $lines, string $itemType, int $userId, int $accountId, int $creatorId): array
-    {
+    public function __construct(
+        private readonly OfferPackageSalesLineBuilder $offerPackageSalesLineBuilder
+    ) {}
+
+    public function execute(
+        array $lines,
+        string $itemType,
+        int $userId,
+        int $accountId,
+        int $creatorId,
+        array $existingOfferPackageSources = []
+    ): array {
         $lines = collect($lines);
         $productIds = $lines->pluck('id')->filter()->map(fn ($id) => (int) $id)->unique()->values();
         $productMap = $productIds->isNotEmpty()
@@ -17,11 +30,30 @@ class BuildQuoteItemsAction
             : collect();
         $currencyCode = app(ResolveTenantCurrency::class)->forAccountId($accountId)->currencyCode->value;
 
-        return $lines->map(function (array $line) use ($productMap, $itemType, $userId, $accountId, $creatorId, $currencyCode) {
+        return $lines->map(function (array $line) use ($productMap, $itemType, $userId, $accountId, $creatorId, $currencyCode, $existingOfferPackageSources) {
             $quantity = (int) ($line['quantity'] ?? 1);
             $price = (float) ($line['price'] ?? 0);
             $description = $line['description'] ?? null;
             $sourceDetails = $this->normalizeSourceDetails($line['source_details'] ?? null);
+
+            if ($offerSource = $this->offerPackageFromSourceDetails($sourceDetails, $accountId, $existingOfferPackageSources)) {
+                $offer = $offerSource['offer'];
+                $line = array_merge(
+                    $line,
+                    $this->offerPackageSalesLineBuilder->quoteLinePayload($offer, $quantity, $price)
+                );
+                if ($offerSource['preserve_snapshot']) {
+                    $line['name'] = data_get($offerSource['source_details'], 'offer_package.name', $line['name']);
+                    $line['description'] = data_get(
+                        $offerSource['source_details'],
+                        'summary',
+                        data_get($offerSource['source_details'], 'offer_package.description', $line['description'])
+                    );
+                }
+                $description = $line['description'];
+                $sourceDetails = $offerSource['source_details'];
+            }
+
             $productId = isset($line['id']) && $line['id'] !== null ? (int) $line['id'] : null;
             $lineItemType = $line['item_type'] ?? $itemType;
             $model = null;
@@ -80,6 +112,41 @@ class BuildQuoteItemsAction
         }
 
         return is_array($details) ? $details : null;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $existingOfferPackageSources
+     * @return array{offer: OfferPackage, source_details: array<string, mixed>, preserve_snapshot: bool}|null
+     */
+    private function offerPackageFromSourceDetails(
+        ?array $sourceDetails,
+        int $accountId,
+        array $existingOfferPackageSources
+    ): ?array {
+        if (($sourceDetails['source'] ?? null) !== 'offer_package') {
+            return null;
+        }
+
+        $offerPackageId = (int) ($sourceDetails['offer_package_id'] ?? 0);
+        $offer = $offerPackageId > 0
+            ? OfferPackage::query()
+                ->forAccount($accountId)
+                ->with('items')
+                ->find($offerPackageId)
+            : null;
+        $existingSourceDetails = $existingOfferPackageSources[$offerPackageId] ?? null;
+
+        if (! $offer || ($offer->status !== OfferPackage::STATUS_ACTIVE && ! $existingSourceDetails)) {
+            throw ValidationException::withMessages([
+                'product' => 'The selected pack or forfait is no longer available.',
+            ]);
+        }
+
+        return [
+            'offer' => $offer,
+            'source_details' => $existingSourceDetails ?: $this->offerPackageSalesLineBuilder->sourceDetails($offer),
+            'preserve_snapshot' => $existingSourceDetails !== null,
+        ];
     }
 
     private function createProductFromLine(

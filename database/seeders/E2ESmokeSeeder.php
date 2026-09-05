@@ -7,12 +7,14 @@ use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\Quote;
 use App\Models\Request as LeadRequest;
+use App\Models\Reservation;
 use App\Models\Role;
 use App\Models\Sale;
 use App\Models\TeamMember;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\URL;
 
 class E2ESmokeSeeder extends Seeder
 {
@@ -24,14 +26,17 @@ class E2ESmokeSeeder extends Seeder
             'name' => 'E2E Service Owner',
             'email' => 'e2e.service.owner@example.test',
             'company_name' => 'E2E Service Company',
+            'company_logo' => '/images/presets/company-1.svg',
             'company_slug' => 'e2e-service-company',
             'company_type' => 'services',
             'company_sector' => 'construction',
             'company_features' => [
                 'requests' => true,
                 'quotes' => true,
+                'services' => true,
                 'team_members' => true,
                 'tasks' => true,
+                'reservations' => true,
             ],
             'is_suspended' => false,
         ]);
@@ -172,10 +177,54 @@ class E2ESmokeSeeder extends Seeder
             'contact_email' => 'convert.lead@example.test',
         ]);
 
+        $serviceCategory = ProductCategory::create([
+            'name' => 'E2E Service Category',
+            'user_id' => $serviceOwner->id,
+            'created_by_user_id' => $serviceOwner->id,
+        ]);
+
+        $publicShowcaseService = Product::create([
+            'user_id' => $serviceOwner->id,
+            'category_id' => $serviceCategory->id,
+            'name' => 'E2E Public Showcase Service',
+            'description' => 'Public service showcase smoke item',
+            'price' => 125,
+            'stock' => 0,
+            'minimum_stock' => 0,
+            'tax_rate' => 0,
+            'item_type' => Product::ITEM_TYPE_SERVICE,
+            'is_active' => true,
+        ]);
+
+        $reservationRows = collect(range(0, 11))->map(function (int $index) use ($serviceOwner, $serviceRep, $serviceCustomer, $publicShowcaseService) {
+            $startsAt = now('UTC')
+                ->startOfDay()
+                ->addDays($index + 1)
+                ->setTime(9 + ($index % 6), 0);
+
+            return Reservation::query()->create([
+                'account_id' => $serviceOwner->id,
+                'team_member_id' => $serviceRep->id,
+                'client_id' => $serviceCustomer->id,
+                'service_id' => $publicShowcaseService->id,
+                'created_by_user_id' => $serviceOwner->id,
+                'status' => $index % 2 === 0
+                    ? Reservation::STATUS_PENDING
+                    : Reservation::STATUS_CONFIRMED,
+                'source' => Reservation::SOURCE_STAFF,
+                'timezone' => 'UTC',
+                'starts_at' => $startsAt,
+                'ends_at' => $startsAt->copy()->addHour(),
+                'duration_minutes' => 60,
+                'buffer_minutes' => 0,
+            ]);
+        });
+
         $productOwner = User::factory()->create([
             'name' => 'E2E Product Owner',
             'email' => 'e2e.product.owner@example.test',
             'company_name' => 'E2E Product Company',
+            'company_logo' => '/images/presets/company-2.svg',
             'company_slug' => 'e2e-product-company',
             'company_type' => 'products',
             'company_sector' => 'retail',
@@ -292,6 +341,14 @@ class E2ESmokeSeeder extends Seeder
                 'assigneeId' => $serviceRep->id,
                 'assigneeName' => $serviceRepUser->name,
             ],
+            'reservations' => [
+                'path' => route('reservation.index', [
+                    'view_mode' => 'calendar',
+                    'per_page' => 25,
+                ], absolute: false),
+                'firstId' => $reservationRows->first()->id,
+                'lastId' => $reservationRows->last()->id,
+            ],
             'productOwner' => [
                 'name' => $productOwner->name,
                 'email' => $productOwner->email,
@@ -311,7 +368,21 @@ class E2ESmokeSeeder extends Seeder
             'publicStore' => [
                 'path' => route('public.store.show', $productOwner->company_slug, absolute: false),
                 'companyName' => $productOwner->company_name,
+                'logoUrl' => $productOwner->company_logo,
                 'productName' => $publicStoreProduct->name,
+            ],
+            'publicShowcase' => [
+                'path' => route('public.showcase.show', $serviceOwner->company_slug, absolute: false),
+                'companyName' => $serviceOwner->company_name,
+                'logoUrl' => $serviceOwner->company_logo,
+                'serviceName' => $publicShowcaseService->name,
+            ],
+            'tenantBranding' => [
+                'companyName' => $serviceOwner->company_name,
+                'logoUrl' => $serviceOwner->company_logo,
+                'publicRequestPath' => URL::signedRoute('public.requests.form', [
+                    'user' => $serviceOwner->id,
+                ]),
             ],
         ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
     }

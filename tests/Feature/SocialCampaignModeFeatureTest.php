@@ -59,12 +59,15 @@ function pulsePhaseThreeTeamMember(User $owner, array $permissions = []): User
 
 function pulsePhaseThreeConnection(User $owner, string $platform = SocialAccountConnection::PLATFORM_FACEBOOK): SocialAccountConnection
 {
+    $externalAccountId = $platform.'-'.Str::lower(Str::random(8));
+
     return SocialAccountConnection::query()->create([
         'user_id' => $owner->id,
         'platform' => $platform,
         'label' => Str::headline($platform).' page',
         'display_name' => 'Pulse '.Str::headline($platform),
-        'external_account_id' => $platform.'-'.Str::lower(Str::random(8)),
+        'external_account_id' => $externalAccountId,
+        ...pulseDirectTransportIdentity($owner, $platform, $externalAccountId),
         'credentials' => [
             'access_token' => 'token-'.$platform,
         ],

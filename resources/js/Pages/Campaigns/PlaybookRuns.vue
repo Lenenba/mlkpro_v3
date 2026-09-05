@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
@@ -206,6 +207,14 @@ const formatRelativeDate = (value) => humanizeDate(value) || '-';
 const actionLabel = (value) => humanizeValue(value);
 const summaryErrors = (run) => (Array.isArray(run?.summary?.errors) ? run.summary.errors.slice(0, 2) : []);
 const hasErrors = (run) => summaryErrors(run).length > 0;
+const runMetrics = computed(() => [
+    { key: 'total', label: t('marketing.playbook_runs.cards.total'), value: Number(props.stats.total || 0), tone: 'stone', testId: 'playbook-runs-card-total' },
+    { key: 'active', label: t('marketing.playbook_runs.cards.active'), value: Number(props.stats.active || 0), tone: 'amber', testId: 'playbook-runs-card-active' },
+    { key: 'completed', label: t('marketing.playbook_runs.cards.completed'), value: Number(props.stats.completed || 0), tone: 'emerald', testId: 'playbook-runs-card-completed' },
+    { key: 'failed', label: t('marketing.playbook_runs.cards.failed'), value: Number(props.stats.failed || 0), tone: 'rose', testId: 'playbook-runs-card-failed' },
+    { key: 'processed', label: t('marketing.playbook_runs.cards.processed'), value: Number(props.stats.processed || 0), tone: 'sky', testId: 'playbook-runs-card-processed' },
+    { key: 'skipped', label: t('marketing.playbook_runs.cards.skipped'), value: Number(props.stats.skipped || 0), tone: 'orange', testId: 'playbook-runs-card-skipped' },
+]);
 </script>
 
 <template>
@@ -263,32 +272,7 @@ const hasErrors = (run) => summaryErrors(run).length > 0;
                 </div>
             </section>
 
-            <section class="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-                <div class="rounded-sm border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-900" data-testid="playbook-runs-card-total">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ t('marketing.playbook_runs.cards.total') }}</div>
-                    <div class="mt-1 text-xl font-semibold text-stone-800 dark:text-neutral-100">{{ Number(stats.total || 0) }}</div>
-                </div>
-                <div class="rounded-sm border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-900" data-testid="playbook-runs-card-active">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ t('marketing.playbook_runs.cards.active') }}</div>
-                    <div class="mt-1 text-xl font-semibold text-amber-700 dark:text-amber-300">{{ Number(stats.active || 0) }}</div>
-                </div>
-                <div class="rounded-sm border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-900" data-testid="playbook-runs-card-completed">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ t('marketing.playbook_runs.cards.completed') }}</div>
-                    <div class="mt-1 text-xl font-semibold text-emerald-700 dark:text-emerald-300">{{ Number(stats.completed || 0) }}</div>
-                </div>
-                <div class="rounded-sm border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-900" data-testid="playbook-runs-card-failed">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ t('marketing.playbook_runs.cards.failed') }}</div>
-                    <div class="mt-1 text-xl font-semibold text-rose-700 dark:text-rose-300">{{ Number(stats.failed || 0) }}</div>
-                </div>
-                <div class="rounded-sm border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-900" data-testid="playbook-runs-card-processed">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ t('marketing.playbook_runs.cards.processed') }}</div>
-                    <div class="mt-1 text-xl font-semibold text-stone-800 dark:text-neutral-100">{{ Number(stats.processed || 0) }}</div>
-                </div>
-                <div class="rounded-sm border border-stone-200 bg-white p-3 shadow-sm dark:border-neutral-700 dark:bg-neutral-900" data-testid="playbook-runs-card-skipped">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ t('marketing.playbook_runs.cards.skipped') }}</div>
-                    <div class="mt-1 text-xl font-semibold text-stone-800 dark:text-neutral-100">{{ Number(stats.skipped || 0) }}</div>
-                </div>
-            </section>
+            <KpiMetricGrid :metrics="runMetrics" :aria-label="t('marketing.playbook_runs.page_title')" />
 
             <section class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                 <AdminDataTable

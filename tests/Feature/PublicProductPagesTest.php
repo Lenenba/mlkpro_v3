@@ -81,13 +81,14 @@ it('seeds the other product module pages with the same narrative section order a
 
 it('seeds industries and contact us in the public header', function () {
     $ownerRole = Role::query()->firstOrCreate(['name' => 'owner'], ['description' => 'Owner']);
-    User::query()->create([
+    $owner = User::query()->create([
         'name' => 'Owner Services',
         'email' => 'owner.services@example.com',
         'role_id' => $ownerRole->id,
         'password' => 'password',
         'company_features' => ['requests' => true],
     ]);
+    config()->set('app.lead_intake_user_id', $owner->id);
 
     $this->seed(MegaMenuSeeder::class);
 
@@ -214,6 +215,7 @@ it('hydrates the embedded contact form on contact us pages even when the stored 
         'password' => 'password',
         'company_features' => ['requests' => true],
     ]);
+    config()->set('app.lead_intake_user_id', $owner->id);
 
     PlatformPage::query()->create([
         'slug' => 'contact-us',

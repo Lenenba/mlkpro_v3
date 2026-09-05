@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\User;
 use App\Services\InvoiceDocumentService;
+use App\Services\TenantBrandingResolver;
 use App\Support\QueueWorkload;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -67,8 +68,7 @@ class InvoiceAvailableNotification extends Notification implements ShouldQueue
         $invoiceDocumentService = app(InvoiceDocumentService::class);
         $invoice = $invoiceDocumentService->prepareInvoice($this->invoice);
         $companyUser = $this->resolveCompanyUser($notifiable, $invoice);
-        $companyName = $companyUser?->company_name ?: config('app.name');
-        $companyLogo = $companyUser?->company_logo_url;
+        $branding = app(TenantBrandingResolver::class)->forAccountOwner($companyUser);
 
         return (new MailMessage)
             ->subject($this->subject ?? $this->title)
@@ -79,8 +79,8 @@ class InvoiceAvailableNotification extends Notification implements ShouldQueue
                 'actionUrl' => $this->actionUrl,
                 'actionLabel' => $this->actionLabel,
                 'note' => $this->note,
-                'companyName' => $companyName,
-                'companyLogo' => $companyLogo,
+                'companyName' => $branding['name'],
+                'companyLogo' => $branding['custom_logo_url'],
             ])
             ->attachData(
                 $invoiceDocumentService->renderPdfContent($invoice, $companyUser),
@@ -91,18 +91,24 @@ class InvoiceAvailableNotification extends Notification implements ShouldQueue
 
     private function resolveCompanyUser(object $notifiable, Invoice $invoice): ?User
     {
-        if ($notifiable instanceof Customer) {
+        $invoiceOwner = $invoice->relationLoaded('user')
+            ? $invoice->user
+            : User::query()->find($invoice->user_id);
+
+        if ($invoiceOwner) {
+            return $invoiceOwner;
+        }
+
+        if ($notifiable instanceof Customer && $notifiable->user) {
             return $notifiable->user;
         }
 
-        if ($notifiable instanceof User) {
-            return User::find($notifiable->accountOwnerId());
+        if ($notifiable instanceof User
+            && ! $notifiable->isSuperadmin()
+            && ! $notifiable->isPlatformAdmin()) {
+            return app(TenantBrandingResolver::class)->resolveAccountOwner($notifiable);
         }
 
-        if ($invoice->relationLoaded('user')) {
-            return $invoice->user;
-        }
-
-        return User::find($invoice->user_id);
+        return null;
     }
 }

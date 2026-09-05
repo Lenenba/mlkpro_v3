@@ -12,7 +12,10 @@ use Illuminate\Support\Facades\Notification;
 test('owners can send an invoice email from the invoices module and drafts become sent', function () {
     Notification::fake();
 
-    $owner = User::factory()->create();
+    $owner = User::factory()->create([
+        'company_name' => 'Atelier Boréal',
+        'company_logo' => 'https://assets.example.test/atelier-boreal-wide.png',
+    ]);
 
     $customer = Customer::factory()->create([
         'user_id' => $owner->id,
@@ -47,9 +50,16 @@ test('owners can send an invoice email from the invoices module and drafts becom
 
     Notification::assertSentTo($customer, InvoiceAvailableNotification::class, function (InvoiceAvailableNotification $notification) use ($customer, $invoice) {
         $mailMessage = $notification->toMail($customer);
+        $html = view($mailMessage->view, $mailMessage->viewData)->render();
 
         return in_array($notification->subject, ['New invoice available', 'Nouvelle facture disponible'], true)
             && str_contains((string) $notification->actionUrl, (string) $invoice->id)
+            && ($mailMessage->viewData['companyName'] ?? null) === 'Atelier Boréal'
+            && ($mailMessage->viewData['companyLogo'] ?? null) === 'https://assets.example.test/atelier-boreal-wide.png'
+            && str_contains($html, 'Atelier Boréal')
+            && str_contains($html, 'https://assets.example.test/atelier-boreal-wide.png')
+            && substr_count($html, __('mail.layout.powered_by', ['platform' => 'Malikia Pro'])) === 1
+            && ! str_contains($html, __('mail.layout.platform_tagline'))
             && count($mailMessage->rawAttachments) === 1
             && ($mailMessage->rawAttachments[0]['name'] ?? null) === 'invoice-'.($invoice->number ?: $invoice->id).'.pdf'
             && ($mailMessage->rawAttachments[0]['options']['mime'] ?? null) === 'application/pdf'

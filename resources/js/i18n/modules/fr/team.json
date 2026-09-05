@@ -17,10 +17,16 @@
       "active": "Actif",
       "inactive": "Inactif"
     },
+    "view": {
+      "label": "Mode d'affichage des membres",
+      "table": "Tableau",
+      "cards": "Cartes"
+    },
     "actions": {
       "clear": "Effacer",
       "add_member": "Ajouter un membre",
-      "member_actions": "Actions du membre",
+      "member_actions": "Actions pour {name}",
+      "view_member": "Voir la fiche de {name}",
       "details": "Details",
       "edit": "Modifier",
       "deactivate": "Desactiver",
@@ -117,7 +123,7 @@
         "campaigns_view": "Voir les campagnes",
         "campaigns_manage": "Creer et modifier les campagnes",
         "campaigns_send": "Envoyer les campagnes",
-        "social_view": "Voir Malikia Pulse",
+        "social_view": "Voir Pulse",
         "social_manage": "Creer et modifier les posts sociaux",
         "social_publish": "Publier et planifier les posts sociaux",
         "social_approve": "Approuver les posts sociaux",

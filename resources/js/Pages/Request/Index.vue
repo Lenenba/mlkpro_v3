@@ -2,6 +2,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head } from '@inertiajs/vue3';
 import { computed } from 'vue';
+import ModuleKpiSection from '@/Components/Dashboard/ModuleKpiSection.vue';
 import RequestStats from '@/Components/UI/RequestStats.vue';
 import ProspectDashboardAnalytics from '@/Pages/Request/UI/ProspectDashboardAnalytics.vue';
 import RequestTable from '@/Pages/Request/UI/RequestTable.vue';
@@ -53,7 +54,9 @@ const isProspectDashboard = computed(() => props.analytics?.kind === 'prospect_d
             </p>
         </div>
         <div class="mt-3">
-            <RequestStats :stats="stats" />
+            <ModuleKpiSection module-key="requests">
+                <RequestStats :stats="stats" />
+            </ModuleKpiSection>
         </div>
         <div class="mt-3">
             <ProspectDashboardAnalytics v-if="isProspectDashboard" :analytics="analytics" />

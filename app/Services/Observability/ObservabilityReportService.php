@@ -3,6 +3,7 @@
 namespace App\Services\Observability;
 
 use App\Services\QueueHealthService;
+use App\Services\Social\SocialDeliveryHealthService;
 
 class ObservabilityReportService
 {
@@ -12,7 +13,8 @@ class ObservabilityReportService
         private readonly SlowQueryService $slowQueries,
         private readonly ErrorMetricsService $errors,
         private readonly ObservabilityCacheStore $cache,
-        private readonly TelemetryQueryGuard $queryGuard
+        private readonly TelemetryQueryGuard $queryGuard,
+        private readonly SocialDeliveryHealthService $pulseDeliveryHealth,
     ) {}
 
     /**
@@ -27,13 +29,17 @@ class ObservabilityReportService
             'requests' => $this->requestMetrics->summary($scope),
             'queries' => $this->slowQueries->summary($scope),
             'errors' => $this->errors->summary($scope),
+            'pulse_delivery' => $scope === null
+                ? $this->pulseDeliveryHealth->summary()
+                : ['scope_excluded' => true],
         ]);
         $queue = $metrics['queue'];
         $requests = $metrics['requests'];
         $queries = $metrics['queries'];
         $errors = $metrics['errors'];
+        $pulseDelivery = $metrics['pulse_delivery'];
         $dataQuality = $this->dataQuality($queue, $requests, $queries, $errors);
-        $alerts = $this->alerts($queue, $requests, $queries, $errors);
+        $alerts = $this->alerts($queue, $requests, $queries, $errors, $pulseDelivery);
         $windowStartedAt = is_string($scope['started_at'] ?? null)
             ? $scope['started_at']
             : now()->subHours(24)->toIso8601String();
@@ -60,6 +66,7 @@ class ObservabilityReportService
             'requests' => $requests,
             'slow_queries' => $queries,
             'errors' => $errors,
+            'pulse_delivery' => $pulseDelivery,
             'alerts' => $alerts,
         ];
     }
@@ -69,10 +76,16 @@ class ObservabilityReportService
      * @param  array<int, array<string, mixed>>  $requests
      * @param  array<string, mixed>  $queries
      * @param  array<string, mixed>  $errors
+     * @param  array<string, mixed>  $pulseDelivery
      * @return array<int, array<string, mixed>>
      */
-    private function alerts(array $queue, array $requests, array $queries, array $errors): array
-    {
+    private function alerts(
+        array $queue,
+        array $requests,
+        array $queries,
+        array $errors,
+        array $pulseDelivery,
+    ): array {
         $alerts = [];
         $thresholds = config('observability.alerts', []);
 
@@ -182,6 +195,98 @@ class ObservabilityReportService
                     ['label' => 'Threshold', 'value' => (int) ($thresholds['errors_1h'] ?? 0)],
                 ],
             ];
+        }
+
+        if (! ($pulseDelivery['scope_excluded'] ?? false)) {
+            $unknownCount = (int) data_get($pulseDelivery, 'active_status_counts.unknown', 0);
+            $deadCount = (int) data_get($pulseDelivery, 'active_status_counts.dead', 0);
+            $expiredClaims = (int) ($pulseDelivery['expired_claims'] ?? 0);
+            $reconciliationExpiredClaims = (int) data_get(
+                $pulseDelivery,
+                'reconciliation.expired_claims',
+                0,
+            );
+            $reconciliationOperatorReview = (int) data_get(
+                $pulseDelivery,
+                'reconciliation.operator_review',
+                0,
+            );
+            $oldestActionableMinutes = is_numeric($pulseDelivery['oldest_actionable_age_seconds'] ?? null)
+                ? (float) $pulseDelivery['oldest_actionable_age_seconds'] / 60
+                : null;
+
+            if ($unknownCount > (int) ($thresholds['pulse_delivery_unknown'] ?? PHP_INT_MAX)) {
+                $alerts[] = [
+                    'code' => 'pulse_delivery_unknown',
+                    'severity' => 'critical',
+                    'title' => 'Pulse delivery requires manual reconciliation',
+                    'message' => 'At least one delivery has an ambiguous remote outcome and must not be retried automatically.',
+                    'details' => [
+                        ['label' => 'Unknown deliveries', 'value' => $unknownCount],
+                    ],
+                ];
+            }
+
+            if ($deadCount > (int) ($thresholds['pulse_delivery_dead'] ?? PHP_INT_MAX)) {
+                $alerts[] = [
+                    'code' => 'pulse_delivery_dead',
+                    'severity' => 'warning',
+                    'title' => 'Pulse delivery failures require attention',
+                    'message' => 'Terminal delivery failures exceeded the configured threshold.',
+                    'details' => [
+                        ['label' => 'Dead deliveries', 'value' => $deadCount],
+                    ],
+                ];
+            }
+
+            if ($expiredClaims > (int) ($thresholds['pulse_delivery_expired_claims'] ?? PHP_INT_MAX)) {
+                $alerts[] = [
+                    'code' => 'pulse_delivery_expired_claims',
+                    'severity' => 'warning',
+                    'title' => 'Pulse delivery claims expired',
+                    'message' => 'One or more delivery leases are waiting for the durable sweeper.',
+                    'details' => [
+                        ['label' => 'Expired claims', 'value' => $expiredClaims],
+                    ],
+                ];
+            }
+
+            if ($oldestActionableMinutes !== null
+                && $oldestActionableMinutes > (float) ($thresholds['pulse_delivery_oldest_actionable_minutes'] ?? PHP_INT_MAX)) {
+                $alerts[] = [
+                    'code' => 'pulse_delivery_oldest_actionable',
+                    'severity' => 'warning',
+                    'title' => 'Pulse delivery outbox is delayed',
+                    'message' => 'The oldest actionable Pulse delivery exceeded the configured age threshold.',
+                    'details' => [
+                        ['label' => 'Oldest actionable (minutes)', 'value' => round($oldestActionableMinutes, 2)],
+                    ],
+                ];
+            }
+
+            if ($reconciliationExpiredClaims > (int) ($thresholds['pulse_reconciliation_expired_claims'] ?? PHP_INT_MAX)) {
+                $alerts[] = [
+                    'code' => 'pulse_reconciliation_expired_claims',
+                    'severity' => 'warning',
+                    'title' => 'Pulse reconciliation claims expired',
+                    'message' => 'One or more status-read leases require recovery before another remote read.',
+                    'details' => [
+                        ['label' => 'Expired reconciliation claims', 'value' => $reconciliationExpiredClaims],
+                    ],
+                ];
+            }
+
+            if ($reconciliationOperatorReview > (int) ($thresholds['pulse_reconciliation_operator_review'] ?? PHP_INT_MAX)) {
+                $alerts[] = [
+                    'code' => 'pulse_reconciliation_operator_review',
+                    'severity' => 'critical',
+                    'title' => 'Pulse reconciliation requires operator review',
+                    'message' => 'Automatic status reads stopped without a terminal delivery result; no new creation is allowed.',
+                    'details' => [
+                        ['label' => 'Deliveries requiring review', 'value' => $reconciliationOperatorReview],
+                    ],
+                ];
+            }
         }
 
         foreach ($requests as $route) {

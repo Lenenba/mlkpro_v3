@@ -7,8 +7,8 @@ Ce document est la vue maître pour suivre l’évolution complète du programme
 - Plan canonique actuel : **cinq phases d’exécution, numérotées de 0 à 4**.
 - Phase active autorisée : **Phase 1 — Gains rapides de performance**.
 - État global : **Phase 0 clôturée sous dérogation MLK-DEC-010 ; Phase 1 ouverte ; Phases 2 à 4 planifiées mais non ouvertes**.
-- Progression des tickets canoniques : **P0-001 à P0-004, P0-007 et P1-001 sont terminés ; P0-005/P0-006 restent des preuves opérationnelles reportées sous dérogation ; P1-002 est validé localement**. Cet indicateur ne mesure ni la charge ni un pourcentage d’achèvement produit.
-- Prochaine gate de sortie de phase : **acceptation humaine de P1-002 — réduction des tables Ziggy avec mesures statiques, tests et rollback**.
+- Progression des tickets canoniques : **P0-001 à P0-004, P0-007, P1-001 et P1-002 sont terminés ; P0-005/P0-006 restent des preuves opérationnelles reportées sous dérogation ; P1-003/P1-004 sont en validation locale et P1-005 attend son acceptation humaine après CI distante verte**. Cet indicateur ne mesure ni la charge ni un pourcentage d’achèvement produit.
+- Prochaine gate de sortie de phase : **exécuter le [runbook de validation Phase 1](PHASE_1_VALIDATION_RUNBOOK.md), obtenir les acceptations humaines de P1-003 à P1-005, puis choisir les trois priorités P2 sans attribuer de gain à une baseline dynamique absente**.
 - Règle Git : les travaux et pull requests ciblent `develop` ; `main` reste réservé au propriétaire humain du dépôt.
 
 ## Comment lire les états
@@ -30,8 +30,8 @@ Une validation locale ne vaut pas validation distante. Une fusion ne vaut pas d�
 | Phase | Objectif | Récapitulatif acquis | État actuel | Prochaine action | Gate de sortie |
 |---:|---|---|---|---|---|
 | 0 — Sécurité et baseline | Retirer les risques immédiats et produire une base de mesure fiable | P0-001 à P0-004 terminés ; harnais P0-005 et runner/import P0-006 v3 intégrés dans develop par e91adf8, validés localement et par la CI de la PR #135 | Terminée sous dérogation | GO P0-007 accepté ; réaliser les preuves opérationnelles P0-005/P0-006 avant le 2027-08-04 | Dérogation MLK-DEC-010 tracée, risques acceptés et échéance ferme |
-| 1 — Gains rapides de performance | Supprimer les coûts frontend globaux sans changer les workflows | P1-001 terminé après acceptation humaine ; P1-002 réduit les tables Ziggy par surface et est validé localement | Ouverte — P1-002 en validation locale | Faire accepter P1-002, sans attribuer de gain à une baseline dynamique absente, avant d’ouvrir P1-003 | Gains mesurés, contrats frontend inchangés, Playwright vert et budgets frontend actifs en CI |
-| 2 — Performance données et runtime | Stabiliser p95, mémoire, SQL, cache et queues lorsque les volumes augmentent | Sept tickets, principes de mode ombre et critères de comparaison définis ; aucun ticket P2 démarré | En attente | Après la Phase 1, sélectionner trois priorités initiales et faire accepter `MLK-DEC-005` avant toute migration Redis | Résultats ancien/nouveau identiques, requêtes et mémoire bornées, Redis contrôlé et canari multi-entreprise réussi |
+| 1 — Gains rapides de performance | Supprimer les coûts frontend globaux sans changer les workflows | P1-001 et P1-002 terminés après acceptation humaine ; P1-003/P1-004 validés localement, P1-005 validé localement et par CI distante | Ouverte — acceptations P1-003/P1-004/P1-005 attendues | Obtenir les acceptations humaines sans attribuer de gain à une baseline dynamique absente | Gains mesurés, contrats frontend inchangés, Playwright vert et budgets frontend actifs en CI |
+| 2 — Performance données et runtime | Stabiliser p95, mémoire, SQL, cache et queues lorsque les volumes augmentent | Sept tickets, principes de mode ombre et critères de comparaison définis ; pré-sélection `P2-001` → `P2-002` → `P2-003` proposée par `MLK-DEC-011`, aucun ticket démarré | En attente | Après la Phase 1, faire accepter ou réviser `MLK-DEC-011` et statuer `MLK-DEC-005` avant tout GO P2 | Résultats ancien/nouveau identiques, requêtes et mémoire bornées, Redis contrôlé et canari multi-entreprise réussi |
 | 3 — Expérience utilisateur premium | Réduire la complexité perçue et accélérer les tâches par rôle | Six tickets, rollout par rôle et critères utilisateur définis ; aucune validation P3 | En attente | Après les Phases 1 et 2, définir la baseline des cinq tâches, les pilotes et le protocole de validation | Cinq parcours améliorés, desktop/mobile/accessibilité/langues validés, pilotes favorables et rollback testé |
 | 4 — Différenciation produit | Relier opérations et finance dans une chaîne traçable, réversible et difficile à copier | Huit tickets exploratoires et critères de pilote définis ; aucune validation P4 | En attente | Après la Phase 3, valider par recherche `MLK-DEC-007`, puis le segment et les cinq workflows P4-001 avant tout investissement majeur | Pilote concluant, chaîne opérations-finance auditée, intégrations et IA contrôlées, décision d’investissement consignée |
 
@@ -121,10 +121,10 @@ Baseline statique déjà documentée : application JavaScript à 188,6 kB gzip, 
 | Ordre | Ticket | Ce que l’on compte faire | État | Déclencheur ou prochaine action |
 |---:|---|---|---|---|
 | 1 | P1-001 — Initialisation Preline ciblée | Remplacer le mixin global et les timers multiples par une initialisation unique après navigation | Terminé | Commit `71c1252`, preuves `VALID-P1-001-LOCAL-2026-08-04` et `VALID-P1-001-ACCEPTATION-HUMAINE-2026-08-04` ; acceptation humaine consignée, sans revendication dynamique |
-| 2 | P1-002 — Groupes de routes Ziggy | Fournir uniquement les routes nécessaires aux surfaces public, portail et admin | En validation locale | Commit `4778948`, carte public -90,1 %, portail -82,2 %, admin -16,9 % ; Feature 6/39 et Playwright 11/11 verts ; acceptation humaine avant P1-003 |
-| 3 | P1-003 — Traductions par domaine | Charger les catalogues nécessaires sans changer les clés ni le fallback anglais | En attente | Après P1-002 ; mesurer le JavaScript initial et vérifier FR/EN/ES |
-| 4 | P1-004 — Images et polices critiques | Ajouter AVIF/WebP, `srcset`, dimensions, priorité du héros et police non bloquante | En attente | Après P1-002, parallélisable avec P1-003 ; conserver les anciens médias pour rollback |
-| 5 | P1-005 — Budgets frontend CI | Versionner les tailles gzip et budgets par entrée/parcours | En attente | Après P1-001 à P1-004 ; toute exception doit être consignée dans `DECISIONS.md` |
+| 2 | P1-002 — Groupes de routes Ziggy | Fournir uniquement les routes nécessaires aux surfaces public, portail et admin | Terminé | Commit `4778948`, carte public -90,1 %, portail -82,2 %, admin -16,9 % ; Feature 6/39 et Playwright 11/11 verts ; acceptation humaine `VALID-P1-002-ACCEPTATION-HUMAINE-2026-08-04` |
+| 3 | P1-003 — Traductions par domaine | Charger les catalogues nécessaires sans changer les clés ni le fallback anglais | En validation locale | Commit `a27fdea4` ; Node 4/4, Vite et Playwright 2/2 verts dans les modes domaines et rollback ; payload i18n de démarrage mesuré | Obtenir l’acceptation humaine avant la clôture de Phase 1 ; P1-004 était parallélisable après P1-002 |
+| 4 | P1-004 — Images et polices critiques | Ajouter AVIF/WebP, `srcset`, dimensions, priorité du héros et police sans `@import` | En validation locale | Commit `4fa1ac3f` ; 25 JPEG stock / 100 variantes 640w/1280w ; Node 3/3, Vite, Pest 1 297/13 270 et Playwright 16/16 verts ; JPEG/custom/CDN préservés | Obtenir l’acceptation humaine des preuves locales et du rollback ; ne pas revendiquer de gain dynamique sans P0-006 |
+| 5 | P1-005 — Budgets frontend CI | Versionner les tailles gzip et budgets par entrée/parcours | En validation humaine — CI verte | Commit `2ff77eea` ; sept parcours JS/CSS/i18n, quatre profils AVIF/WebP locaux, baseline et plafond +5 %, Node 3/3, Vite, Pest 1 297/13 270, Playwright 16/16 et CI `30964242010` verts | Obtenir l’acceptation humaine ; une hausse/suppression/changement de profil exige une décision dédiée P1-005, acceptée et non expirée |
 
 Gate de sortie : contrats frontend inchangés, Playwright desktop/mobile vert, tailles et Web Vitals avant/après consignés, routes et traductions complètes, budgets CI actifs, rollback de chaque ticket documenté et trois priorités P2 choisies à partir des mesures.
 
@@ -132,7 +132,7 @@ Gate de sortie : contrats frontend inchangés, Playwright desktop/mobile vert, t
 
 Document détaillé : [PHASE_2_DATA_AND_RUNTIME_PERFORMANCE.md](PHASE_2_DATA_AND_RUNTIME_PERFORMANCE.md)
 
-Aucun ticket P2 n’a commencé. P0-005 et P0-006 sont des prérequis indirects via la fermeture de la Phase 0 et la production de la baseline ; ils ne valent pas validation de P2-006 ou P2-007. La Phase 1 sélectionnera trois priorités initiales à partir des mesures ; leur ordre de démarrage sera ensuite consigné.
+Aucun ticket P2 n’a commencé. P0-005 et P0-006 sont des prérequis indirects via la fermeture de la Phase 0 et la production de la baseline ; ils ne valent pas validation de P2-006 ou P2-007. `MLK-DEC-011` propose, sans autorisation d’exécution, l’ordre `P2-001` → `P2-002` → `P2-003` à confirmer après la Phase 1 ; aucun ordre de démarrage n’est acquis tant que la décision et le GO P2 ne sont pas acceptés.
 
 | Ordre documentaire | Ticket | Ce que l’on compte faire | État | Déclencheur ou prochaine action |
 |---:|---|---|---|---|
@@ -191,10 +191,11 @@ Gate de sortie : segment et proposition validés, chaîne opérations-finance au
 | 3 | Réévaluer MLK-DEC-009 et préparer P0-006 | Dérogation MLK-DEC-010 active jusqu’au 2027-08-04 | Environnement, validateur distinct et protocole de collecte autorisés |
 | 4 | Traiter les sept scénarios P0-006 | Reporté sous dérogation | Résultats v3 importés, empreintes approuvées, télémétrie et rapport strict représentatif |
 | 5 | Réévaluer ou clôturer MLK-DEC-010 | Échéance ferme : 2027-08-04 | Preuves P0-005/P0-006 réalisées ou nouvelle décision explicite |
-| 6 | Valider P1-002 | En validation locale | Revue humaine de la preuve locale, puis ouverture contrôlée de P1-003 |
-| 7 | Terminer Phase 1, prioriser Phase 2 et faire statuer `MLK-DEC-005` | En attente | Trois priorités P2 fondées sur les mesures et décision Redis explicite |
-| 8 | Exécuter Phase 2 puis ouvrir Phase 3 | En attente | Runtime borné, puis expérience utilisateur mesurable |
-| 9 | Valider Phase 3 puis conduire la recherche `MLK-DEC-007` avant Phase 4 | En attente | Pilotes UX concluants, positionnement décidé, puis différenciation produit validée par le marché |
+| 6 | Confirmer P1-005 — Budgets frontend CI | Terminé — CI `30964242010` verte | Build, sept parcours, i18n et médias stock contrôlés ; test du garde après build, MySQL et navigateur verts ; exception uniquement via décision P1-005 acceptée et active |
+| 7 | Accepter P1-003 à P1-005 | En validation locale | Décision humaine sur les preuves locales, les rollbacks et l’absence de revendication dynamique |
+| 8 | Terminer Phase 1, décider `MLK-DEC-011` et faire statuer `MLK-DEC-005` | En attente | Trois priorités P2 proposées à confirmer, preuves P0-005/P0-006 ou nouveau GO P2 explicite, décision Redis explicite et GO P2 séparé |
+| 9 | Exécuter Phase 2 puis ouvrir Phase 3 | En attente | Runtime borné, puis expérience utilisateur mesurable |
+| 10 | Valider Phase 3 puis conduire la recherche `MLK-DEC-007` avant Phase 4 | En attente | Pilotes UX concluants, positionnement décidé, puis différenciation produit validée par le marché |
 
 ## Règles de mise à jour du suivi
 
@@ -210,7 +211,9 @@ Gate de sortie : segment et proposition validés, chaîne opérations-finance au
 - [Cockpit d’exécution](README.md)
 - [Phase 0 — Sécurité et baseline](PHASE_0_SECURITY_AND_BASELINE.md)
 - [Phase 1 — Gains rapides de performance](PHASE_1_QUICK_PERFORMANCE_WINS.md)
+- [Runbook de validation Phase 1](PHASE_1_VALIDATION_RUNBOOK.md)
 - [Phase 2 — Performance données et runtime](PHASE_2_DATA_AND_RUNTIME_PERFORMANCE.md)
+- [Runbook d’exécution et de validation Phase 2](PHASE_2_EXECUTION_RUNBOOK.md)
 - [Phase 3 — Expérience utilisateur premium](PHASE_3_PREMIUM_USER_EXPERIENCE.md)
 - [Phase 4 — Différenciation produit](PHASE_4_PRODUCT_DIFFERENTIATION.md)
 - [Journal des validations](VALIDATION_LOG.md)

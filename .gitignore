@@ -3,6 +3,7 @@
 /public/build
 /public/hot
 /public/storage
+/test-results/
 /tmp-prospects
 /storage/*.key
 /MlkMobileApp
@@ -25,6 +26,13 @@ npm-debug.log
 yarn-error.log
 /.fleet
 /.idea
+/.junie/mcp/mcp.json
 /.nova
 /.vscode
 /.zed
+
+# Graphify generated knowledge graph
+graphify-out/
+
+# Local Graphify Codex hook
+.codex/hooks.json

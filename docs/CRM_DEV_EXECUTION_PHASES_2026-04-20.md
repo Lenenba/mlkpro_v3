@@ -656,7 +656,7 @@ Ajouter les abstractions avances seulement si les couches precedentes sont stabl
 - inbox commerciale simple
 - forecast simple
 - vues manager `stage aging / weighted pipeline / overdue next actions`
-- rattachement des vues `my next actions / sales inbox / manager dashboard` au module `sales` existant pour les forfaits et les overrides tenant
+- rattachement des vues `my next actions / sales inbox / manager dashboard` au module opt-in `sales_crm`, distinct du module caisse `sales`
 
 ### Hors-scope
 

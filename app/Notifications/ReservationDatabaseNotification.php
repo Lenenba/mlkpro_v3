@@ -31,11 +31,31 @@ class ReservationDatabaseNotification extends Notification implements ShouldQueu
 
     public function toArray(object $notifiable): array
     {
-        $title = (string) ($this->payload['title'] ?? LocalePreference::trans('mail.action.default_title', locale: LocalePreference::forNotifiable($notifiable)));
+        $locale = LocalePreference::forNotifiable($notifiable);
+        $parameters = is_array($this->payload['parameters'] ?? null)
+            ? $this->payload['parameters']
+            : [];
+        $titleKey = is_string($this->payload['title_key'] ?? null)
+            ? $this->payload['title_key']
+            : null;
+        $messageKey = is_string($this->payload['message_key'] ?? null)
+            ? $this->payload['message_key']
+            : null;
+        $title = $titleKey
+            ? LocalePreference::trans($titleKey, $parameters, $locale)
+            : (string) ($this->payload['title'] ?? LocalePreference::trans('mail.action.default_title', locale: $locale));
+        $message = $messageKey
+            ? LocalePreference::trans($messageKey, $parameters, $locale)
+            : (string) ($this->payload['message'] ?? '');
 
         return [
             'title' => $title,
-            'message' => (string) ($this->payload['message'] ?? ''),
+            'message' => $message,
+            'title_key' => $titleKey,
+            'message_key' => $messageKey,
+            'parameters' => $parameters,
+            'content_version' => $this->payload['content_version'] ?? null,
+            'audience' => $this->payload['audience'] ?? null,
             'action_url' => $this->payload['action_url'] ?? null,
             'category' => NotificationPreferenceService::CATEGORY_PLANNING,
             'event' => $this->payload['event'] ?? null,

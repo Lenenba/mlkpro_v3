@@ -12,12 +12,15 @@
     "paid": "Paye",
     "balance_due": "Solde du",
     "pay_title": "Payer cette facture",
+    "confirmation_required": "Votre déclaration reste en attente jusqu’à la confirmation de réception du paiement par l’entreprise.",
+    "secure_checkout_unavailable": "Le paiement sécurisé par carte est indisponible. Veuillez contacter l’entreprise.",
     "amount_placeholder": "Montant",
     "amount_cannot_exceed": "Le montant ne peut pas depasser {amount}.",
     "payment_hint": "Vous pouvez payer le solde complet ou choisir un montant partiel.",
     "reference_placeholder": "Reference",
     "notes_placeholder": "Notes",
     "actions": {
+      "declare_payment": "Déclarer un paiement",
       "pay_full_balance": "Payer le solde complet",
       "pay_invoice": "Payer la facture",
       "pay_with_stripe": "Payer avec Stripe"

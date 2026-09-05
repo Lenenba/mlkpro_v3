@@ -1,12 +1,21 @@
 <script setup>
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, reactive, ref, watch } from 'vue';
 import axios from 'axios';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingNumberInput from '@/Components/FloatingNumberInput.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import Checkbox from '@/Components/Checkbox.vue';
+import MultiImageInput from '@/Components/MultiImageInput.vue';
+import AsyncDropzonePlaceholder from '@/Components/AsyncDropzonePlaceholder.vue';
+import { toFormData } from '@/utils/formData';
 import { useI18n } from 'vue-i18n';
+
+const DropzoneInput = defineAsyncComponent({
+    loader: () => import('@/Components/DropzoneInput.vue'),
+    loadingComponent: AsyncDropzonePlaceholder,
+    delay: 0,
+});
 
 const props = defineProps({
     categories: {
@@ -30,13 +39,24 @@ const unitOptions = computed(() => ([
     { id: 'other', name: t('products.units.other') },
 ]));
 
+const trackingOptions = computed(() => ([
+    { id: 'none', name: t('products.tracking.standard_full') },
+    { id: 'lot', name: t('products.tracking.lot_tracked') },
+    { id: 'serial', name: t('products.tracking.serial_tracked') },
+]));
+
 const categoryOptions = ref(Array.isArray(props.categories) ? [...props.categories] : []);
 
 const form = reactive({
     name: '',
     category_id: categoryOptions.value[0]?.id || '',
     sku: '',
+    barcode: '',
+    tracking_type: 'none',
     price: 0,
+    promo_discount_percent: '',
+    promo_start_at: '',
+    promo_end_at: '',
     cost_price: 0,
     margin_percent: 0,
     stock: 0,
@@ -47,7 +67,9 @@ const form = reactive({
     tax_rate: 0,
     is_active: true,
     description: '',
+    image: null,
     image_url: '',
+    images: [],
 });
 
 const errors = ref({});
@@ -180,9 +202,16 @@ const applyPrice = (source) => {
 
 const applyImage = (source) => {
     if (source?.image_url) {
+        form.image = null;
         form.image_url = source.image_url;
     }
 };
+
+watch(() => form.image, (value) => {
+    if (typeof File !== 'undefined' && value instanceof File) {
+        form.image_url = '';
+    }
+});
 
 const applyBestPrice = () => {
     const best = priceLookupResults.value[0];
@@ -251,6 +280,8 @@ const errorMessages = computed(() => {
     Object.values(errors.value || {}).forEach((value) => {
         if (Array.isArray(value) && value.length) {
             messages.push(value[0]);
+        } else if (typeof value === 'string' && value.length) {
+            messages.push(value);
         }
     });
     if (formError.value) {
@@ -269,7 +300,12 @@ const resetForm = () => {
     form.name = '';
     form.category_id = categoryOptions.value[0]?.id || '';
     form.sku = '';
+    form.barcode = '';
+    form.tracking_type = 'none';
     form.price = 0;
+    form.promo_discount_percent = '';
+    form.promo_start_at = '';
+    form.promo_end_at = '';
     form.cost_price = 0;
     form.margin_percent = 0;
     form.stock = 0;
@@ -280,7 +316,9 @@ const resetForm = () => {
     form.tax_rate = 0;
     form.is_active = true;
     form.description = '';
+    form.image = null;
     form.image_url = '';
+    form.images = [];
     priceLookupQuery.value = '';
     priceLookupResults.value = [];
     priceLookupMeta.value = null;
@@ -309,7 +347,12 @@ const submit = async () => {
         name: form.name,
         category_id: form.category_id,
         sku: form.sku,
+        barcode: form.barcode,
+        tracking_type: form.tracking_type,
         price: form.price,
+        promo_discount_percent: form.promo_discount_percent === '' ? null : form.promo_discount_percent,
+        promo_start_at: form.promo_start_at || null,
+        promo_end_at: form.promo_end_at || null,
         cost_price: form.cost_price,
         margin_percent: form.margin_percent,
         stock: form.stock,
@@ -320,11 +363,19 @@ const submit = async () => {
         tax_rate: form.tax_rate,
         is_active: form.is_active,
         description: form.description,
-        image_url: form.image_url,
+        image_url: form.image_url || null,
+        images: form.images,
     };
 
+    if (typeof File !== 'undefined' && form.image instanceof File) {
+        payload.image = form.image;
+        payload.image_url = null;
+    }
+
     try {
-        const response = await axios.post(route('product.quick.store'), payload);
+        const response = await axios.post(route('product.quick.store'), toFormData(payload), {
+            headers: { Accept: 'application/json' },
+        });
         emit('created', response.data);
         closeOverlay();
         resetForm();
@@ -375,10 +426,12 @@ const submit = async () => {
                 </div>
             </div>
             <FloatingInput v-model="form.sku" :label="$t('products.form.sku')" />
+            <FloatingInput v-model="form.barcode" :label="$t('products.form.barcode')" />
+            <FloatingSelect v-model="form.tracking_type" :label="$t('products.form.tracking')" :options="trackingOptions" />
             <FloatingSelect v-model="form.unit" :label="$t('products.form.unit')" :options="unitOptions" />
             <FloatingInput v-model="form.supplier_name" :label="$t('products.form.supplier')" />
             <FloatingInput v-model="form.supplier_email" :label="$t('products.form.supplier_email')" />
-            <FloatingNumberInput v-model="form.tax_rate" :label="$t('products.form.tax_rate')" :step="0.01" />
+            <FloatingNumberInput v-model="form.tax_rate" :label="$t('products.form.tax_rate')" :step="0.0001" />
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -387,6 +440,24 @@ const submit = async () => {
             <FloatingNumberInput v-model="form.margin_percent" :label="$t('products.form.margin')" :step="0.01" />
             <FloatingNumberInput v-model="form.stock" :label="$t('products.form.stock')" :required="true" />
             <FloatingNumberInput v-model="form.minimum_stock" :label="$t('products.form.minimum_stock')" :required="true" />
+        </div>
+
+        <div class="rounded-sm border border-dashed border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-900">
+            <div class="text-sm font-semibold text-stone-700 dark:text-neutral-200">
+                {{ $t('products.form.promo_title') }}
+            </div>
+            <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
+                {{ $t('products.form.promo_hint') }}
+            </p>
+            <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
+                <FloatingNumberInput
+                    v-model="form.promo_discount_percent"
+                    :label="$t('products.form.promo_discount')"
+                    :step="0.01"
+                />
+                <FloatingInput v-model="form.promo_start_at" type="date" :label="$t('products.form.promo_start')" />
+                <FloatingInput v-model="form.promo_end_at" type="date" :label="$t('products.form.promo_end')" />
+            </div>
         </div>
 
         <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
@@ -519,6 +590,17 @@ const submit = async () => {
         </div>
 
         <FloatingTextarea v-model="form.description" :label="$t('products.form.description')" />
+        <DropzoneInput
+            v-model="form.image"
+            :label="$t('products.form.primary_image')"
+            :allowed-extensions="['jpg', 'jpeg', 'png', 'webp']"
+        />
+        <MultiImageInput
+            v-model:files="form.images"
+            :label="$t('products.images.additional')"
+            :primary-label="$t('products.images.primary')"
+            :make-primary-label="$t('products.images.set_primary')"
+        />
 
         <div class="flex items-center gap-2">
             <Checkbox v-model:checked="form.is_active" />
@@ -532,7 +614,7 @@ const submit = async () => {
         </div>
 
         <div class="flex justify-end gap-2">
-            <button type="button" :data-hs-overlay="overlayId || undefined"
+            <button type="button" @click="closeOverlay"
                 class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
                 {{ $t('products.actions.cancel') }}
             </button>

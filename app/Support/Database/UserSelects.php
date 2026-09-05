@@ -13,6 +13,8 @@ final class UserSelects
             'company_sector',
             'company_features',
             'company_logo',
+            'company_timezone',
+            'currency_code',
             'onboarding_completed_at',
             'selected_plan_key',
             'selected_billing_period',
@@ -22,7 +24,7 @@ final class UserSelects
 
     public static function companySummary(): array
     {
-        return ['id', 'company_type', 'company_name', 'company_logo'];
+        return ['id', 'name', 'company_type', 'company_name', 'company_logo', 'currency_code'];
     }
 
     public static function portalCompanyContext(): array

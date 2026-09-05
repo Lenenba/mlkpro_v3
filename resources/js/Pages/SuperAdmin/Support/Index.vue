@@ -5,6 +5,7 @@ import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import AdminDataTableActions from '@/Components/DataTable/AdminDataTableActions.vue';
 import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import DateTimePicker from '@/Components/DateTimePicker.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
@@ -115,6 +116,45 @@ const currentPerPage = computed(() => resolveDataTablePerPage(props.tickets?.per
 const formatNumber = (value) =>
     Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
 
+const kpiMetrics = computed(() => [
+    {
+        key: 'total',
+        label: t('super_admin.support.stats.total'),
+        value: formatNumber(props.stats.total),
+        tone: 'emerald',
+    },
+    {
+        key: 'open',
+        label: t('super_admin.support.stats.open'),
+        value: formatNumber(props.stats.open),
+        tone: 'blue',
+    },
+    {
+        key: 'assigned',
+        label: t('super_admin.support.stats.assigned'),
+        value: formatNumber(props.stats.assigned),
+        tone: 'indigo',
+    },
+    {
+        key: 'pending',
+        label: t('super_admin.support.stats.pending'),
+        value: formatNumber(props.stats.pending),
+        tone: 'amber',
+    },
+    {
+        key: 'resolved',
+        label: t('super_admin.support.stats.resolved'),
+        value: formatNumber(props.stats.resolved),
+        tone: 'emerald',
+    },
+    {
+        key: 'closed',
+        label: t('super_admin.support.stats.closed'),
+        value: formatNumber(props.stats.closed),
+        tone: 'rose',
+    },
+]);
+
 const { apply: applyFilters, clear: clearFilters } = useDataTableFilters(
     filterForm,
     route('superadmin.support.index'),
@@ -208,56 +248,10 @@ const attachmentIcon = (media) => {
                 </div>
             </section>
 
-            <div class="grid grid-cols-2 gap-2 md:grid-cols-3 md:gap-3 lg:gap-5 xl:grid-cols-6">
-                <div class="rounded-sm border border-stone-200 border-t-4 border-t-emerald-600 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('super_admin.support.stats.total') }}
-                    </p>
-                    <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
-                        {{ formatNumber(stats.total) }}
-                    </p>
-                </div>
-                <div class="rounded-sm border border-stone-200 border-t-4 border-t-blue-600 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('super_admin.support.stats.open') }}
-                    </p>
-                    <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
-                        {{ formatNumber(stats.open) }}
-                    </p>
-                </div>
-                <div class="rounded-sm border border-stone-200 border-t-4 border-t-indigo-600 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('super_admin.support.stats.assigned') }}
-                    </p>
-                    <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
-                        {{ formatNumber(stats.assigned) }}
-                    </p>
-                </div>
-                <div class="rounded-sm border border-stone-200 border-t-4 border-t-amber-600 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('super_admin.support.stats.pending') }}
-                    </p>
-                    <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
-                        {{ formatNumber(stats.pending) }}
-                    </p>
-                </div>
-                <div class="rounded-sm border border-stone-200 border-t-4 border-t-emerald-700 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('super_admin.support.stats.resolved') }}
-                    </p>
-                    <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
-                        {{ formatNumber(stats.resolved) }}
-                    </p>
-                </div>
-                <div class="rounded-sm border border-stone-200 border-t-4 border-t-rose-600 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('super_admin.support.stats.closed') }}
-                    </p>
-                    <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
-                        {{ formatNumber(stats.closed) }}
-                    </p>
-                </div>
-            </div>
+            <KpiMetricGrid
+                :metrics="kpiMetrics"
+                grid-class="grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))]"
+            />
 
             <AdminDataTable
                 :rows="ticketRows"

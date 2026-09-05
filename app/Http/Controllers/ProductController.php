@@ -6,6 +6,7 @@ use App\Http\Requests\ProductRequest;
 use App\Models\ActivityLog;
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Models\ProductImage;
 use App\Models\Sale;
 use App\Models\User;
 use App\Models\Warehouse;
@@ -16,6 +17,8 @@ use App\Services\Assistant\OpenAiClient;
 use App\Services\Assistant\OpenAiRequestException;
 use App\Services\AssistantCreditService;
 use App\Services\InventoryService;
+use App\Services\Rbac\AccessControl;
+use App\Services\Rbac\CompanyModuleAccess;
 use App\Services\Social\SocialPrefillService;
 use App\Services\StripeCatalogService;
 use App\Services\UsageLimitService;
@@ -67,7 +70,7 @@ class ProductController extends Controller
         if (! $user) {
             abort(403);
         }
-        [$owner, $accountId, $canEdit] = $this->resolveProductAccount($user);
+        [$owner, $accountId] = $this->resolveProductAccount($user);
         $tenantCurrencyCode = User::query()->whereKey($accountId)->value('currency_code') ?: $user->businessCurrencyCode();
 
         $today = now()->toDateString();
@@ -190,8 +193,16 @@ class ProductController extends Controller
                 ->select('product_works.product_id', DB::raw('SUM(product_works.quantity) as quantity'))
                 ->groupBy('product_works.product_id');
 
+            $saleUsage = DB::table('sale_items')
+                ->join('sales', 'sale_items.sale_id', '=', 'sales.id')
+                ->where('sales.user_id', $accountId)
+                ->where('sales.status', Sale::STATUS_PAID)
+                ->whereIn('sale_items.product_id', $productIds)
+                ->select('sale_items.product_id', DB::raw('SUM(sale_items.quantity) as quantity'))
+                ->groupBy('sale_items.product_id');
+
             $usageTotals = DB::query()
-                ->fromSub($quoteUsage->unionAll($workUsage), 'usage')
+                ->fromSub($quoteUsage->unionAll($workUsage)->unionAll($saleUsage), 'usage')
                 ->select('product_id', DB::raw('SUM(quantity) as total_quantity'))
                 ->groupBy('product_id')
                 ->orderByDesc('total_quantity')
@@ -233,6 +244,23 @@ class ProductController extends Controller
                 'remaining' => $aiImageUsage->remaining($user, AiImageUsageService::CONTEXT_PRODUCT),
             ],
         ];
+        $accessControl = app(AccessControl::class);
+        $isAccountOwner = (int) $user->id === (int) $accountId && $user->isAccountOwner();
+        $abilities = [
+            'create' => $user->can('create', Product::class),
+            'edit' => $accessControl->userHasPermission($user, 'products.edit', (int) $accountId),
+            'delete' => $accessControl->userHasPermission($user, 'products.delete', (int) $accountId),
+            'stock' => $accessControl->userHasPermission($user, 'products.stock', (int) $accountId),
+            'export' => true,
+            'import' => $isAccountOwner,
+            'supplier_request' => $isAccountOwner,
+            'create_order' => $owner->company_type === 'products'
+                && $owner->hasCompanyFeature('sales')
+                && (
+                    $accessControl->userHasPermission($user, 'sales.manage', (int) $accountId)
+                    || $accessControl->userHasPermission($user, 'sales.pos', (int) $accountId)
+                ),
+        ];
 
         return $this->inertiaOrJson('Product/Index', [
             'count' => $totalCount,
@@ -245,9 +273,14 @@ class ProductController extends Controller
             'topProducts' => $topProducts,
             'warehouses' => $warehouses,
             'defaultWarehouseId' => $defaultWarehouseId,
-            'canEdit' => $canEdit,
+            'canEdit' => $abilities['edit'],
+            'canCreate' => $abilities['create'],
+            'abilities' => $abilities,
             'bulkActions' => app(BulkActionRegistry::class)->definitionFor('product', [
-                'can_edit' => $canEdit,
+                'can_edit' => $abilities['edit'],
+                'can_delete' => $abilities['delete'],
+                'can_request_supplier' => $abilities['supplier_request'],
+                'can_create_order' => $abilities['create_order'],
                 'company_type' => $owner->company_type,
             ]),
             'ai_image' => $aiImagePayload,
@@ -267,7 +300,8 @@ class ProductController extends Controller
         if (! $user) {
             abort(403);
         }
-        $accountId = $this->ensureProductOwner($user);
+        $this->authorize('create', Product::class);
+        [, $accountId] = $this->resolveProductAccount($user);
 
         return response()->json([
             'categories' => ProductCategory::forAccount($accountId)
@@ -310,7 +344,8 @@ class ProductController extends Controller
         if (! $user) {
             abort(403);
         }
-        $accountId = $this->ensureProductOwner($user);
+        $this->authorize('create', Product::class);
+        [, $accountId] = $this->resolveProductAccount($user);
         $tenantCurrencyCode = User::query()->whereKey($accountId)->value('currency_code') ?: $user->businessCurrencyCode();
 
         $aiImageUsage = app(AiImageUsageService::class);
@@ -346,7 +381,8 @@ class ProductController extends Controller
         if (! $user) {
             abort(403);
         }
-        $accountId = $this->ensureProductOwner($user);
+        $this->authorize('create', Product::class);
+        [, $accountId] = $this->resolveProductAccount($user);
         app(UsageLimitService::class)->enforceLimit($user, 'products');
         $validated = $request->validated();
         $validated['item_type'] = Product::ITEM_TYPE_PRODUCT;
@@ -358,7 +394,10 @@ class ProductController extends Controller
         unset($validated['image_url']);
         $extraImages = FileHandler::handleMultipleImageUpload('products', $request, 'images');
 
-        $product = $request->user()->products()->create($validated);
+        $validated['user_id'] = $accountId;
+        $initialStock = (int) $validated['stock'];
+        $validated['stock'] = 0;
+        $product = Product::query()->create($validated);
 
         try {
             app(StripeCatalogService::class)->syncProductPrice($product);
@@ -382,8 +421,8 @@ class ProductController extends Controller
         $inventoryService = app(InventoryService::class);
         $warehouse = $inventoryService->resolveDefaultWarehouse($accountId);
         $inventoryService->ensureInventory($product, $warehouse);
-        if ($product->stock > 0) {
-            $inventoryService->adjust($product, (int) $product->stock, 'in', [
+        if ($initialStock > 0) {
+            $inventoryService->adjust($product, $initialStock, 'in', [
                 'actor_id' => $request->user()?->id,
                 'warehouse' => $warehouse,
                 'reason' => 'initial',
@@ -411,7 +450,8 @@ class ProductController extends Controller
         if (! $user) {
             abort(403);
         }
-        $accountId = $this->ensureProductOwner($user);
+        $this->authorize('create', Product::class);
+        [, $accountId] = $this->resolveProductAccount($user);
         app(UsageLimitService::class)->enforceLimit($user, 'products');
         $validated = $request->validated();
         $validated['item_type'] = Product::ITEM_TYPE_PRODUCT;
@@ -423,7 +463,10 @@ class ProductController extends Controller
         unset($validated['image_url']);
         $extraImages = FileHandler::handleMultipleImageUpload('products', $request, 'images');
 
-        $product = $request->user()->products()->create($validated);
+        $validated['user_id'] = $accountId;
+        $initialStock = (int) $validated['stock'];
+        $validated['stock'] = 0;
+        $product = Product::query()->create($validated);
 
         try {
             app(StripeCatalogService::class)->syncProductPrice($product);
@@ -447,8 +490,8 @@ class ProductController extends Controller
         $inventoryService = app(InventoryService::class);
         $warehouse = $inventoryService->resolveDefaultWarehouse($accountId);
         $inventoryService->ensureInventory($product, $warehouse);
-        if ($product->stock > 0) {
-            $inventoryService->adjust($product, (int) $product->stock, 'in', [
+        if ($initialStock > 0) {
+            $inventoryService->adjust($product, $initialStock, 'in', [
                 'actor_id' => $request->user()?->id,
                 'warehouse' => $warehouse,
                 'reason' => 'initial',
@@ -463,6 +506,16 @@ class ProductController extends Controller
                 'name' => $product->name,
                 'price' => $product->price,
                 'stock' => $product->stock,
+                'image' => $product->image,
+                'image_url' => $product->image_url,
+                'images' => $product->images
+                    ->sortByDesc(fn (ProductImage $image): int => (int) $image->is_primary)
+                    ->values()
+                    ->map(fn (ProductImage $image) => [
+                        'id' => $image->id,
+                        'url' => $image->url,
+                        'is_primary' => (bool) $image->is_primary,
+                    ]),
             ],
         ], 201);
     }
@@ -488,8 +541,7 @@ class ProductController extends Controller
             'source_details' => 'nullable',
         ]);
 
-        $itemType = $validated['item_type']
-            ?? ($user->company_type === 'products' ? Product::ITEM_TYPE_PRODUCT : Product::ITEM_TYPE_SERVICE);
+        $itemType = $validated['item_type'] ?? Product::ITEM_TYPE_PRODUCT;
         $limitKey = $itemType === Product::ITEM_TYPE_SERVICE ? 'services' : 'products';
         app(UsageLimitService::class)->enforceLimit($user, $limitKey);
 
@@ -653,6 +705,11 @@ class ProductController extends Controller
         $stockInput = array_key_exists('stock', $data) ? $data['stock'] : null;
         $minimumInput = array_key_exists('minimum_stock', $data) ? $data['minimum_stock'] : null;
         $previousStock = (int) $product->stock;
+        $previousMinimum = (int) $product->minimum_stock;
+        if (($stockInput !== null && (int) $stockInput !== $previousStock)
+            || ($minimumInput !== null && (int) $minimumInput !== $previousMinimum)) {
+            $this->authorize('adjustStock', $product);
+        }
         $data = array_filter($data, static fn ($value) => $value !== null);
         $product->update($data);
 
@@ -698,7 +755,7 @@ class ProductController extends Controller
      */
     public function adjustStock(Request $request, Product $product)
     {
-        $this->authorize('update', $product);
+        $this->authorize('adjustStock', $product);
         $this->ensureProductItem($product);
         $user = $request->user();
         if ($user && $user->currentAccessToken() && ! $user->tokenCan('inventory:write')) {
@@ -891,6 +948,12 @@ class ProductController extends Controller
      */
     public function bulk(Request $request)
     {
+        $user = $request->user();
+        if (! $user) {
+            abort(403);
+        }
+        [, $accountId] = $this->resolveProductAccount($user);
+
         $data = $request->validate([
             'action' => 'required|in:archive,restore,delete,supplier_request',
             'ids' => 'required|array',
@@ -899,13 +962,14 @@ class ProductController extends Controller
 
         $products = Product::query()
             ->products()
-            ->byUser(Auth::id())
+            ->byUser($accountId)
             ->whereIn('id', $data['ids'])
             ->get();
         $processedIds = $products->pluck('id')->all();
 
         if ($data['action'] === 'supplier_request') {
-            $actor = $request->user() ?? Auth::user();
+            $this->ensureProductOwner($user);
+            $actor = $user;
 
             foreach ($products as $product) {
                 $this->authorize('update', $product);
@@ -998,7 +1062,7 @@ class ProductController extends Controller
             foreach ($products as $product) {
                 $this->authorize('update', $product);
             }
-            Product::query()->products()->byUser(Auth::id())->whereIn('id', $data['ids'])->update(['is_active' => false]);
+            Product::query()->products()->byUser($accountId)->whereIn('id', $data['ids'])->update(['is_active' => false]);
             if ($this->shouldReturnJson($request)) {
                 return response()->json($this->bulkActionResult(
                     'Products archived.',
@@ -1014,7 +1078,7 @@ class ProductController extends Controller
             foreach ($products as $product) {
                 $this->authorize('update', $product);
             }
-            Product::query()->products()->byUser(Auth::id())->whereIn('id', $data['ids'])->update(['is_active' => true]);
+            Product::query()->products()->byUser($accountId)->whereIn('id', $data['ids'])->update(['is_active' => true]);
             if ($this->shouldReturnJson($request)) {
                 return response()->json($this->bulkActionResult(
                     'Products restored.',
@@ -1051,13 +1115,15 @@ class ProductController extends Controller
      */
     public function duplicate(Product $product)
     {
-        $this->authorize('update', $product);
+        $this->authorize('duplicate', $product);
         $this->ensureProductItem($product);
 
+        $duplicatedStock = max(0, (int) $product->stock);
         $copy = $product->replicate(['created_at', 'updated_at']);
         $copy->name = $product->name.' (Copy)';
         $copy->number = null;
         $copy->is_active = false;
+        $copy->stock = 0;
         $copy->save();
 
         if ($product->image) {
@@ -1087,8 +1153,8 @@ class ProductController extends Controller
         $accountId = Auth::user()?->accountOwnerId() ?? Auth::id();
         $warehouse = $inventoryService->resolveDefaultWarehouse($accountId);
         $inventoryService->ensureInventory($copy, $warehouse);
-        if ($copy->stock > 0) {
-            $inventoryService->adjust($copy, (int) $copy->stock, 'in', [
+        if ($duplicatedStock > 0) {
+            $inventoryService->adjust($copy, $duplicatedStock, 'in', [
                 'actor_id' => Auth::id(),
                 'warehouse' => $warehouse,
                 'reason' => 'duplicate',
@@ -1113,9 +1179,14 @@ class ProductController extends Controller
     public function export(Request $request)
     {
         $user = $request->user();
+        if (! $user) {
+            abort(403);
+        }
         if ($user && $user->currentAccessToken() && ! $user->tokenCan('exports:read')) {
             abort(403);
         }
+
+        [, $accountId] = $this->resolveProductAccount($user);
 
         $filters = $request->only([
             'name',
@@ -1142,7 +1213,7 @@ class ProductController extends Controller
         $query = Product::query()
             ->products()
             ->filter($filters)
-            ->byUser(Auth::id())
+            ->byUser($accountId)
             ->with('category')
             ->withSum('inventories as on_hand_total', 'on_hand')
             ->withSum('inventories as reserved_total', 'reserved')
@@ -1328,10 +1399,12 @@ class ProductController extends Controller
                     $payload['category_id'] = $fallback?->id;
                 }
                 if ($payload['category_id']) {
+                    $initialStock = (int) $payload['stock'];
+                    $payload['stock'] = 0;
                     $product = Product::create($payload);
                     $inventoryService->ensureInventory($product, $warehouse);
-                    if ((int) $payload['stock'] > 0) {
-                        $inventoryService->adjust($product, (int) $payload['stock'], 'in', [
+                    if ($initialStock > 0) {
+                        $inventoryService->adjust($product, $initialStock, 'in', [
                             'actor_id' => $creatorId,
                             'warehouse' => $warehouse,
                             'reason' => 'import',
@@ -1386,6 +1459,10 @@ class ProductController extends Controller
         $previousName = (string) $product->name;
         $previousDescription = $product->description;
         $previousActive = (bool) $product->is_active;
+        if ((int) $validated['stock'] !== $previousStock
+            || (int) $validated['minimum_stock'] !== $previousMinimum) {
+            $this->authorize('adjustStock', $product);
+        }
         $validated['item_type'] = Product::ITEM_TYPE_PRODUCT;
         $validated['image'] = FileHandler::handleImageUpload('products', $request, 'image', 'products/product.jpg', $product->image);
         $imageUrl = $request->input('image_url');
@@ -1731,21 +1808,31 @@ class ProductController extends Controller
             abort(403);
         }
 
-        $canEdit = $user->id === $owner->id;
-        $accountId = $user->id;
-        if ($owner->company_type === 'products') {
-            if (! $canEdit) {
-                $membership = $user->relationLoaded('teamMembership')
-                    ? $user->teamMembership
-                    : $user->teamMembership()->first();
-                if (! $membership || ! $membership->hasPermission('sales.manage')) {
-                    abort(403);
-                }
-            }
-            $accountId = $owner->id;
+        if (! $owner->hasCompanyFeature('products')) {
+            abort(403);
         }
 
-        return [$owner, $accountId, $canEdit];
+        $canEdit = (int) $user->id === (int) $owner->id;
+        if (! $canEdit) {
+            $membership = $user->relationLoaded('teamMembership')
+                ? $user->teamMembership
+                : $user->teamMembership()->first();
+            $validMembership = $membership
+                && $membership->is_active
+                && (int) $membership->account_id === (int) $owner->id;
+            if (! $validMembership) {
+                abort(403);
+            }
+
+            $user->setRelation('teamMembership', $membership);
+            if (! app(CompanyModuleAccess::class)->allows($user, 'products', (int) $owner->id)) {
+                abort(403);
+            }
+
+            $canEdit = $membership->hasPermission('products.edit');
+        }
+
+        return [$owner, $owner->id, $canEdit];
     }
 
     private function ensureProductOwner(User $user): int

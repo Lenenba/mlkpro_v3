@@ -192,10 +192,14 @@ const formatDate = (value) => humanizeDate(value);
 
 const getCustomerName = (invoice) => {
     const customer = invoice.customer;
-    if (!customer) {
-        return t('invoices.labels.unknown_customer');
-    }
-    return customer.company_name || `${customer.first_name} ${customer.last_name}`;
+    const customerName = customer?.company_name
+        || `${customer?.first_name || ''} ${customer?.last_name || ''}`.trim();
+    const snapshot = invoice?.customer_snapshot || {};
+
+    return customerName
+        || snapshot.name
+        || snapshot.company_name
+        || t('invoices.labels.unknown_customer');
 };
 
 const statusMeta = computed(() => ({
@@ -523,7 +527,7 @@ const invoiceResultsLabel = computed(() => `${props.invoices?.total ?? props.inv
                                 {{ invoice.number || $t('invoices.labels.invoice_number', { id: invoice.id }) }}
                             </span>
                             <span class="text-xs text-stone-500 dark:text-neutral-500">
-                                {{ invoice.work?.job_title ?? '-' }}
+                                {{ invoice.work?.job_title || invoice.items?.[0]?.title || '-' }}
                             </span>
                         </div>
                     </td>

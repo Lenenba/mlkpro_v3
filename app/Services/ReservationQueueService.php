@@ -2,21 +2,31 @@
 
 namespace App\Services;
 
+use App\Enums\CurrencyCode;
+use App\Exceptions\QueueTeamMemberAvailabilityConfirmationRequired;
 use App\Models\ActivityLog;
+use App\Models\Product;
+use App\Models\Request as LeadRequest;
 use App\Models\Reservation;
 use App\Models\ReservationCheckIn;
 use App\Models\ReservationQueueItem;
 use App\Models\ReservationResource;
+use App\Models\ReservationStatusTransition;
 use App\Models\TeamMember;
 use App\Models\TeamMemberAttendance;
 use App\Models\User;
-use App\Services\Reservation\ExpiredReservationAutoCloser;
+use App\Services\OfferPackages\CustomerPackageService;
+use App\Services\Reservation\ReservationQueueGraceNoShowMarker;
+use App\Services\Reservation\ReservationStatusTransitionService;
 use App\Support\ReservationPresetResolver;
+use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 class ReservationQueueService
 {
@@ -34,7 +44,9 @@ class ReservationQueueService
         private readonly ReservationAvailabilityService $availabilityService,
         private readonly ReservationNotificationService $notificationService,
         private readonly ReservationIntentGuardService $intentGuard,
-        private readonly ExpiredReservationAutoCloser $expiredReservationAutoCloser
+        private readonly ReservationQueueGraceNoShowMarker $queueGraceNoShowMarker,
+        private readonly ReservationStatusTransitionService $statusTransitions,
+        private readonly CustomerPackageService $customerPackageService
     ) {}
 
     public function syncAppointmentsForWindow(
@@ -136,7 +148,7 @@ class ReservationQueueService
         $clientUserId = isset($payload['client_user_id']) ? (int) $payload['client_user_id'] : null;
         $this->intentGuard->ensureCanCreateTicket($accountId, $clientId, $clientUserId, $settings);
 
-        return DB::transaction(function () use ($accountId, $payload, $actor, $settings, $clientId, $clientUserId) {
+        $item = DB::transaction(function () use ($accountId, $payload, $actor, $settings, $clientId, $clientUserId) {
             $serviceId = isset($payload['service_id']) ? (int) $payload['service_id'] : null;
             $teamMemberId = isset($payload['team_member_id']) ? (int) $payload['team_member_id'] : null;
             if ($teamMemberId) {
@@ -205,24 +217,23 @@ class ReservationQueueService
                 ], 'Kiosk ticket created');
             }
 
-            $this->refreshMetrics($accountId, $settings);
-
-            $freshItem = $item->fresh([
-                'teamMember.user:id,name',
-                'service:id,name',
-                'client:id,first_name,last_name,company_name,email,phone,portal_user_id',
-                'client.portalUser:id,name,email,phone_number',
-                'clientUser:id,name,email,phone_number',
-            ]) ?: $item;
-
-            $this->notificationService->handleQueueEvent(
-                $freshItem,
-                'queue_ticket_created',
-                $actor
-            );
-
-            return $freshItem;
+            return $item;
         });
+
+        $this->queueTicketCreatedAfterCommit(
+            $accountId,
+            (int) $item->id,
+            (int) $actor->id,
+            $settings
+        );
+
+        return $item->fresh([
+            'teamMember.user:id,name,locale',
+            'service:id,name',
+            'client:id,first_name,last_name,company_name,email,phone,portal_user_id',
+            'client.portalUser:id,name,email,phone_number,locale',
+            'clientUser:id,name,email,phone_number,locale',
+        ]) ?: $item;
     }
 
     public function transition(
@@ -236,8 +247,15 @@ class ReservationQueueService
         $this->ensureQueueFeatureEnabled($settings);
         $action = strtolower(trim($action));
 
-        return DB::transaction(function () use ($item, $action, $actor, $settings, $context) {
-            $locked = ReservationQueueItem::query()->whereKey($item->id)->lockForUpdate()->firstOrFail();
+        /**
+         * @var array{item: ReservationQueueItem, previous_status: string, next_status: string, notify_status_change: bool} $result
+         */
+        $result = DB::transaction(function () use ($item, $action, $actor, $settings, $context): array {
+            $locked = ReservationQueueItem::query()
+                ->forAccount((int) $item->account_id)
+                ->whereKey($item->id)
+                ->lockForUpdate()
+                ->firstOrFail();
             $terminal = [
                 ReservationQueueItem::STATUS_DONE,
                 ReservationQueueItem::STATUS_CANCELLED,
@@ -250,6 +268,41 @@ class ReservationQueueService
 
             $now = now('UTC');
             $previousStatus = (string) $locked->status;
+            // The catalog is authoritative until the service is finished. This prevents
+            // user-supplied queue metadata from changing the amount that gets frozen.
+            $checkout = $action === 'finish'
+                ? $this->buildCheckoutSummary($locked, false)
+                : $this->checkoutSummary($locked);
+            if (
+                $action === 'finish'
+                && ! in_array($previousStatus, [
+                    ReservationQueueItem::STATUS_CALLED,
+                    ReservationQueueItem::STATUS_IN_SERVICE,
+                ], true)
+            ) {
+                throw ValidationException::withMessages([
+                    'queue' => ['Only a called or in-service queue item can be finished.'],
+                ]);
+            }
+            if (
+                $action === 'done'
+                && $this->requiresCheckoutForCompletion($checkout)
+                && ! ($context['checkout_settled'] ?? false)
+            ) {
+                throw ValidationException::withMessages([
+                    'payment' => ['Payment is required before this service can be completed.'],
+                ]);
+            }
+            if (
+                $action === 'cancel'
+                && ($context['by_client'] ?? false)
+                && $previousStatus === ReservationQueueItem::STATUS_AWAITING_PAYMENT
+            ) {
+                throw ValidationException::withMessages([
+                    'queue' => ['A finished service awaiting payment cannot be cancelled by the client.'],
+                ]);
+            }
+
             $payload = match ($action) {
                 'check_in' => [
                     'status' => ReservationQueueItem::STATUS_CHECKED_IN,
@@ -278,6 +331,28 @@ class ReservationQueueService
                 'start' => [
                     'status' => ReservationQueueItem::STATUS_IN_SERVICE,
                     'started_at' => $now,
+                ],
+                'finish' => [
+                    'status' => ($checkout['requires_payment'] ?? false)
+                        ? ReservationQueueItem::STATUS_AWAITING_PAYMENT
+                        : ReservationQueueItem::STATUS_DONE,
+                    'finished_at' => $now,
+                    'call_expires_at' => null,
+                    'metadata' => array_replace((array) ($locked->metadata ?? []), [
+                        'checkout' => [
+                            'pricing_version' => 1,
+                            'service_id' => $locked->service_id ? (int) $locked->service_id : null,
+                            'service_name' => $checkout['service_name'] ?? null,
+                            'base_amount' => $checkout['subtotal'] ?? 0,
+                            'subtotal' => $checkout['subtotal'] ?? 0,
+                            'tax_rate' => $checkout['tax_rate'] ?? 0,
+                            'tax_breakdown' => $checkout['tax_breakdown'] ?? [],
+                            'tax_total' => $checkout['tax_total'] ?? 0,
+                            'invoice_total' => $checkout['invoice_total'] ?? 0,
+                            'currency_code' => $checkout['currency_code'] ?? null,
+                            'opened_at' => $now->toIso8601String(),
+                        ],
+                    ]),
                 ],
                 'done' => [
                     'status' => ReservationQueueItem::STATUS_DONE,
@@ -308,9 +383,21 @@ class ReservationQueueService
             }
 
             $targetTeamMemberId = (int) ($payload['team_member_id'] ?? $locked->team_member_id ?? 0);
-            $this->ensureQueueActionCanUseChair($locked, $action, $settings, $targetTeamMemberId);
+            $this->releaseStaleBusyAttendanceForSkippedItem($locked, $action, $targetTeamMemberId);
+            $this->ensureQueueActionCanUseChair(
+                $locked,
+                $action,
+                $settings,
+                $targetTeamMemberId,
+                (bool) ($context['confirm_team_member_available'] ?? false),
+                $actor
+            );
 
             $locked->fill($payload)->save();
+            $nextStatus = (string) ($payload['status'] ?? $locked->status);
+            if ($nextStatus === ReservationQueueItem::STATUS_DONE) {
+                $this->completeLinkedReservation($locked, $actor, $context);
+            }
             if (in_array($action, ['check_in', 'still_here'], true)) {
                 $this->recordCheckIn($locked, $actor, $action === 'still_here' ? 'still_here' : ((string) ($context['channel'] ?? 'staff')));
             }
@@ -327,60 +414,461 @@ class ReservationQueueService
                 ], 'Kiosk queue transition');
             }
 
-            $this->refreshMetrics((int) $locked->account_id, $settings);
-
             $updated = $locked->fresh([
-                'teamMember.user:id,name',
-                'service:id,name',
+                'teamMember.user:id,name,locale',
+                'service:id,name,price,currency_code,tax_rate',
+                'checkoutPayment:id,reservation_queue_item_id,amount,currency_code,tip_amount,charged_total,status,paid_at',
                 'reservation:id,starts_at,status',
                 'client:id,first_name,last_name,company_name,email,phone,portal_user_id',
-                'client.portalUser:id,name,email,phone_number',
-                'clientUser:id,name,email,phone_number',
+                'client.portalUser:id,name,email,phone_number,locale',
+                'clientUser:id,name,email,phone_number,locale',
                 'reservation.client:id,first_name,last_name,company_name,email,phone,portal_user_id',
-                'reservation.client.portalUser:id,name,email,phone_number',
-                'reservation.clientUser:id,name,email,phone_number',
+                'reservation.client.portalUser:id,name,email,phone_number,locale',
+                'reservation.clientUser:id,name,email,phone_number,locale',
             ]) ?: $locked;
 
             $nextStatus = (string) ($payload['status'] ?? $updated->status);
-            if (
-                $previousStatus !== $nextStatus
-                && ! in_array($action, ['pre_call', 'call'], true)
-            ) {
-                $this->notificationService->handleQueueEvent(
-                    $updated,
-                    'queue_status_changed',
-                    $actor,
-                    [
-                        'from_status' => $previousStatus,
-                        'to_status' => $nextStatus,
-                    ]
-                );
-            }
-
             $this->syncAttendanceStatusForQueueTransition($updated, $previousStatus, $nextStatus);
 
-            return $updated;
+            return [
+                'item' => $updated,
+                'previous_status' => $previousStatus,
+                'next_status' => $nextStatus,
+                'notify_status_change' => ! ($context['suppress_notifications'] ?? false)
+                    && $previousStatus !== $nextStatus
+                    && ! in_array($action, ['pre_call', 'call'], true),
+            ];
         });
+
+        $this->queueTransitionEffectsAfterCommit(
+            (int) $result['item']->account_id,
+            (int) $result['item']->id,
+            (int) $actor->id,
+            $settings,
+            (string) $result['previous_status'],
+            (string) $result['next_status'],
+            (bool) $result['notify_status_change']
+        );
+
+        return $result['item']->fresh([
+            'teamMember.user:id,name,locale',
+            'service:id,name,price,currency_code,tax_rate',
+            'checkoutPayment:id,reservation_queue_item_id,amount,currency_code,tip_amount,charged_total,status,paid_at',
+            'reservation:id,starts_at,status',
+            'client:id,first_name,last_name,company_name,email,phone,portal_user_id',
+            'client.portalUser:id,name,email,phone_number,locale',
+            'clientUser:id,name,email,phone_number,locale',
+            'reservation.client:id,first_name,last_name,company_name,email,phone,portal_user_id',
+            'reservation.client.portalUser:id,name,email,phone_number,locale',
+            'reservation.clientUser:id,name,email,phone_number,locale',
+        ]) ?: $result['item'];
+    }
+
+    /**
+     * @param  array<string, mixed>  $settings
+     */
+    private function queueTicketCreatedAfterCommit(
+        int $accountId,
+        int $itemId,
+        int $actorId,
+        array $settings
+    ): void {
+        DB::afterCommit(function () use ($accountId, $itemId, $actorId, $settings): void {
+            $this->refreshQueueMetricsSafely($accountId, $settings, $itemId);
+
+            $item = ReservationQueueItem::query()
+                ->forAccount($accountId)
+                ->with([
+                    'teamMember.user:id,name,locale',
+                    'service:id,name',
+                    'client:id,first_name,last_name,company_name,email,phone,portal_user_id',
+                    'client.portalUser:id,name,email,phone_number,locale',
+                    'clientUser:id,name,email,phone_number,locale',
+                ])
+                ->find($itemId);
+            $actor = User::query()->find($actorId);
+            if (! $item || ! $actor) {
+                return;
+            }
+
+            $this->notificationService->handleQueueEvent($item, 'queue_ticket_created', $actor);
+        });
+    }
+
+    /**
+     * @param  array<string, mixed>  $settings
+     */
+    private function queueTransitionEffectsAfterCommit(
+        int $accountId,
+        int $itemId,
+        int $actorId,
+        array $settings,
+        string $previousStatus,
+        string $nextStatus,
+        bool $notifyStatusChange
+    ): void {
+        DB::afterCommit(function () use (
+            $accountId,
+            $itemId,
+            $actorId,
+            $settings,
+            $previousStatus,
+            $nextStatus,
+            $notifyStatusChange
+        ): void {
+            $this->refreshQueueMetricsSafely($accountId, $settings, $itemId);
+            if (! $notifyStatusChange) {
+                return;
+            }
+
+            $item = $this->queueItemForNotification($accountId, $itemId);
+            $actor = User::query()->find($actorId);
+            if (! $item || ! $actor) {
+                return;
+            }
+
+            $this->notificationService->handleQueueEvent(
+                $item,
+                'queue_status_changed',
+                $actor,
+                [
+                    'from_status' => $previousStatus,
+                    'to_status' => $nextStatus,
+                ]
+            );
+        });
+    }
+
+    /**
+     * @param  array<string, mixed>  $settings
+     */
+    private function refreshQueueMetricsSafely(int $accountId, array $settings, int $triggerItemId): void
+    {
+        try {
+            $this->refreshMetrics($accountId, $settings);
+        } catch (Throwable $exception) {
+            Log::warning('Unable to refresh reservation queue metrics after commit.', [
+                'account_id' => $accountId,
+                'queue_item_id' => $triggerItemId,
+                'error' => $exception->getMessage(),
+            ]);
+        }
+    }
+
+    private function queueItemForNotification(int $accountId, int $itemId): ?ReservationQueueItem
+    {
+        return ReservationQueueItem::query()
+            ->forAccount($accountId)
+            ->with([
+                'service:id,name',
+                'teamMember.user:id,name,email,locale',
+                'client:id,first_name,last_name,company_name,email,phone,portal_user_id',
+                'client.portalUser:id,name,email,phone_number,locale',
+                'clientUser:id,name,email,phone_number,locale',
+                'reservation:id,starts_at,status,team_member_id,client_id,client_user_id',
+                'reservation.client:id,first_name,last_name,company_name,email,phone,portal_user_id',
+                'reservation.client.portalUser:id,name,email,phone_number,locale',
+                'reservation.clientUser:id,name,email,phone_number,locale',
+                'reservation.teamMember.user:id,name,email,locale',
+            ])
+            ->find($itemId);
+    }
+
+    /**
+     * @return array{base_amount: float, subtotal: float, tax_rate: float, tax_breakdown: array<int, array{code: string, name: string, rate: float, taxable_amount: float, amount: float}>, tax_total: float, invoice_total: float, currency_code: string, service_name: string|null, requires_payment: bool, payment_id: int|null, payment_status: string|null, paid_at: string|null, charged_total: float|null}
+     */
+    public function checkoutSummary(ReservationQueueItem $item): array
+    {
+        return $this->buildCheckoutSummary($item, true);
+    }
+
+    /**
+     * @return array{base_amount: float, subtotal: float, tax_rate: float, tax_breakdown: array<int, array{code: string, name: string, rate: float, taxable_amount: float, amount: float}>, tax_total: float, invoice_total: float, currency_code: string, service_name: string|null, requires_payment: bool, payment_id: int|null, payment_status: string|null, paid_at: string|null, charged_total: float|null}
+     */
+    private function buildCheckoutSummary(ReservationQueueItem $item, bool $preferSnapshot): array
+    {
+        $checkoutMetadata = (array) data_get($item->metadata, 'checkout', []);
+        $service = $item->relationLoaded('service') ? $item->service : null;
+        $requiredServiceAttributes = ['name', 'price', 'currency_code', 'tax_rate'];
+        $hasCompleteService = $service && collect($requiredServiceAttributes)
+            ->every(fn (string $attribute): bool => array_key_exists($attribute, $service->getAttributes()));
+
+        if (! $hasCompleteService && $item->service_id) {
+            $service = Product::query()
+                ->whereKey($item->service_id)
+                ->where('user_id', $item->account_id)
+                ->first(['id', 'name', 'price', 'currency_code', 'tax_rate']);
+        }
+
+        $mayUseSnapshot = $preferSnapshot && in_array((string) $item->status, [
+            ReservationQueueItem::STATUS_AWAITING_PAYMENT,
+            ReservationQueueItem::STATUS_DONE,
+        ], true);
+        $hasCompleteSnapshot = $mayUseSnapshot
+            && (int) ($checkoutMetadata['pricing_version'] ?? 0) >= 1
+            && is_numeric($checkoutMetadata['subtotal'] ?? null)
+            && is_numeric($checkoutMetadata['tax_total'] ?? null)
+            && is_numeric($checkoutMetadata['invoice_total'] ?? null);
+        $hasLegacySnapshotAmount = $mayUseSnapshot
+            && is_numeric($checkoutMetadata['base_amount'] ?? null);
+
+        $subtotal = $hasCompleteSnapshot
+            ? (float) $checkoutMetadata['subtotal']
+            : ($hasLegacySnapshotAmount
+                ? (float) $checkoutMetadata['base_amount']
+                : (float) ($service?->price ?? 0));
+        $subtotal = round(max(0, $subtotal), 2);
+
+        $taxRate = $hasCompleteSnapshot && is_numeric($checkoutMetadata['tax_rate'] ?? null)
+            ? (float) $checkoutMetadata['tax_rate']
+            : (float) ($service?->tax_rate ?? 0);
+        $taxRate = round(max(0, min(100, $taxRate)), 4);
+        $taxBreakdown = $hasCompleteSnapshot
+            ? $this->normalizeTaxBreakdown($checkoutMetadata['tax_breakdown'] ?? [], $subtotal, $taxRate)
+            : $this->buildTaxBreakdown($subtotal, $taxRate);
+        $taxTotal = $hasCompleteSnapshot
+            ? round(max(0, (float) $checkoutMetadata['tax_total']), 2)
+            : round((float) collect($taxBreakdown)->sum('amount'), 2);
+        $invoiceTotal = $hasCompleteSnapshot
+            ? round(max(0, (float) $checkoutMetadata['invoice_total']), 2)
+            : round($subtotal + $taxTotal, 2);
+        $currencyCode = CurrencyCode::tryFromMixed(
+            ($mayUseSnapshot ? ($checkoutMetadata['currency_code'] ?? null) : null)
+                ?? $service?->currency_code ?? User::query()
+                    ->whereKey($item->account_id)
+                    ->value('currency_code')
+        )?->value ?? CurrencyCode::default()->value;
+        $payment = $item->relationLoaded('checkoutPayment') ? $item->checkoutPayment : null;
+
+        return [
+            'base_amount' => $subtotal,
+            'subtotal' => $subtotal,
+            'tax_rate' => $taxRate,
+            'tax_breakdown' => $taxBreakdown,
+            'tax_total' => $taxTotal,
+            'invoice_total' => $invoiceTotal,
+            'currency_code' => $currencyCode,
+            'service_name' => ($mayUseSnapshot ? ($checkoutMetadata['service_name'] ?? null) : null) ?? $service?->name,
+            'requires_payment' => $invoiceTotal > 0,
+            'payment_id' => $payment?->id ? (int) $payment->id : null,
+            'payment_status' => $payment?->status,
+            'paid_at' => $payment?->paid_at?->toIso8601String(),
+            'charged_total' => $payment?->charged_total !== null ? (float) $payment->charged_total : null,
+        ];
+    }
+
+    /**
+     * @return array<int, array{code: string, name: string, rate: float, taxable_amount: float, amount: float}>
+     */
+    private function buildTaxBreakdown(float $subtotal, float $taxRate): array
+    {
+        if ($subtotal <= 0 || $taxRate <= 0) {
+            return [];
+        }
+
+        return [[
+            'code' => 'service_tax',
+            'name' => 'Tax',
+            'rate' => $taxRate,
+            'taxable_amount' => $subtotal,
+            'amount' => round($subtotal * ($taxRate / 100), 2),
+        ]];
+    }
+
+    /**
+     * @return array<int, array{code: string, name: string, rate: float, taxable_amount: float, amount: float}>
+     */
+    private function normalizeTaxBreakdown(mixed $breakdown, float $subtotal, float $fallbackRate): array
+    {
+        if (! is_array($breakdown)) {
+            return $this->buildTaxBreakdown($subtotal, $fallbackRate);
+        }
+
+        $normalized = collect($breakdown)
+            ->filter(fn (mixed $line): bool => is_array($line) && is_numeric($line['amount'] ?? null))
+            ->map(function (array $line, int $index) use ($subtotal, $fallbackRate): array {
+                $rate = is_numeric($line['rate'] ?? null)
+                    ? (float) $line['rate']
+                    : $fallbackRate;
+
+                return [
+                    'code' => trim((string) ($line['code'] ?? 'service_tax_'.($index + 1))),
+                    'name' => trim((string) ($line['name'] ?? 'Tax')),
+                    'rate' => round(max(0, min(100, $rate)), 4),
+                    'taxable_amount' => round(max(0, (float) ($line['taxable_amount'] ?? $subtotal)), 2),
+                    'amount' => round(max(0, (float) $line['amount']), 2),
+                ];
+            })
+            ->values()
+            ->all();
+
+        return $normalized !== []
+            ? $normalized
+            : $this->buildTaxBreakdown($subtotal, $fallbackRate);
+    }
+
+    private function requiresCheckoutForCompletion(array $checkout): bool
+    {
+        return (bool) ($checkout['requires_payment'] ?? false);
+    }
+
+    /**
+     * @param  array<string, mixed>  $context
+     */
+    private function completeLinkedReservation(ReservationQueueItem $item, User $actor, array $context = []): void
+    {
+        if (! $item->reservation_id) {
+            return;
+        }
+
+        $reservation = Reservation::query()
+            ->forAccount((int) $item->account_id)
+            ->whereKey($item->reservation_id)
+            ->lockForUpdate()
+            ->first();
+        if (! $reservation || (string) $reservation->status === Reservation::STATUS_COMPLETED) {
+            return;
+        }
+
+        if (! in_array((string) $reservation->status, Reservation::ACTIVE_STATUSES, true)) {
+            return;
+        }
+
+        $expectedStatusVersion = (int) $reservation->status_version;
+        $expectedScheduleVersion = (int) $reservation->schedule_version;
+        $expectedMutationVersion = (int) $reservation->mutation_version;
+        $isIntegration = ($context['transition_source'] ?? null) === Reservation::STATUS_CHANGE_SOURCE_STRIPE_WEBHOOK;
+        $transition = $this->statusTransitions->transition(
+            $reservation,
+            Reservation::STATUS_COMPLETED,
+            $isIntegration
+                ? ReservationStatusTransition::ACTOR_INTEGRATION
+                : ReservationStatusTransition::ACTOR_USER,
+            $isIntegration ? null : $actor,
+            $isIntegration
+                ? Reservation::STATUS_CHANGE_SOURCE_STRIPE_WEBHOOK
+                : Reservation::STATUS_CHANGE_SOURCE_QUEUE_STAFF,
+            'queue_service_completed',
+            'Reservation completed from the service queue.',
+            [
+                'cancelled_at' => null,
+                'cancelled_by_user_id' => null,
+                'cancel_reason' => null,
+                'metadata' => $this->availabilityService->metadataForStatusTransition(
+                    $reservation,
+                    Reservation::STATUS_COMPLETED
+                ),
+                'auto_closed_at' => null,
+                'auto_closed_reason' => null,
+            ],
+            allowedFromStatuses: Reservation::ACTIVE_STATUSES,
+            expectedStatusVersion: $expectedStatusVersion,
+            expectedScheduleVersion: $expectedScheduleVersion,
+            expectedMutationVersion: $expectedMutationVersion
+        );
+        if (! $transition->performed) {
+            if ((string) $transition->reservation->status !== Reservation::STATUS_COMPLETED) {
+                throw ValidationException::withMessages([
+                    'queue' => ['The linked reservation changed while the queue item was being completed.'],
+                ]);
+            }
+
+            return;
+        }
+
+        $reservation = $transition->reservation;
+
+        $this->customerPackageService->consumeForReservation($actor, $reservation);
+        $this->syncPublicBookingProspectCompletion($reservation);
+        if ($context['suppress_notifications'] ?? false) {
+            return;
+        }
+
+        $this->reservationStatusNotificationAfterCommit(
+            (int) $reservation->account_id,
+            (int) $reservation->id,
+            (int) $actor->id,
+            $transition->previousStatus
+        );
+    }
+
+    private function reservationStatusNotificationAfterCommit(
+        int $accountId,
+        int $reservationId,
+        int $actorId,
+        string $previousStatus
+    ): void {
+        DB::afterCommit(function () use ($accountId, $reservationId, $actorId, $previousStatus): void {
+            $reservation = Reservation::query()
+                ->forAccount($accountId)
+                ->with([
+                    'teamMember.user:id,name,locale',
+                    'client:id,first_name,last_name,company_name',
+                    'service:id,name,price',
+                ])
+                ->find($reservationId);
+            $actor = User::query()->find($actorId);
+            if (! $reservation || ! $actor) {
+                return;
+            }
+
+            $this->notificationService->handleStatusChanged($reservation, $actor, $previousStatus);
+        });
+    }
+
+    private function syncPublicBookingProspectCompletion(Reservation $reservation): void
+    {
+        if (! $reservation->prospect_id || ! $reservation->public_booking_link_id) {
+            return;
+        }
+
+        $prospect = $reservation->prospect()->first();
+        if (! $prospect) {
+            return;
+        }
+
+        $prospect->forceFill([
+            'last_activity_at' => now(),
+            'meta' => $prospect->mergePublicBookingMeta([
+                'status' => LeadRequest::PUBLIC_STATUS_VISITED,
+                'reservation_status' => Reservation::STATUS_COMPLETED,
+                'status_updated_at' => now('UTC')->toIso8601String(),
+            ]),
+        ])->save();
     }
 
     public function boardForStaff(int $accountId, array $access, array $settings): array
     {
         if (! $this->isQueueFeatureEnabled($settings)) {
-            return ['items' => [], 'stats' => ['waiting' => 0, 'called' => 0, 'in_service' => 0]];
+            return ['items' => [], 'stats' => $this->staffBoardStats([])];
         }
 
         $assignmentMode = $this->normalizeAssignmentMode((string) ($settings['queue_assignment_mode'] ?? self::ASSIGNMENT_MODE_PER_STAFF));
-        $this->syncAppointmentsForWindow($accountId, now('UTC')->startOfDay(), now('UTC')->addDay()->endOfDay(), $settings);
+        $boardNow = now('UTC');
+        $this->syncAppointmentsForWindow(
+            $accountId,
+            $boardNow->copy()->startOfDay(),
+            $boardNow->copy()->addDay()->endOfDay(),
+            $settings
+        );
         $metrics = $this->refreshMetrics($accountId, $settings);
 
         $query = ReservationQueueItem::query()
             ->forAccount($accountId)
-            ->with(['teamMember.user:id,name', 'service:id,name', 'client:id,first_name,last_name,company_name,email', 'reservation:id,starts_at,status'])
+            ->with([
+                'teamMember.user:id,name,locale',
+                'service:id,name,price,currency_code,tax_rate',
+                'checkoutPayment:id,reservation_queue_item_id,amount,currency_code,tip_amount,charged_total,status,paid_at',
+                'client:id,first_name,last_name,company_name,email',
+                'reservation:id,account_id,starts_at,ends_at,status',
+            ])
             ->whereIn('status', array_merge(ReservationQueueItem::ACTIVE_STATUSES, [ReservationQueueItem::STATUS_DONE]))
-            ->where(function ($builder) {
+            ->where(function ($builder) use ($boardNow) {
                 $builder->whereIn('status', ReservationQueueItem::ACTIVE_STATUSES)
-                    ->orWhere('finished_at', '>=', now('UTC')->subHours(2));
+                    ->orWhere('finished_at', '>=', $boardNow->copy()->subHours(2));
             });
+
+        $this->constrainToOperationalItems($query, $accountId, $boardNow);
 
         if (! ($access['can_view_all'] ?? false) && ! empty($access['own_team_member_id'])) {
             $ownTeamMemberId = (int) $access['own_team_member_id'];
@@ -412,6 +900,7 @@ class ReservationQueueService
             ->limit(80)
             ->get()
             ->map(function (ReservationQueueItem $item) use ($metrics, $access) {
+                $checkout = $this->checkoutSummary($item);
                 $clientName = $item->client?->company_name ?: trim(($item->client?->first_name ?? '').' '.($item->client?->last_name ?? ''));
                 if (! $clientName) {
                     $clientName = trim((string) data_get($item->metadata, 'guest_name'));
@@ -429,6 +918,12 @@ class ReservationQueueService
                             && (string) ($item->item_type ?? '') === ReservationQueueItem::TYPE_TICKET
                         )
                     ));
+                $callable = (bool) ($metrics[$item->id]['callable'] ?? false);
+                $actionContract = $this->staffBoardActionContract(
+                    (string) $item->status,
+                    $callable,
+                    $canUpdateStatus
+                );
 
                 return [
                     'id' => $item->id,
@@ -443,31 +938,86 @@ class ReservationQueueService
                     'team_member_id' => $item->team_member_id,
                     'team_member_name' => $item->teamMember?->user?->name,
                     'reservation_starts_at' => $item->reservation?->starts_at?->toIso8601String(),
+                    'reservation_ends_at' => $item->reservation?->ends_at?->toIso8601String(),
                     'estimated_duration_minutes' => (int) ($item->estimated_duration_minutes ?? 0),
                     'position' => $item->position,
                     'eta_minutes' => $item->eta_minutes,
                     'checked_in_at' => $item->checked_in_at?->toIso8601String(),
                     'called_at' => $item->called_at?->toIso8601String(),
                     'started_at' => $item->started_at?->toIso8601String(),
-                    'callable' => (bool) ($metrics[$item->id]['callable'] ?? false),
+                    'callable' => $callable,
                     'recommended_team_member_id' => $metrics[$item->id]['recommended_team_member_id'] ?? null,
                     'call_expires_at' => $item->call_expires_at?->toIso8601String(),
                     'can_update_status' => $canUpdateStatus,
+                    'allowed_actions' => $actionContract['allowed_actions'],
+                    'primary_action' => $actionContract['primary_action'],
+                    'checkout' => $checkout,
                 ];
             })->values()->all();
 
         return [
             'items' => $items,
-            'stats' => [
-                'waiting' => count(array_filter($items, fn (array $item) => in_array($item['status'], [
-                    ReservationQueueItem::STATUS_CHECKED_IN,
-                    ReservationQueueItem::STATUS_PRE_CALLED,
-                    ReservationQueueItem::STATUS_CALLED,
-                    ReservationQueueItem::STATUS_SKIPPED,
-                ], true))),
-                'called' => count(array_filter($items, fn (array $item) => $item['status'] === ReservationQueueItem::STATUS_CALLED)),
-                'in_service' => count(array_filter($items, fn (array $item) => $item['status'] === ReservationQueueItem::STATUS_IN_SERVICE)),
-            ],
+            'stats' => $this->staffBoardStats($items),
+        ];
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $items
+     * @return array{total: int, not_arrived: int, waiting: int, called: int, in_service: int, awaiting_payment: int, done: int}
+     */
+    private function staffBoardStats(array $items): array
+    {
+        return [
+            'total' => count($items),
+            'not_arrived' => count(array_filter($items, fn (array $item) => $item['status'] === ReservationQueueItem::STATUS_NOT_ARRIVED)),
+            'waiting' => count(array_filter($items, fn (array $item) => in_array($item['status'], [
+                ReservationQueueItem::STATUS_CHECKED_IN,
+                ReservationQueueItem::STATUS_PRE_CALLED,
+                ReservationQueueItem::STATUS_SKIPPED,
+            ], true))),
+            'called' => count(array_filter($items, fn (array $item) => $item['status'] === ReservationQueueItem::STATUS_CALLED)),
+            'in_service' => count(array_filter($items, fn (array $item) => $item['status'] === ReservationQueueItem::STATUS_IN_SERVICE)),
+            'awaiting_payment' => count(array_filter($items, fn (array $item) => $item['status'] === ReservationQueueItem::STATUS_AWAITING_PAYMENT)),
+            'done' => count(array_filter($items, fn (array $item) => $item['status'] === ReservationQueueItem::STATUS_DONE)),
+        ];
+    }
+
+    /**
+     * @return array{allowed_actions: list<string>, primary_action: string|null}
+     */
+    private function staffBoardActionContract(string $status, bool $callable, bool $canUpdateStatus): array
+    {
+        if (! $canUpdateStatus) {
+            return [
+                'allowed_actions' => [],
+                'primary_action' => null,
+            ];
+        }
+
+        $allowedActions = match ($status) {
+            ReservationQueueItem::STATUS_NOT_ARRIVED => ['check-in'],
+            ReservationQueueItem::STATUS_CHECKED_IN => ['pre-call', 'call', 'start', 'skip'],
+            ReservationQueueItem::STATUS_PRE_CALLED => ['call', 'start', 'skip'],
+            ReservationQueueItem::STATUS_CALLED => ['start', 'finish', 'skip'],
+            ReservationQueueItem::STATUS_SKIPPED => ['pre-call', 'call', 'done'],
+            ReservationQueueItem::STATUS_IN_SERVICE => ['finish'],
+            ReservationQueueItem::STATUS_AWAITING_PAYMENT => ['checkout'],
+            default => [],
+        };
+        $primaryAction = match ($status) {
+            ReservationQueueItem::STATUS_NOT_ARRIVED => 'check-in',
+            ReservationQueueItem::STATUS_CHECKED_IN,
+            ReservationQueueItem::STATUS_SKIPPED => $callable ? 'call' : 'pre-call',
+            ReservationQueueItem::STATUS_PRE_CALLED => 'call',
+            ReservationQueueItem::STATUS_CALLED => 'start',
+            ReservationQueueItem::STATUS_IN_SERVICE => 'finish',
+            ReservationQueueItem::STATUS_AWAITING_PAYMENT => 'checkout',
+            default => null,
+        };
+
+        return [
+            'allowed_actions' => $allowedActions,
+            'primary_action' => $primaryAction,
         ];
     }
 
@@ -478,7 +1028,8 @@ class ReservationQueueService
         int $accountId,
         array $access,
         array $settings,
-        ?int $requestedTeamMemberId = null
+        ?int $requestedTeamMemberId = null,
+        bool $confirmTeamMemberAvailable = false
     ): ?array {
         if (! $this->isQueueFeatureEnabled($settings)) {
             return null;
@@ -488,8 +1039,12 @@ class ReservationQueueService
         $canManage = (bool) ($access['can_manage'] ?? false);
         $ownTeamMemberId = (int) ($access['own_team_member_id'] ?? 0);
         $targetTeamMemberId = $requestedTeamMemberId ? max(0, (int) $requestedTeamMemberId) : 0;
-        if ($targetTeamMemberId === 0 && ! $canManage && $ownTeamMemberId > 0) {
+        if (! $canManage && $ownTeamMemberId > 0) {
             $targetTeamMemberId = $ownTeamMemberId;
+        }
+
+        if ($confirmTeamMemberAvailable && $targetTeamMemberId > 0) {
+            $this->confirmStaleBusyTeamMemberAvailable($accountId, $targetTeamMemberId);
         }
 
         $metrics = $this->refreshMetrics($accountId, $settings);
@@ -576,6 +1131,184 @@ class ReservationQueueService
         ];
     }
 
+    /**
+     * @return array{team_member_id: int, team_member_name: string, action: string}|null
+     */
+    public function availabilityConfirmationForTeamMember(
+        int $accountId,
+        int $teamMemberId,
+        string $action
+    ): ?array {
+        if ($teamMemberId <= 0 || ! in_array($action, ['pre_call', 'call'], true)) {
+            return null;
+        }
+
+        $hasActiveChair = ReservationResource::query()
+            ->forAccount($accountId)
+            ->chairs()
+            ->active()
+            ->where('team_member_id', $teamMemberId)
+            ->exists();
+        if (! $hasActiveChair) {
+            return null;
+        }
+
+        $attendance = TeamMemberAttendance::query()
+            ->where('account_id', $accountId)
+            ->where('team_member_id', $teamMemberId)
+            ->whereNull('clock_out_at')
+            ->latest('clock_in_at')
+            ->first();
+        if ((string) ($attendance?->current_status ?? '') !== TeamMemberAttendance::STATUS_BUSY) {
+            return null;
+        }
+
+        if ($this->teamMemberHasActiveQueueAssignment($accountId, $teamMemberId)) {
+            return null;
+        }
+
+        return [
+            'team_member_id' => $teamMemberId,
+            'team_member_name' => $this->teamMemberDisplayName($accountId, $teamMemberId),
+            'action' => $action,
+        ];
+    }
+
+    /**
+     * @return array{team_member_id: int, team_member_name: string, action: string}|null
+     */
+    public function availabilityConfirmationForNextCallable(
+        int $accountId,
+        array $access,
+        array $settings,
+        ?int $requestedTeamMemberId = null
+    ): ?array {
+        if (! $this->isQueueFeatureEnabled($settings)) {
+            return null;
+        }
+
+        $canManage = (bool) ($access['can_manage'] ?? false);
+        $ownTeamMemberId = (int) ($access['own_team_member_id'] ?? 0);
+        if (! $canManage && $ownTeamMemberId <= 0) {
+            return null;
+        }
+
+        $targetTeamMemberIds = $requestedTeamMemberId
+            ? [(int) $requestedTeamMemberId]
+            : ($canManage
+                ? TeamMember::query()
+                    ->forAccount($accountId)
+                    ->active()
+                    ->orderBy('id')
+                    ->pluck('id')
+                    ->map(fn ($id) => (int) $id)
+                    ->all()
+                : [$ownTeamMemberId]);
+        if (! $canManage) {
+            $targetTeamMemberIds = [$ownTeamMemberId];
+        }
+
+        $waitingItems = ReservationQueueItem::query()
+            ->forAccount($accountId)
+            ->whereIn('status', ReservationQueueItem::CALLABLE_STATUSES)
+            ->orderBy('created_at')
+            ->get();
+
+        foreach ($waitingItems as $item) {
+            foreach ($targetTeamMemberIds as $teamMemberId) {
+                if (! $this->queueItemCanBeCalledNextByTeamMember(
+                    $item,
+                    $teamMemberId,
+                    $canManage,
+                    $ownTeamMemberId,
+                    $settings
+                )) {
+                    continue;
+                }
+
+                $confirmation = $this->availabilityConfirmationForTeamMember(
+                    $accountId,
+                    $teamMemberId,
+                    'call'
+                );
+                if ($confirmation) {
+                    return $confirmation;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array{team_member_id: int, team_member_name: string, action: string}|null
+     */
+    public function availabilityConfirmationForQueueItem(
+        ReservationQueueItem $item,
+        array $access,
+        array $settings,
+        string $action,
+        ?int $targetTeamMemberId = null
+    ): ?array {
+        if (! in_array($action, ['pre_call', 'call'], true)) {
+            return null;
+        }
+
+        $assignedTeamMemberId = $targetTeamMemberId
+            ? (int) $targetTeamMemberId
+            : (int) ($item->team_member_id ?? 0);
+        if ($assignedTeamMemberId > 0) {
+            return $this->availabilityConfirmationForTeamMember(
+                (int) $item->account_id,
+                $assignedTeamMemberId,
+                $action
+            );
+        }
+
+        if ((string) $item->item_type !== ReservationQueueItem::TYPE_TICKET) {
+            return null;
+        }
+
+        $canManage = (bool) ($access['can_manage'] ?? false);
+        $ownTeamMemberId = (int) ($access['own_team_member_id'] ?? 0);
+        if (! $canManage && $ownTeamMemberId <= 0) {
+            return null;
+        }
+
+        $teamMemberIds = $canManage
+            ? TeamMember::query()
+                ->forAccount((int) $item->account_id)
+                ->active()
+                ->orderBy('id')
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all()
+            : [$ownTeamMemberId];
+
+        foreach ($teamMemberIds as $teamMemberId) {
+            if (! $this->queueItemCanBeCalledNextByTeamMember(
+                $item,
+                $teamMemberId,
+                $canManage,
+                $ownTeamMemberId,
+                $settings
+            )) {
+                continue;
+            }
+
+            $confirmation = $this->availabilityConfirmationForTeamMember(
+                (int) $item->account_id,
+                $teamMemberId,
+                $action
+            );
+            if ($confirmation) {
+                return $confirmation;
+            }
+        }
+
+        return null;
+    }
+
     public function clientTickets(int $accountId, int $customerId, int $clientUserId, array $settings, int $limit = 20): array
     {
         if (! $this->isQueueFeatureEnabled($settings)) {
@@ -594,7 +1327,7 @@ class ReservationQueueService
                 $query->whereIn('status', ReservationQueueItem::ACTIVE_STATUSES)
                     ->orWhere('updated_at', '>=', now('UTC')->subDays(2));
             })
-            ->with(['teamMember.user:id,name', 'service:id,name'])
+            ->with(['teamMember.user:id,name,locale', 'service:id,name'])
             ->orderByDesc('created_at')
             ->limit($limit)
             ->get()
@@ -608,7 +1341,14 @@ class ReservationQueueService
                 'eta_minutes' => $item->eta_minutes,
                 'call_expires_at' => $item->call_expires_at?->toIso8601String(),
                 'created_at' => $item->created_at?->toIso8601String(),
-                'can_cancel' => in_array($item->status, ReservationQueueItem::ACTIVE_STATUSES, true),
+                'can_cancel' => in_array($item->status, [
+                    ReservationQueueItem::STATUS_NOT_ARRIVED,
+                    ReservationQueueItem::STATUS_CHECKED_IN,
+                    ReservationQueueItem::STATUS_PRE_CALLED,
+                    ReservationQueueItem::STATUS_CALLED,
+                    ReservationQueueItem::STATUS_SKIPPED,
+                    ReservationQueueItem::STATUS_IN_SERVICE,
+                ], true),
                 'can_still_here' => in_array($item->status, [
                     ReservationQueueItem::STATUS_CHECKED_IN,
                     ReservationQueueItem::STATUS_PRE_CALLED,
@@ -620,6 +1360,24 @@ class ReservationQueueService
             ->all();
     }
 
+    private function constrainToOperationalItems(
+        Builder $query,
+        int $accountId,
+        CarbonInterface $nowUtc
+    ): Builder {
+        return $query->where(function (Builder $queueQuery) use ($accountId, $nowUtc): void {
+            $queueQuery
+                ->where('item_type', '!=', ReservationQueueItem::TYPE_APPOINTMENT)
+                ->orWhere('status', '!=', ReservationQueueItem::STATUS_NOT_ARRIVED)
+                ->orWhereHas('reservation', function (Builder $reservationQuery) use ($accountId, $nowUtc): void {
+                    $reservationQuery
+                        ->forAccount($accountId)
+                        ->whereIn('status', Reservation::ACTIVE_STATUSES)
+                        ->where('ends_at', '>', $nowUtc);
+                });
+        });
+    }
+
     public function refreshMetrics(int $accountId, ?array $settings = null): array
     {
         $settings = $settings ?: $this->availabilityService->resolveSettings($accountId, null);
@@ -629,7 +1387,14 @@ class ReservationQueueService
 
         $this->expireGraceItems($accountId, $settings);
 
-        $items = ReservationQueueItem::query()->forAccount($accountId)->active()->with(['reservation:id,starts_at', 'teamMember:id'])->orderBy('created_at')->get();
+        $now = now('UTC');
+        $itemsQuery = ReservationQueueItem::query()
+            ->forAccount($accountId)
+            ->active()
+            ->with(['reservation:id,account_id,starts_at,ends_at,status', 'teamMember:id'])
+            ->orderBy('created_at');
+        $this->constrainToOperationalItems($itemsQuery, $accountId, $now);
+        $items = $itemsQuery->get();
         if ($items->isEmpty()) {
             return [];
         }
@@ -637,7 +1402,6 @@ class ReservationQueueService
         $dispatchMode = $this->normalizeDispatchMode((string) ($settings['queue_dispatch_mode'] ?? self::DISPATCH_MODE_FIFO_WITH_APPOINTMENT_PRIORITY));
         $assignmentMode = $this->normalizeAssignmentMode((string) ($settings['queue_assignment_mode'] ?? self::ASSIGNMENT_MODE_PER_STAFF));
         $buffer = max(0, (int) ($settings['buffer_minutes'] ?? 0));
-        $now = now('UTC');
         $teamIds = TeamMember::query()->forAccount($accountId)->active()->pluck('id')->map(fn ($id) => (int) $id)->all();
         $presenceDrivesStaffAvailability = ReservationPresetResolver::isSalonPreset((string) ($settings['business_preset'] ?? null));
         $isTeamMemberAvailable = function (int $memberId, ?ReservationQueueItem $queueItem = null, bool $allowBusyForCurrentItem = false) use ($accountId, $presenceDrivesStaffAvailability): bool {
@@ -813,15 +1577,15 @@ class ReservationQueueService
             if ($crossedEtaThreshold) {
                 $this->notificationService->handleQueueEvent($item->fresh([
                     'service:id,name',
-                    'teamMember.user:id,name,email',
+                    'teamMember.user:id,name,email,locale',
                     'client:id,first_name,last_name,company_name,email,phone,portal_user_id',
-                    'client.portalUser:id,name,email,phone_number',
-                    'clientUser:id,name,email,phone_number',
+                    'client.portalUser:id,name,email,phone_number,locale',
+                    'clientUser:id,name,email,phone_number,locale',
                     'reservation:id,starts_at,status,team_member_id,client_id,client_user_id',
                     'reservation.client:id,first_name,last_name,company_name,email,phone,portal_user_id',
-                    'reservation.client.portalUser:id,name,email,phone_number',
-                    'reservation.clientUser:id,name,email,phone_number',
-                    'reservation.teamMember.user:id,name,email',
+                    'reservation.client.portalUser:id,name,email,phone_number,locale',
+                    'reservation.clientUser:id,name,email,phone_number,locale',
+                    'reservation.teamMember.user:id,name,email,locale',
                 ]) ?: $item, 'queue_eta_10m');
             }
         }
@@ -891,7 +1655,9 @@ class ReservationQueueService
         ReservationQueueItem $item,
         string $action,
         array $settings,
-        int $targetTeamMemberId
+        int $targetTeamMemberId,
+        bool $confirmTeamMemberAvailable = false,
+        ?User $actor = null
     ): void {
         if (
             ! ReservationPresetResolver::isSalonPreset((string) ($settings['business_preset'] ?? null))
@@ -904,6 +1670,16 @@ class ReservationQueueService
             throw ValidationException::withMessages(['team_member_id' => ['A checked-in team member with an available chair is required.']]);
         }
 
+        $hasActiveChair = ReservationResource::query()
+            ->forAccount((int) $item->account_id)
+            ->chairs()
+            ->active()
+            ->where('team_member_id', $targetTeamMemberId)
+            ->exists();
+        if (! $hasActiveChair) {
+            throw ValidationException::withMessages(['team_member_id' => ['Selected team member does not have an available checked-in chair.']]);
+        }
+
         $allowBusyForCurrentItem = (int) ($item->team_member_id ?? 0) === $targetTeamMemberId
             && in_array((string) $item->status, [
                 ReservationQueueItem::STATUS_PRE_CALLED,
@@ -911,14 +1687,138 @@ class ReservationQueueService
                 ReservationQueueItem::STATUS_IN_SERVICE,
             ], true);
 
-        if (! $this->teamMemberCanReceiveQueueAssignment(
+        $attendance = TeamMemberAttendance::query()
+            ->where('account_id', (int) $item->account_id)
+            ->where('team_member_id', $targetTeamMemberId)
+            ->whereNull('clock_out_at')
+            ->latest('clock_in_at')
+            ->lockForUpdate()
+            ->first();
+        if (! $attendance) {
+            throw ValidationException::withMessages(['team_member_id' => ['Selected team member does not have an available checked-in chair.']]);
+        }
+
+        $hasActiveQueueAssignment = $this->teamMemberHasActiveQueueAssignment(
             (int) $item->account_id,
             $targetTeamMemberId,
             (int) $item->id,
-            $allowBusyForCurrentItem
-        )) {
-            throw ValidationException::withMessages(['team_member_id' => ['Selected team member does not have an available checked-in chair.']]);
+            true
+        );
+        $currentStatus = (string) ($attendance->current_status ?? TeamMemberAttendance::STATUS_AVAILABLE);
+        $isStaleBusyState = $currentStatus === TeamMemberAttendance::STATUS_BUSY
+            && ! $allowBusyForCurrentItem
+            && ! $hasActiveQueueAssignment;
+
+        if ($isStaleBusyState && in_array($action, ['pre_call', 'call'], true)) {
+            if (! $confirmTeamMemberAvailable) {
+                throw new QueueTeamMemberAvailabilityConfirmationRequired(
+                    $targetTeamMemberId,
+                    $this->teamMemberDisplayName((int) $item->account_id, $targetTeamMemberId),
+                    $action
+                );
+            }
+
+            $attendance->update(['current_status' => TeamMemberAttendance::STATUS_AVAILABLE]);
+            $currentStatus = TeamMemberAttendance::STATUS_AVAILABLE;
+            ActivityLog::record($actor, $item, 'queue_team_member_availability_confirmed', [
+                'account_id' => (int) $item->account_id,
+                'team_member_id' => $targetTeamMemberId,
+                'action' => $action,
+                'previous_status' => TeamMemberAttendance::STATUS_BUSY,
+                'new_status' => TeamMemberAttendance::STATUS_AVAILABLE,
+            ], 'Team member availability confirmed before queue action');
         }
+
+        $isPresentAndReady = $currentStatus === TeamMemberAttendance::STATUS_AVAILABLE
+            || ($allowBusyForCurrentItem && $currentStatus === TeamMemberAttendance::STATUS_BUSY);
+        if ($isPresentAndReady && ! $hasActiveQueueAssignment) {
+            return;
+        }
+
+        throw ValidationException::withMessages(['team_member_id' => ['Selected team member does not have an available checked-in chair.']]);
+    }
+
+    private function confirmStaleBusyTeamMemberAvailable(int $accountId, int $teamMemberId): void
+    {
+        DB::transaction(function () use ($accountId, $teamMemberId) {
+            $hasActiveChair = ReservationResource::query()
+                ->forAccount($accountId)
+                ->chairs()
+                ->active()
+                ->where('team_member_id', $teamMemberId)
+                ->exists();
+            if (! $hasActiveChair) {
+                return;
+            }
+
+            $attendance = TeamMemberAttendance::query()
+                ->where('account_id', $accountId)
+                ->where('team_member_id', $teamMemberId)
+                ->whereNull('clock_out_at')
+                ->latest('clock_in_at')
+                ->lockForUpdate()
+                ->first();
+            if ((string) ($attendance?->current_status ?? '') !== TeamMemberAttendance::STATUS_BUSY) {
+                return;
+            }
+
+            if ($this->teamMemberHasActiveQueueAssignment($accountId, $teamMemberId, null, true)) {
+                return;
+            }
+
+            $attendance->update(['current_status' => TeamMemberAttendance::STATUS_AVAILABLE]);
+        });
+    }
+
+    private function queueItemCanBeCalledNextByTeamMember(
+        ReservationQueueItem $item,
+        int $teamMemberId,
+        bool $canManage,
+        int $ownTeamMemberId,
+        array $settings
+    ): bool {
+        $assignedTeamMemberId = (int) ($item->team_member_id ?? 0);
+        $isUnassignedTicket = $assignedTeamMemberId === 0
+            && (string) $item->item_type === ReservationQueueItem::TYPE_TICKET;
+
+        if (! $canManage && ($teamMemberId !== $ownTeamMemberId || ($assignedTeamMemberId !== $ownTeamMemberId && ! $isUnassignedTicket))) {
+            return false;
+        }
+
+        if ($canManage && $assignedTeamMemberId !== $teamMemberId && ! $isUnassignedTicket) {
+            return false;
+        }
+
+        if ($item->item_type !== ReservationQueueItem::TYPE_TICKET) {
+            return true;
+        }
+
+        $nextReservation = Reservation::query()
+            ->forAccount((int) $item->account_id)
+            ->whereIn('status', Reservation::ACTIVE_STATUSES)
+            ->where('team_member_id', $teamMemberId)
+            ->where('starts_at', '>', now('UTC'))
+            ->orderBy('starts_at')
+            ->first(['starts_at']);
+        if (! $nextReservation?->starts_at) {
+            return true;
+        }
+
+        $duration = max(5, (int) ($item->estimated_duration_minutes ?: 60));
+        $buffer = max(0, (int) ($settings['buffer_minutes'] ?? 0));
+
+        return (int) now('UTC')->diffInMinutes($nextReservation->starts_at, false) >= ($duration + $buffer);
+    }
+
+    private function teamMemberDisplayName(int $accountId, int $teamMemberId): string
+    {
+        $teamMember = TeamMember::query()
+            ->forAccount($accountId)
+            ->whereKey($teamMemberId)
+            ->with('user:id,name')
+            ->first();
+
+        return trim((string) ($teamMember?->user?->name ?? '')) ?: 'Selected team member';
     }
 
     private function teamMemberCanReceiveQueueAssignment(
@@ -990,6 +1890,7 @@ class ReservationQueueService
             && in_array($nextStatus, [
                 ReservationQueueItem::STATUS_CHECKED_IN,
                 ReservationQueueItem::STATUS_DONE,
+                ReservationQueueItem::STATUS_AWAITING_PAYMENT,
                 ReservationQueueItem::STATUS_CANCELLED,
                 ReservationQueueItem::STATUS_NO_SHOW,
                 ReservationQueueItem::STATUS_LEFT,
@@ -998,6 +1899,36 @@ class ReservationQueueService
             && ! $this->teamMemberHasActiveQueueAssignment((int) $item->account_id, $teamMemberId, (int) $item->id)
         ) {
             $this->updateOpenAttendanceStatus($item, TeamMemberAttendance::STATUS_AVAILABLE);
+        }
+    }
+
+    private function releaseStaleBusyAttendanceForSkippedItem(
+        ReservationQueueItem $item,
+        string $action,
+        int $targetTeamMemberId
+    ): void {
+        if (
+            ! in_array($action, ['pre_call', 'call', 'done'], true)
+            || (string) $item->status !== ReservationQueueItem::STATUS_SKIPPED
+            || ! $item->called_at
+            || ! $item->skipped_at
+            || $targetTeamMemberId <= 0
+            || (int) $item->team_member_id !== $targetTeamMemberId
+            || $this->teamMemberHasActiveQueueAssignment((int) $item->account_id, $targetTeamMemberId, (int) $item->id)
+        ) {
+            return;
+        }
+
+        $attendance = TeamMemberAttendance::query()
+            ->where('account_id', (int) $item->account_id)
+            ->where('team_member_id', $targetTeamMemberId)
+            ->whereNull('clock_out_at')
+            ->latest('clock_in_at')
+            ->lockForUpdate()
+            ->first();
+
+        if ((string) ($attendance?->current_status ?? '') === TeamMemberAttendance::STATUS_BUSY) {
+            $attendance->update(['current_status' => TeamMemberAttendance::STATUS_AVAILABLE]);
         }
     }
 
@@ -1013,8 +1944,12 @@ class ReservationQueueService
         $attendance?->update(['current_status' => $status]);
     }
 
-    private function teamMemberHasActiveQueueAssignment(int $accountId, int $teamMemberId, ?int $exceptItemId = null): bool
-    {
+    private function teamMemberHasActiveQueueAssignment(
+        int $accountId,
+        int $teamMemberId,
+        ?int $exceptItemId = null,
+        bool $lockForUpdate = false
+    ): bool {
         $query = ReservationQueueItem::query()
             ->forAccount($accountId)
             ->where('team_member_id', $teamMemberId)
@@ -1026,6 +1961,10 @@ class ReservationQueueService
 
         if ($exceptItemId) {
             $query->whereKeyNot($exceptItemId);
+        }
+
+        if ($lockForUpdate) {
+            $query->lockForUpdate();
         }
 
         return $query->exists();
@@ -1109,57 +2048,140 @@ class ReservationQueueService
 
     private function expireGraceItems(int $accountId, array $settings): void
     {
+        $nowUtc = now('UTC');
         $expired = ReservationQueueItem::query()
             ->forAccount($accountId)
             ->where('status', ReservationQueueItem::STATUS_CALLED)
             ->whereNotNull('call_expires_at')
-            ->where('call_expires_at', '<', now('UTC'))
-            ->get();
+            ->where('call_expires_at', '<', $nowUtc)
+            ->orderBy('id')
+            ->pluck('id');
 
-        foreach ($expired as $item) {
-            $previousStatus = (string) $item->status;
-            if (($settings['queue_no_show_on_grace_expiry'] ?? false) && $item->item_type === ReservationQueueItem::TYPE_APPOINTMENT) {
-                $expiredAt = now('UTC');
-                $item->update([
-                    'status' => ReservationQueueItem::STATUS_NO_SHOW,
-                    'finished_at' => $expiredAt,
-                    'call_expires_at' => null,
-                ]);
+        foreach ($expired as $itemId) {
+            $this->expireGraceItem(
+                $accountId,
+                (int) $itemId,
+                $settings,
+                $nowUtc
+            );
+        }
+    }
 
-                if ($item->reservation_id) {
-                    $this->expiredReservationAutoCloser->markReservationNoShowFromQueueGrace((int) $item->reservation_id, $expiredAt);
-                }
-            } else {
-                $item->update([
-                    'status' => ReservationQueueItem::STATUS_SKIPPED,
-                    'skipped_at' => now('UTC'),
-                    'call_expires_at' => null,
-                ]);
+    /**
+     * @param  array<string, mixed>  $settings
+     */
+    private function expireGraceItem(
+        int $accountId,
+        int $itemId,
+        array $settings,
+        CarbonInterface $nowUtc
+    ): bool {
+        return DB::transaction(function () use ($accountId, $itemId, $settings, $nowUtc): bool {
+            $item = ReservationQueueItem::query()
+                ->forAccount($accountId)
+                ->whereKey($itemId)
+                ->lockForUpdate()
+                ->first();
+
+            if (
+                ! $item
+                || $item->status !== ReservationQueueItem::STATUS_CALLED
+                || $item->call_expires_at === null
+                || $item->call_expires_at->gte($nowUtc)
+            ) {
+                return false;
             }
 
-            $freshItem = $item->fresh([
-                'service:id,name',
-                'teamMember.user:id,name,email',
-                'client:id,first_name,last_name,company_name,email,phone,portal_user_id',
-                'client.portalUser:id,name,email,phone_number',
-                'clientUser:id,name,email,phone_number',
-                'reservation:id,starts_at,status,team_member_id,client_id,client_user_id',
-                'reservation.client:id,first_name,last_name,company_name,email,phone,portal_user_id',
-                'reservation.client.portalUser:id,name,email,phone_number',
-                'reservation.clientUser:id,name,email,phone_number',
-                'reservation.teamMember.user:id,name,email',
-            ]) ?: $item;
+            $previousStatus = (string) $item->status;
+            $notifyGraceExpired = true;
+            if (
+                ($settings['queue_no_show_on_grace_expiry'] ?? false)
+                && $item->item_type === ReservationQueueItem::TYPE_APPOINTMENT
+            ) {
+                $nextQueueStatus = ReservationQueueItem::STATUS_NO_SHOW;
+                if ($item->reservation_id) {
+                    $markedNoShow = $this->queueGraceNoShowMarker->mark(
+                        $accountId,
+                        (int) $item->reservation_id,
+                        $nowUtc
+                    );
+                    if (! $markedNoShow) {
+                        $notifyGraceExpired = false;
+                        $reservationStatus = Reservation::query()
+                            ->forAccount($accountId)
+                            ->whereKey($item->reservation_id)
+                            ->value('status');
+                        $nextQueueStatus = match ($reservationStatus) {
+                            Reservation::STATUS_COMPLETED => ReservationQueueItem::STATUS_DONE,
+                            Reservation::STATUS_CANCELLED, Reservation::STATUS_EXPIRED => ReservationQueueItem::STATUS_CANCELLED,
+                            Reservation::STATUS_NO_SHOW => ReservationQueueItem::STATUS_NO_SHOW,
+                            default => null,
+                        };
 
-            $this->notificationService->handleQueueEvent($freshItem, 'queue_grace_expired');
+                        if ($nextQueueStatus === null) {
+                            return false;
+                        }
+                    }
+                }
+
+                $item->forceFill([
+                    'status' => $nextQueueStatus,
+                    'finished_at' => $nowUtc,
+                    'call_expires_at' => null,
+                ])->save();
+            } else {
+                $item->forceFill([
+                    'status' => ReservationQueueItem::STATUS_SKIPPED,
+                    'skipped_at' => $nowUtc,
+                    'call_expires_at' => null,
+                ])->save();
+            }
+
+            $nextStatus = (string) $item->status;
+            $this->syncAttendanceStatusForQueueTransition($item, $previousStatus, $nextStatus);
+            $this->queueGraceEffectsAfterCommit(
+                $accountId,
+                (int) $item->id,
+                $previousStatus,
+                $nextStatus,
+                $notifyGraceExpired
+            );
+
+            return true;
+        }, 3);
+    }
+
+    private function queueGraceEffectsAfterCommit(
+        int $accountId,
+        int $itemId,
+        string $previousStatus,
+        string $nextStatus,
+        bool $notifyGraceExpired
+    ): void {
+        DB::afterCommit(function () use (
+            $accountId,
+            $itemId,
+            $previousStatus,
+            $nextStatus,
+            $notifyGraceExpired
+        ): void {
+            $item = $this->queueItemForNotification($accountId, $itemId);
+            if (! $item) {
+                return;
+            }
+
+            if ($notifyGraceExpired) {
+                $this->notificationService->handleQueueEvent($item, 'queue_grace_expired');
+            }
             $this->notificationService->handleQueueEvent(
-                $freshItem,
+                $item,
                 'queue_status_changed',
                 null,
                 [
                     'from_status' => $previousStatus,
-                    'to_status' => (string) $freshItem->status,
+                    'to_status' => $nextStatus,
                 ]
             );
-        }
+        });
     }
 }

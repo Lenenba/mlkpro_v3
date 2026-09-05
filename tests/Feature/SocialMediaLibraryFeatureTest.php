@@ -7,6 +7,8 @@ use App\Models\SocialPost;
 use App\Models\SocialPostTemplate;
 use App\Models\TeamMember;
 use App\Models\User;
+use App\Services\Social\SocialMediaAssetService;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -84,6 +86,12 @@ it('renders the pulse media library from posts and templates', function () {
                 'source' => 'upload',
                 'name' => 'post-upload.jpg',
             ],
+            [
+                'type' => 'video',
+                'url' => 'https://example.com/social/post-video.mp4',
+                'source' => 'url',
+                'name' => 'post-video.mp4',
+            ],
         ],
         'status' => SocialPost::STATUS_DRAFT,
     ]);
@@ -109,6 +117,8 @@ it('renders the pulse media library from posts and templates', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->component('Social/MediaLibrary')
             ->has('assets', 2)
+            ->where('assets.0.type', 'image')
+            ->where('assets.1.type', 'image')
             ->where('summary.total', 2)
             ->where('summary.uploads', 1)
             ->where('summary.ai', 1)
@@ -172,6 +182,37 @@ it('lets authorized users upload a reusable media asset and open it in the compo
         ->getJson(route('social.composer', ['image_url' => $url]))
         ->assertOk()
         ->assertJsonPath('initial_media_url', $url);
+});
+
+it('removes a non-image file when the image-only media service rejects it', function () {
+    Storage::fake('public');
+
+    $owner = pulseMediaOwner();
+
+    expect(fn () => app(SocialMediaAssetService::class)->storeUploadedImage(
+        $owner,
+        UploadedFile::fake()->create('not-an-image.mp4', 64, 'video/mp4'),
+        'posts',
+    ))->toThrow(InvalidArgumentException::class, 'The uploaded file must be an image.');
+
+    expect(Storage::disk('public')->allFiles())->toBe([]);
+});
+
+it('removes a library upload when its database record cannot be created', function () {
+    Storage::fake('public');
+
+    $owner = pulseMediaOwner();
+    $missingActor = new User;
+    $missingActor->forceFill(['id' => 999999]);
+
+    expect(fn () => app(SocialMediaAssetService::class)->storeLibraryImage(
+        $owner,
+        $missingActor,
+        UploadedFile::fake()->image('orphaned-library.png', 900, 900),
+    ))->toThrow(QueryException::class);
+
+    expect(SocialMediaAsset::query()->count())->toBe(0)
+        ->and(Storage::disk('public')->allFiles())->toBe([]);
 });
 
 it('blocks pulse media routes when the social module is unavailable', function () {

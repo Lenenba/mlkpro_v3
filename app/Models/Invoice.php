@@ -33,6 +33,7 @@ class Invoice extends Model
     protected $fillable = [
         'work_id',
         'customer_id',
+        'reservation_queue_item_id',
         'user_id',
         'created_by_user_id',
         'approved_by_user_id',
@@ -43,8 +44,21 @@ class Invoice extends Model
         'approval_status',
         'current_approver_role_key',
         'current_approval_level',
+        'subtotal',
+        'tax_total',
         'total',
         'currency_code',
+        'source',
+        'billing_snapshot',
+        'customer_snapshot',
+        'receipt_delivery',
+        'receipt_delivery_status',
+        'receipt_delivery_queued_at',
+        'receipt_delivery_started_at',
+        'receipt_delivery_claim_token',
+        'receipt_delivery_attempts',
+        'receipt_delivery_last_error',
+        'receipt_delivered_at',
         'approved_at',
         'rejected_at',
         'processed_at',
@@ -52,8 +66,21 @@ class Invoice extends Model
     ];
 
     protected $casts = [
+        'subtotal' => 'decimal:2',
+        'tax_total' => 'decimal:2',
         'total' => 'decimal:2',
         'currency_code' => 'string',
+        'source' => 'string',
+        'billing_snapshot' => 'array',
+        'customer_snapshot' => 'array',
+        'receipt_delivery' => 'string',
+        'receipt_delivery_status' => 'string',
+        'receipt_delivery_queued_at' => 'datetime',
+        'receipt_delivery_started_at' => 'datetime',
+        'receipt_delivery_claim_token' => 'string',
+        'receipt_delivery_attempts' => 'integer',
+        'receipt_delivery_last_error' => 'string',
+        'receipt_delivered_at' => 'datetime',
         'current_approval_level' => 'integer',
         'approved_at' => 'datetime',
         'rejected_at' => 'datetime',
@@ -100,6 +127,11 @@ class Invoice extends Model
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    public function reservationQueueItem(): BelongsTo
+    {
+        return $this->belongsTo(ReservationQueueItem::class);
     }
 
     /**
@@ -207,24 +239,24 @@ class Invoice extends Model
     public function getAmountPaidAttribute(): float
     {
         if (array_key_exists('payments_sum_amount', $this->attributes)) {
-            return (float) $this->attributes['payments_sum_amount'];
+            return round((float) $this->attributes['payments_sum_amount'], 2);
         }
 
         if ($this->relationLoaded('payments')) {
-            return (float) $this->payments
+            return round((float) $this->payments
                 ->whereIn('status', Payment::settledStatuses())
-                ->sum('amount');
+                ->sum('amount'), 2);
         }
 
-        return (float) $this->payments()
+        return round((float) $this->payments()
             ->whereIn('status', Payment::settledStatuses())
-            ->sum('amount');
+            ->sum('amount'), 2);
     }
 
     public function getBalanceDueAttribute(): float
     {
-        $total = (float) $this->total;
-        $paid = $this->amount_paid;
+        $total = round((float) $this->total, 2);
+        $paid = round($this->amount_paid, 2);
 
         return max(0, round($total - $paid, 2));
     }
@@ -235,8 +267,8 @@ class Invoice extends Model
             return;
         }
 
-        $total = (float) $this->total;
-        $paid = $this->amount_paid;
+        $total = round((float) $this->total, 2);
+        $paid = round($this->amount_paid, 2);
 
         if ($total <= 0 && $paid <= 0) {
             return;

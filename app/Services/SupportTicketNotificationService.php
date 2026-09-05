@@ -5,20 +5,18 @@ namespace App\Services;
 use App\Models\PlatformSupportTicket;
 use App\Models\PlatformSupportTicketMessage;
 use App\Models\User;
-use App\Support\NotificationDispatcher;
 use App\Notifications\ActionEmailNotification;
+use App\Support\NotificationDispatcher;
 use Illuminate\Support\Facades\URL;
 
 class SupportTicketNotificationService
 {
-    public function __construct(private SupportAssignmentService $assignmentService)
-    {
-    }
+    public function __construct(private SupportAssignmentService $assignmentService) {}
 
     public function notifyAssignment(PlatformSupportTicket $ticket, User $assignee): void
     {
         $creator = $ticket->creator;
-        if (!$creator) {
+        if (! $creator) {
             return;
         }
 
@@ -31,7 +29,8 @@ class SupportTicketNotificationService
                 ['label' => 'Assigned to', 'value' => $assignee->name],
             ],
             URL::route('settings.support.show', $ticket->id),
-            'View support request'
+            'View support request',
+            platformBranding: true,
         ), [
             'ticket_id' => $ticket->id,
             'assigned_to' => $assignee->id,
@@ -46,18 +45,19 @@ class SupportTicketNotificationService
 
         if ($author->isSuperadmin() || $author->isPlatformAdmin()) {
             $creator = $ticket->creator;
-            if (!$creator) {
+            if (! $creator) {
                 return;
             }
 
             NotificationDispatcher::send($creator, new ActionEmailNotification(
                 'New response on your support request',
-                $author->name . ' replied to your request.',
+                $author->name.' replied to your request.',
                 [
                     ['label' => 'Ticket', 'value' => "#{$ticket->id} - {$ticket->title}"],
                 ],
                 URL::route('settings.support.show', $ticket->id),
-                'View support request'
+                'View support request',
+                platformBranding: true,
             ), [
                 'ticket_id' => $ticket->id,
                 'message_id' => $message->id,
@@ -70,13 +70,14 @@ class SupportTicketNotificationService
         if ($assignee) {
             NotificationDispatcher::send($assignee, new ActionEmailNotification(
                 'New client message',
-                $author->name . ' replied to a support request.',
+                $author->name.' replied to a support request.',
                 [
                     ['label' => 'Ticket', 'value' => "#{$ticket->id} - {$ticket->title}"],
                     ['label' => 'Company', 'value' => $ticket->account?->company_name ?? $ticket->account?->email],
                 ],
                 URL::route('superadmin.support.show', $ticket->id),
-                'View support request'
+                'View support request',
+                platformBranding: true,
             ), [
                 'ticket_id' => $ticket->id,
                 'message_id' => $message->id,
@@ -89,13 +90,14 @@ class SupportTicketNotificationService
         foreach ($agents as $agent) {
             NotificationDispatcher::send($agent, new ActionEmailNotification(
                 'New client message',
-                $author->name . ' replied to a support request.',
+                $author->name.' replied to a support request.',
                 [
                     ['label' => 'Ticket', 'value' => "#{$ticket->id} - {$ticket->title}"],
                     ['label' => 'Company', 'value' => $ticket->account?->company_name ?? $ticket->account?->email],
                 ],
                 URL::route('superadmin.support.show', $ticket->id),
-                'View support request'
+                'View support request',
+                platformBranding: true,
             ), [
                 'ticket_id' => $ticket->id,
                 'message_id' => $message->id,

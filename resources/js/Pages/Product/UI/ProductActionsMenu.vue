@@ -8,13 +8,29 @@ defineProps({
         type: Object,
         required: true,
     },
+    canEdit: {
+        type: Boolean,
+        default: false,
+    },
+    canDelete: {
+        type: Boolean,
+        default: false,
+    },
+    canAdjustStock: {
+        type: Boolean,
+        default: false,
+    },
+    canDuplicate: {
+        type: Boolean,
+        default: false,
+    },
     canPublishWithPulse: {
         type: Boolean,
         default: false,
     },
 });
 
-defineEmits(['quick-edit', 'adjust', 'duplicate', 'toggle-archive', 'delete']);
+defineEmits(['quick-edit', 'adjust', 'duplicate', 'toggle-archive', 'edit', 'delete']);
 
 const { t } = useI18n();
 </script>
@@ -28,6 +44,7 @@ const { t } = useI18n();
             {{ t('products.actions.view') }}
         </Link>
         <button
+            v-if="canEdit"
             type="button"
             class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback"
             @click="$emit('quick-edit')"
@@ -35,6 +52,7 @@ const { t } = useI18n();
             {{ t('products.actions.quick_edit') }}
         </button>
         <button
+            v-if="canAdjustStock"
             type="button"
             class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback"
             @click="$emit('adjust')"
@@ -42,6 +60,7 @@ const { t } = useI18n();
             {{ t('products.actions.adjust_stock') }}
         </button>
         <button
+            v-if="canDuplicate"
             type="button"
             class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback"
             @click="$emit('duplicate')"
@@ -56,6 +75,7 @@ const { t } = useI18n();
             {{ t('social.composer_manager.actions.publish_with_pulse') }}
         </Link>
         <button
+            v-if="canEdit"
             type="button"
             class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback"
             data-tone="warning"
@@ -64,14 +84,16 @@ const { t } = useI18n();
             {{ product.is_active ? t('products.actions.archive') : t('products.actions.restore') }}
         </button>
         <button
+            v-if="canEdit"
             type="button"
-            :data-hs-overlay="'#hs-pro-edit' + product.id"
             class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-stone-800 hover:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 action-feedback"
+            @click="$emit('edit')"
         >
             {{ t('products.actions.edit') }}
         </button>
-        <div class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
+        <div v-if="canDelete" class="my-1 border-t border-stone-200 dark:border-neutral-800"></div>
         <button
+            v-if="canDelete"
             type="button"
             class="flex w-full items-center gap-x-3 rounded-sm px-2 py-1.5 text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-neutral-800 action-feedback"
             data-tone="danger"

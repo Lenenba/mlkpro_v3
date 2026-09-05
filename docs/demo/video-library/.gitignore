@@ -1,0 +1,10 @@
+# Les médias lourds et les projets de montage restent hors Git.
+rushes/
+masters/
+exports/
+audio-raw/
+*.prproj
+*.drp
+*.fcpxml
+*.wav
+*.aiff

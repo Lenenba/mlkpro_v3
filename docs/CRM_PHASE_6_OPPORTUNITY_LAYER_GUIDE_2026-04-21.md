@@ -12,7 +12,7 @@ Le principe retenu:
 - reutiliser cette projection partout
 - brancher dessus le pipeline commercial, la sales inbox, le forecast et le dashboard manager
 - garder la navigation cross-object coherente via `crm_links`
-- rattacher les ecrans revenue au module forfaitaire `sales`
+- rattacher les ecrans revenue au module opt-in `sales_crm`, distinct de la caisse `sales`
 
 ## 2. Ce qui a ete ajoute
 

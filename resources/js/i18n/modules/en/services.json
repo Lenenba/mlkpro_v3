@@ -30,6 +30,7 @@
       "edit_service": "Edit service",
       "cancel": "Cancel",
       "create_service": "Create service",
+      "save_and_create_another": "Save and create another",
       "update_service": "Update service",
       "archive": "Archive",
       "restore": "Restore"

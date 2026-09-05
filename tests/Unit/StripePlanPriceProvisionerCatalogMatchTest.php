@@ -422,3 +422,96 @@ it('derives monthly non CAD prices from the resolved CAD Stripe base instead of 
         ->and($result['items'][4]['amount'])->toBe(300.0)
         ->and($service->createdPayloads)->toBe([]);
 });
+
+it('reports ambiguous catalog amounts with a locale independent decimal separator', function () {
+    config()->set('services.stripe.secret', 'sk_test_sync_123');
+    config()->set('billing.currency_conversion', [
+        'base_currency' => 'CAD',
+        'rates' => [
+            'CAD' => 1.0,
+            'USD' => 0.8,
+        ],
+        'rounding_increments' => [
+            'CAD' => 0.01,
+            'USD' => 0.01,
+        ],
+    ]);
+    config()->set('billing.plans', [
+        'starter' => [
+            'name' => 'Starter',
+            'audience' => 'team',
+        ],
+    ]);
+    config()->set('billing.catalog_defaults', [
+        'starter' => [
+            'contact_only' => false,
+            'prices' => [
+                'CAD' => [
+                    'monthly' => [
+                        'amount' => 30,
+                        'stripe_price_id' => 'price_starter_cad',
+                    ],
+                ],
+                'USD' => [
+                    'monthly' => [
+                        'amount' => 24,
+                        'stripe_price_id' => null,
+                    ],
+                ],
+            ],
+        ],
+    ]);
+
+    $service = new FakeStripePlanPriceProvisionerForTest(
+        [
+            provisionerFakePrice([
+                'id' => 'price_starter_cad',
+                'currency' => 'cad',
+                'unit_amount' => 3000,
+                'product' => 'prod_starter',
+            ]),
+            provisionerFakePrice([
+                'id' => 'price_starter_usd_a',
+                'currency' => 'usd',
+                'unit_amount' => 2400,
+                'product' => 'prod_starter_usd_a',
+            ]),
+            provisionerFakePrice([
+                'id' => 'price_starter_usd_b',
+                'currency' => 'usd',
+                'unit_amount' => 2400,
+                'product' => 'prod_starter_usd_b',
+            ]),
+        ],
+        [
+            'prod_starter' => provisionerFakeProduct([
+                'id' => 'prod_starter',
+                'name' => 'Starter',
+            ]),
+            'prod_starter_usd_a' => provisionerFakeProduct([
+                'id' => 'prod_starter_usd_a',
+                'name' => 'Starter',
+            ]),
+            'prod_starter_usd_b' => provisionerFakeProduct([
+                'id' => 'prod_starter_usd_b',
+                'name' => 'Starter',
+            ]),
+        ],
+    );
+
+    $run = fn () => $service->execute([
+        'plans' => ['starter'],
+        'dry_run' => true,
+    ]);
+    $expectedMessage = 'Multiple active monthly Stripe prices matched plan [starter] currency [USD] using product name for 24.00. Configure [STRIPE_PRICE_STARTER_USD] or remove duplicate prices in Stripe.';
+    $originalNumericLocale = setlocale(LC_NUMERIC, 0);
+    setlocale(LC_NUMERIC, 'fr_CA.UTF-8', 'fr_CA', 'fr_FR.UTF-8', 'fr_FR', 'de_DE.UTF-8', 'de_DE');
+
+    try {
+        expect($run)->toThrow(\RuntimeException::class, $expectedMessage);
+    } finally {
+        if (is_string($originalNumericLocale)) {
+            setlocale(LC_NUMERIC, $originalNumericLocale);
+        }
+    }
+});

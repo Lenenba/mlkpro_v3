@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 const consentCookie = 'mlk_cookie_prefs_v1';
@@ -11,6 +11,8 @@ const gaScriptId = 'mlk-ga-script';
 const bannerVisible = ref(false);
 const preferencesVisible = ref(false);
 const consentLoaded = ref(false);
+const preferencesDialogRef = ref(null);
+let preferencesTrigger = null;
 
 const consent = ref({
     essential: true,
@@ -37,6 +39,26 @@ const essentialTitle = computed(() => t('cookies.modal.essential_title'));
 const essentialDescription = computed(() => t('cookies.modal.essential_description'));
 const analyticsTitle = computed(() => t('cookies.modal.analytics_title'));
 const analyticsDescription = computed(() => t('cookies.modal.analytics_description'));
+
+const focusableSelector = [
+    'button:not([disabled])',
+    'a[href]',
+    'input:not([disabled])',
+    'select:not([disabled])',
+    'textarea:not([disabled])',
+    '[tabindex]:not([tabindex="-1"])',
+].join(',');
+
+const restorePreferencesFocus = () => {
+    const trigger = preferencesTrigger;
+    preferencesTrigger = null;
+
+    nextTick(() => {
+        if (trigger?.isConnected && typeof trigger.focus === 'function') {
+            trigger.focus();
+        }
+    });
+};
 
 const parseCookieValue = (value) => {
     try {
@@ -119,6 +141,7 @@ const loadAnalytics = () => {
 };
 
 const setConsent = (value) => {
+    const shouldRestoreFocus = preferencesVisible.value;
     const next = {
         essential: true,
         analytics: Boolean(value.analytics),
@@ -129,21 +152,71 @@ const setConsent = (value) => {
     bannerVisible.value = false;
     preferencesVisible.value = false;
     applyAnalyticsConsent(next.analytics);
+
+    if (shouldRestoreFocus) {
+        restorePreferencesFocus();
+    }
 };
 
 const acceptAll = () => setConsent({ essential: true, analytics: true });
 const rejectAll = () => setConsent({ essential: true, analytics: false });
 
-const openPreferences = () => {
+const openPreferences = async () => {
+    if (typeof document !== 'undefined') {
+        preferencesTrigger = document.activeElement;
+    }
+
     consentDraft.value = { ...consent.value };
     preferencesVisible.value = true;
     bannerVisible.value = false;
+
+    await nextTick();
+    const firstControl = preferencesDialogRef.value?.querySelector(focusableSelector);
+    (firstControl || preferencesDialogRef.value)?.focus();
 };
 
 const closePreferences = () => {
+    const shouldRestoreFocus = preferencesVisible.value;
     preferencesVisible.value = false;
     if (!consentLoaded.value) {
         bannerVisible.value = true;
+    }
+
+    if (shouldRestoreFocus) {
+        restorePreferencesFocus();
+    }
+};
+
+const handlePreferencesKeydown = (event) => {
+    if (event.key === 'Escape') {
+        event.preventDefault();
+        closePreferences();
+        return;
+    }
+
+    if (event.key !== 'Tab') {
+        return;
+    }
+
+    const controls = Array.from(
+        preferencesDialogRef.value?.querySelectorAll(focusableSelector) || []
+    );
+    if (!controls.length) {
+        event.preventDefault();
+        preferencesDialogRef.value?.focus();
+        return;
+    }
+
+    const firstControl = controls[0];
+    const lastControl = controls[controls.length - 1];
+    const activeElement = typeof document !== 'undefined' ? document.activeElement : null;
+
+    if (event.shiftKey && (activeElement === firstControl || !preferencesDialogRef.value?.contains(activeElement))) {
+        event.preventDefault();
+        lastControl.focus();
+    } else if (!event.shiftKey && activeElement === lastControl) {
+        event.preventDefault();
+        firstControl.focus();
     }
 };
 
@@ -230,13 +303,22 @@ onBeforeUnmount(() => {
     </div>
 
     <div v-if="preferencesVisible" class="fixed inset-0 z-[120]">
-        <div class="absolute inset-0 bg-black/40" @click="closePreferences"></div>
-        <div class="relative mx-auto mt-16 w-[92%] max-w-xl rounded-sm bg-white p-6 shadow-xl">
+        <div class="absolute inset-0 bg-black/40" aria-hidden="true" @click="closePreferences"></div>
+        <div
+            ref="preferencesDialogRef"
+            class="relative mx-auto mt-16 w-[92%] max-w-xl rounded-sm bg-white p-6 shadow-xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="cookie-preferences-title"
+            aria-describedby="cookie-preferences-description"
+            tabindex="-1"
+            @keydown="handlePreferencesKeydown"
+        >
             <div class="space-y-1">
-                <div class="text-base font-semibold text-stone-900">
+                <h2 id="cookie-preferences-title" class="text-base font-semibold text-stone-900">
                     {{ modalTitle }}
-                </div>
-                <p class="text-xs text-stone-600">
+                </h2>
+                <p id="cookie-preferences-description" class="text-xs text-stone-600">
                     {{ modalDescription }}
                 </p>
             </div>
@@ -244,18 +326,31 @@ onBeforeUnmount(() => {
             <div class="mt-5 space-y-4">
                 <div class="flex items-start justify-between gap-4 rounded-sm border border-stone-200 bg-stone-50 px-4 py-3">
                     <div>
-                        <div class="text-sm font-semibold text-stone-800">{{ essentialTitle }}</div>
-                        <div class="text-xs text-stone-600">{{ essentialDescription }}</div>
+                        <div id="cookie-essential-title" class="text-sm font-semibold text-stone-800">{{ essentialTitle }}</div>
+                        <div id="cookie-essential-description" class="text-xs text-stone-600">{{ essentialDescription }}</div>
                     </div>
-                    <input type="checkbox" checked disabled class="mt-1 h-4 w-4 rounded border-stone-300" />
+                    <input
+                        type="checkbox"
+                        checked
+                        disabled
+                        class="mt-1 h-4 w-4 rounded border-stone-300"
+                        aria-labelledby="cookie-essential-title"
+                        aria-describedby="cookie-essential-description"
+                    />
                 </div>
 
                 <div class="flex items-start justify-between gap-4 rounded-sm border border-stone-200 px-4 py-3">
                     <div>
-                        <div class="text-sm font-semibold text-stone-800">{{ analyticsTitle }}</div>
-                        <div class="text-xs text-stone-600">{{ analyticsDescription }}</div>
+                        <div id="cookie-analytics-title" class="text-sm font-semibold text-stone-800">{{ analyticsTitle }}</div>
+                        <div id="cookie-analytics-description" class="text-xs text-stone-600">{{ analyticsDescription }}</div>
                     </div>
-                    <input v-model="consentDraft.analytics" type="checkbox" class="mt-1 h-4 w-4 rounded border-stone-300" />
+                    <input
+                        v-model="consentDraft.analytics"
+                        type="checkbox"
+                        class="mt-1 h-4 w-4 rounded border-stone-300"
+                        aria-labelledby="cookie-analytics-title"
+                        aria-describedby="cookie-analytics-description"
+                    />
                 </div>
             </div>
 

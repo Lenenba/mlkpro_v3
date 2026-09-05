@@ -135,6 +135,8 @@
     "kpi": {
       "revenue_paid": "Revenue paid",
       "revenue_billed": "Billed {amount}",
+      "pos_revenue": "POS sales collected",
+      "pos_revenue_month": "{amount} collected this month",
       "outstanding_balance": "Outstanding balance",
       "partial_invoices": "{count} partial invoices",
       "client_follow_up": "Client follow-up",
@@ -166,6 +168,8 @@
       "pending_actions_label": "Finance actions",
       "pipeline_title": "Pipeline",
       "pipeline_subtitle": "Track open quotes and active jobs in one view.",
+      "inventory_title": "Products and inventory",
+      "inventory_subtitle": "Physical inventory value and items to restock.",
       "accepted_label": "Accepted",
       "scheduled_label": "Scheduled",
       "completed_label": "Completed",
@@ -258,6 +262,48 @@
         "void": "Void"
       }
     },
+    "scenario": {
+      "eyebrow": "Demo scenario",
+      "title": "Live operating picture",
+      "subtitle": "Metrics calculated as of {date} across the last {months} months.",
+      "history_title": "Revenue and expenses over 12 months",
+      "revenue": "Revenue",
+      "expenses": "Expenses",
+      "top_services": "Most requested services",
+      "top_employees": "Busiest employees",
+      "top_products": "Top-selling products",
+      "recent_payments": "Recent payments",
+      "no_recent_payments": "No recent payments.",
+      "metrics": {
+        "revenue_month": "Revenue this month",
+        "no_comparison": "No comparison available",
+        "vs_previous": "{value} versus last month",
+        "reservations_today": "Appointments today",
+        "upcoming": "{count} upcoming",
+        "occupancy": "Occupancy rate",
+        "trailing_days": "Over the last {count} days",
+        "new_customers": "New customers",
+        "recurring": "{count} returning customers",
+        "average_ticket": "Average service ticket",
+        "completed_services": "Completed services this month",
+        "outstanding": "Outstanding invoices",
+        "invoice_count": "{count} open invoice(s)",
+        "invoice_and_future": "{count} open invoice(s) · {future} committed future revenue",
+        "service_exceptions": "No-show rate",
+        "cancellations": "Cancellations: {value}",
+        "actions": "Actions to review",
+        "action_breakdown": "{quotes} quotes · {tasks} tasks · {stock} stock · {notifications} alerts"
+      },
+      "field_operations": {
+        "jobs_today": "Jobs today",
+        "capacity_usage": "Field capacity used",
+        "average_job_value": "Average job value",
+        "completed_jobs": "Jobs completed this month",
+        "quality_incidents": "Quality incident rate",
+        "top_employees": "Most active field team",
+        "top_products": "Most-used supplies"
+      }
+    },
     "marketing_panel": {
       "title": "Marketing KPI",
       "show": "Show panel",
@@ -275,8 +321,11 @@
       "list_count": "{count} list(s)",
       "customers_count": "{count} customers",
       "reservations_created": "Reservations created: {count}",
+      "reservations_created_label": "Reservations created",
       "invoices_paid": "Invoices paid: {count}",
+      "invoices_paid_label": "Invoices paid",
       "quotes_accepted": "Quotes accepted: {count}",
+      "quotes_accepted_label": "Quotes accepted",
       "cards": {
         "campaigns_sent": "Campaigns sent",
         "delivery_success_rate": "Delivery success rate",

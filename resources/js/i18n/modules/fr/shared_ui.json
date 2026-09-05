@@ -1,0 +1,39 @@
+{
+  "dropzone": {
+    "upload_image": "Téléverser une image",
+    "upload_media": "Déposez vos médias",
+    "image_preview": "Aperçu de l'image",
+    "current_image": "Image actuelle",
+    "preview_alt": "Aperçu",
+    "replace": "Remplacer",
+    "remove": "Supprimer",
+    "attached_hint": "Cette image est déjà jointe. Vous pouvez la remplacer ou la supprimer.",
+    "drop_here": "Déposez votre fichier ici ou",
+    "browse": "parcourir",
+    "optimization_hint": "Les grandes images sont optimisées automatiquement.",
+    "media_hint": "Images, vidéos et PDF sont détectés automatiquement.",
+    "limit_reached": "Limite de {count} médias atteinte.",
+    "media_types": {
+      "image": "Image",
+      "video": "Vidéo",
+      "document": "Document",
+      "file": "Fichier"
+    },
+    "errors": {
+      "svg_not_allowed": "Les images SVG ne sont pas autorisées.",
+      "unsupported_format": "Format d'image non pris en charge. Formats autorisés : {formats}.",
+      "unsupported_media_format": "Format de média non pris en charge. Formats autorisés : {formats}.",
+      "too_many_files": "Vous pouvez joindre jusqu'à {count} médias.",
+      "processing_failed": "Le traitement de l'image a échoué.",
+      "too_large": "L'image est trop volumineuse. Taille maximale : {size}.",
+      "video_too_large": "La vidéo est trop volumineuse. Taille maximale : {size}.",
+      "document_too_large": "Le PDF est trop volumineux. Taille maximale : {size}.",
+      "total_too_large": "La taille totale des nouveaux fichiers ne peut pas dépasser {size}."
+    }
+  },
+  "kpi_visibility": {
+    "title": "Indicateurs",
+    "show": "Afficher les indicateurs",
+    "hide": "Masquer les indicateurs"
+  }
+}

@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\Customer;
+use App\Models\Role;
 use App\Models\User;
 
 test('api v1 login and customer notes update', function () {
@@ -36,4 +38,34 @@ test('api v1 login and customer notes update', function () {
         ])
         ->assertOk()
         ->assertJsonPath('customer.description', 'RN note');
+});
+
+test('api v1 login returns 403 for a client with disabled portal access', function () {
+    $clientRole = Role::query()->firstOrCreate(
+        ['name' => 'client'],
+        ['description' => 'Client role'],
+    );
+    $owner = User::factory()->create();
+    $client = User::factory()->create([
+        'role_id' => $clientRole->id,
+        'password' => 'password',
+    ]);
+    Customer::factory()->create([
+        'user_id' => $owner->id,
+        'portal_user_id' => $client->id,
+        'portal_access' => false,
+        'email' => $client->email,
+    ]);
+
+    $this->postJson('/api/v1/auth/login', [
+        'email' => $client->email,
+        'password' => 'password',
+        'device_name' => 'revoked-client',
+    ])
+        ->assertForbidden()
+        ->assertExactJson([
+            'message' => __('ui.auth.portal_access_disabled'),
+        ]);
+
+    expect($client->tokens()->exists())->toBeFalse();
 });

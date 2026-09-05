@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\Customer;
 use App\Models\User;
+use App\Services\TenantBrandingResolver;
 use App\Support\QueueWorkload;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -28,6 +29,12 @@ class ActionEmailNotification extends Notification implements ShouldQueue
 
     public ?string $note;
 
+    private ?int $accountOwnerId = null;
+
+    private bool $platformBranding = false;
+
+    private bool $mirrorInApp = true;
+
     public function __construct(
         string $title,
         ?string $intro = null,
@@ -35,7 +42,10 @@ class ActionEmailNotification extends Notification implements ShouldQueue
         ?string $actionUrl = null,
         ?string $actionLabel = null,
         ?string $subject = null,
-        ?string $note = null
+        ?string $note = null,
+        ?int $accountOwnerId = null,
+        bool $platformBranding = false,
+        bool $mirrorInApp = true,
     ) {
         $this->title = $title;
         $this->intro = $intro;
@@ -44,6 +54,9 @@ class ActionEmailNotification extends Notification implements ShouldQueue
         $this->actionLabel = $actionLabel;
         $this->subject = $subject;
         $this->note = $note;
+        $this->accountOwnerId = $accountOwnerId;
+        $this->platformBranding = $platformBranding;
+        $this->mirrorInApp = $mirrorInApp;
         $this->onQueue(QueueWorkload::queue('notifications'));
     }
 
@@ -57,17 +70,26 @@ class ActionEmailNotification extends Notification implements ShouldQueue
         return ['mail'];
     }
 
+    public function shouldMirrorInApp(): bool
+    {
+        return $this->mirrorInApp;
+    }
+
     public function toMail(object $notifiable): MailMessage
     {
-        $companyUser = null;
-        if ($notifiable instanceof Customer) {
+        $companyUser = ! $this->platformBranding && $this->accountOwnerId
+            ? User::query()->find($this->accountOwnerId)
+            : null;
+
+        if (! $this->platformBranding && ! $companyUser && $notifiable instanceof Customer) {
             $companyUser = $notifiable->user;
-        } elseif ($notifiable instanceof User) {
-            $companyUser = User::find($notifiable->accountOwnerId());
+        } elseif (! $this->platformBranding && ! $companyUser && $notifiable instanceof User) {
+            $companyUser = ! $notifiable->isSuperadmin() && ! $notifiable->isPlatformAdmin()
+                ? app(TenantBrandingResolver::class)->resolveAccountOwner($notifiable)
+                : null;
         }
 
-        $companyName = $companyUser?->company_name ?: config('app.name');
-        $companyLogo = $companyUser?->company_logo_url;
+        $branding = app(TenantBrandingResolver::class)->forAccountOwner($companyUser);
 
         return (new MailMessage)
             ->subject($this->subject ?? $this->title)
@@ -78,8 +100,9 @@ class ActionEmailNotification extends Notification implements ShouldQueue
                 'actionUrl' => $this->actionUrl,
                 'actionLabel' => $this->actionLabel,
                 'note' => $this->note,
-                'companyName' => $companyName,
-                'companyLogo' => $companyLogo,
+                'companyName' => $branding['name'],
+                'companyLogo' => $branding['custom_logo_url'],
+                'showPoweredBy' => $companyUser !== null,
             ]);
     }
 }

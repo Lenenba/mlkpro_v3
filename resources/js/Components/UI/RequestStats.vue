@@ -1,4 +1,9 @@
 <script setup>
+import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
+import { buildKpiProgress } from '@/utils/kpi';
+
 const props = defineProps({
     stats: {
         type: Object,
@@ -8,107 +13,21 @@ const props = defineProps({
 
 const formatNumber = (value) =>
     Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
+
+const { t } = useI18n();
+const metrics = computed(() => [
+    { key: 'total', label: t('requests.stats.total'), value: formatNumber(props.stats.total), tone: 'indigo' },
+    { key: 'new', label: t('requests.stats.new'), value: formatNumber(props.stats.new), tone: 'amber', progress: buildKpiProgress(props.stats.new, props.stats.total) },
+    { key: 'in-progress', label: t('requests.stats.in_progress'), value: formatNumber(props.stats.in_progress), tone: 'sky', progress: buildKpiProgress(props.stats.in_progress, props.stats.total) },
+    { key: 'due-soon', label: t('requests.stats.due_soon'), value: formatNumber(props.stats.due_soon), tone: 'cyan', progress: buildKpiProgress(props.stats.due_soon, props.stats.total) },
+    { key: 'stale', label: t('requests.stats.stale'), value: formatNumber(props.stats.stale), tone: 'orange', progress: buildKpiProgress(props.stats.stale, props.stats.total) },
+    { key: 'breached', label: t('requests.stats.breached'), value: formatNumber(props.stats.breached), tone: 'red', progress: buildKpiProgress(props.stats.breached, props.stats.total) },
+    { key: 'won', label: t('requests.stats.won'), value: formatNumber(props.stats.won), tone: 'emerald', progress: buildKpiProgress(props.stats.won, props.stats.total) },
+    { key: 'lost', label: t('requests.stats.lost'), value: formatNumber(props.stats.lost), tone: 'rose', progress: buildKpiProgress(props.stats.lost, props.stats.total) },
+    { key: 'unassigned', label: t('requests.stats.unassigned'), value: formatNumber(props.stats.unassigned), tone: 'stone', progress: buildKpiProgress(props.stats.unassigned, props.stats.total) },
+]);
 </script>
 
 <template>
-    <div class="grid grid-cols-2 gap-2 md:grid-cols-3 md:gap-3 lg:gap-5 xl:grid-cols-6 2xl:grid-cols-9">
-        <div
-            class="p-4 sm:p-5 bg-white border border-t-4 border-t-indigo-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700"
-        >
-            <div class="space-y-1">
-                <h2 class="text-sm text-stone-500 dark:text-neutral-400">{{ $t('requests.stats.total') }}</h2>
-                <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
-                    {{ formatNumber(stats.total) }}
-                </p>
-            </div>
-        </div>
-
-        <div
-            class="p-4 sm:p-5 bg-white border border-t-4 border-t-amber-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700"
-        >
-            <div class="space-y-1">
-                <h2 class="text-sm text-stone-500 dark:text-neutral-400">{{ $t('requests.stats.new') }}</h2>
-                <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
-                    {{ formatNumber(stats.new) }}
-                </p>
-            </div>
-        </div>
-
-        <div
-            class="p-4 sm:p-5 bg-white border border-t-4 border-t-sky-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700"
-        >
-            <div class="space-y-1">
-                <h2 class="text-sm text-stone-500 dark:text-neutral-400">{{ $t('requests.stats.in_progress') }}</h2>
-                <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
-                    {{ formatNumber(stats.in_progress) }}
-                </p>
-            </div>
-        </div>
-
-        <div
-            class="p-4 sm:p-5 bg-white border border-t-4 border-t-cyan-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700"
-        >
-            <div class="space-y-1">
-                <h2 class="text-sm text-stone-500 dark:text-neutral-400">{{ $t('requests.stats.due_soon') }}</h2>
-                <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
-                    {{ formatNumber(stats.due_soon) }}
-                </p>
-            </div>
-        </div>
-
-        <div
-            class="p-4 sm:p-5 bg-white border border-t-4 border-t-amber-700 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700"
-        >
-            <div class="space-y-1">
-                <h2 class="text-sm text-stone-500 dark:text-neutral-400">{{ $t('requests.stats.stale') }}</h2>
-                <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
-                    {{ formatNumber(stats.stale) }}
-                </p>
-            </div>
-        </div>
-
-        <div
-            class="p-4 sm:p-5 bg-white border border-t-4 border-t-rose-700 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700"
-        >
-            <div class="space-y-1">
-                <h2 class="text-sm text-stone-500 dark:text-neutral-400">{{ $t('requests.stats.breached') }}</h2>
-                <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
-                    {{ formatNumber(stats.breached) }}
-                </p>
-            </div>
-        </div>
-
-        <div
-            class="p-4 sm:p-5 bg-white border border-t-4 border-t-emerald-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700"
-        >
-            <div class="space-y-1">
-                <h2 class="text-sm text-stone-500 dark:text-neutral-400">{{ $t('requests.stats.won') }}</h2>
-                <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
-                    {{ formatNumber(stats.won) }}
-                </p>
-            </div>
-        </div>
-
-        <div
-            class="p-4 sm:p-5 bg-white border border-t-4 border-t-rose-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700"
-        >
-            <div class="space-y-1">
-                <h2 class="text-sm text-stone-500 dark:text-neutral-400">{{ $t('requests.stats.lost') }}</h2>
-                <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
-                    {{ formatNumber(stats.lost) }}
-                </p>
-            </div>
-        </div>
-
-        <div
-            class="p-4 sm:p-5 bg-white border border-t-4 border-t-slate-500 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700"
-        >
-            <div class="space-y-1">
-                <h2 class="text-sm text-stone-500 dark:text-neutral-400">{{ $t('requests.stats.unassigned') }}</h2>
-                <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
-                    {{ formatNumber(stats.unassigned) }}
-                </p>
-            </div>
-        </div>
-    </div>
+    <KpiMetricGrid :metrics="metrics" />
 </template>

@@ -23,6 +23,14 @@ const props = defineProps({
         type: String,
         default: '',
     },
+    toggleLabel: {
+        type: String,
+        default: '',
+    },
+    selectOnFocus: {
+        type: Boolean,
+        default: false,
+    },
     required: {
         type: Boolean,
         default: false,
@@ -54,12 +62,20 @@ const model = defineModel({
 });
 
 const input = ref(null);
+const generatedId = `floating-select-${Math.random().toString(36).slice(2, 10)}`;
 const filterQuery = ref('');
 const isOpen = ref(false);
 const activeIndex = ref(-1);
 const isFocused = ref(false);
 const isFiltering = ref(false);
 const attrs = useAttrs();
+const controlId = computed(() => attrs.id || generatedId);
+const listboxId = computed(() => `${controlId.value}-listbox`);
+const resolvedToggleLabel = computed(() => props.toggleLabel
+    || props.label
+    || props.filterPlaceholder
+    || props.placeholder
+    || undefined);
 
 const normalizedOptions = computed(() =>
     (props.options || []).map((option, index) => {
@@ -77,6 +93,7 @@ const normalizedOptions = computed(() =>
                 label,
                 disabled: Boolean(option.disabled),
                 key: option.key ?? value ?? label ?? index,
+                id: `${controlId.value}-option-${index}`,
                 search,
             };
         }
@@ -86,6 +103,7 @@ const normalizedOptions = computed(() =>
             label: String(option),
             disabled: false,
             key: option ?? index,
+            id: `${controlId.value}-option-${index}`,
             search: String(option ?? '').toLowerCase(),
         };
     })
@@ -146,6 +164,18 @@ const filteredOptions = computed(() => {
         list.findIndex((entry) => entry.key === option.key) === index
     );
 });
+const activeOptionId = computed(() => {
+    if (!isOpen.value || activeIndex.value < 0) {
+        return undefined;
+    }
+
+    return filteredOptions.value[activeIndex.value]?.id;
+});
+const isOptionSelected = (option) => {
+    const selectedValue = Array.isArray(model.value) ? model.value[0] : model.value;
+
+    return String(option?.value ?? '') === String(selectedValue ?? '');
+};
 
 const setActiveIndex = (index) => {
     const list = filteredOptions.value;
@@ -236,13 +266,17 @@ const selectOption = (option) => {
     closeDropdown();
 };
 
-const handleFocus = () => {
+const handleFocus = (event) => {
     if (!useFilterInput.value) {
         return;
     }
     isFocused.value = true;
     isFiltering.value = false;
     openDropdown();
+
+    if (props.selectOnFocus) {
+        event.currentTarget?.select();
+    }
 };
 
 const handleBlur = () => {
@@ -346,32 +380,34 @@ const inputAttrs = computed(() => {
 });
 
 const isDisabled = computed(() => Boolean(selectAttrs.value?.disabled));
+const isMultiple = computed(() => Boolean(selectAttrs.value?.multiple));
+const useFilterInput = computed(() => props.filterable && !isMultiple.value);
 
 const selectClass = computed(() => {
     const baseClass = props.dense
-        ? 'peer block w-full rounded-sm border-stone-200 bg-white px-2.5 py-2 text-xs leading-4 text-stone-700 focus:border-green-600 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-400 dark:focus:ring-neutral-600 focus:pt-4 focus:pb-1'
-        : 'peer p-4 pe-9 block w-full border-stone-200 rounded-sm text-sm focus:border-green-600 focus:ring-green-600 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-400 dark:focus:ring-neutral-600 focus:pt-6 focus:pb-2 autofill:pt-6 autofill:pb-2';
-    const filledClass = hasSelection.value
-        ? (props.dense ? 'pt-4 pb-1' : 'pt-6 pb-2')
+        ? 'app-field-control-compact peer truncate pe-9'
+        : 'app-field-control peer truncate pe-9';
+    const heightClass = isMultiple.value
+        ? 'h-auto py-2'
+        : '';
+    const placeholderClass = useFilterInput.value
+        ? 'placeholder:text-stone-400 dark:placeholder:text-neutral-500'
         : '';
 
-    return [baseClass, filledClass, attrs.class].filter(Boolean);
+    return [baseClass, heightClass, placeholderClass, attrs.class].filter(Boolean);
 });
 
 const labelClass = computed(() => (
     props.dense
         ? [
-            'absolute top-0 start-0 w-full px-2.5 py-2 pe-9 h-full truncate pointer-events-none transition ease-in-out duration-100 border border-transparent text-xs leading-4 text-stone-500 dark:text-neutral-500 peer-disabled:opacity-50 peer-disabled:pointer-events-none peer-focus:text-[10px] peer-focus:-translate-y-1 peer-focus:leading-3 peer-focus:text-stone-500 dark:peer-focus:text-neutral-500',
-            hasSelection.value ? 'text-[10px] -translate-y-1 leading-3 text-stone-500 dark:text-neutral-500' : '',
+            'app-floating-label-compact peer-focus:items-start peer-focus:pt-1.5 peer-focus:text-[10px] peer-focus:leading-3',
+            hasSelection.value ? 'items-start pt-1.5 text-[10px] leading-3' : '',
         ]
         : [
-            'absolute top-0 start-0 w-full p-4 pe-9 h-full truncate pointer-events-none transition ease-in-out duration-100 origin-[0_0] border border-transparent text-sm text-stone-500 dark:text-neutral-500 peer-disabled:opacity-50 peer-disabled:pointer-events-none peer-focus:scale-90 peer-focus:-translate-y-1.5 peer-focus:text-stone-500 dark:peer-focus:text-neutral-500',
-            hasSelection.value ? 'scale-90 -translate-y-1.5 text-stone-500 dark:text-neutral-500' : '',
+            'app-floating-label pe-9 peer-focus:scale-90 peer-focus:translate-x-0.5 peer-focus:-translate-y-1.5',
+            hasSelection.value ? 'scale-90 translate-x-0.5 -translate-y-1.5' : '',
         ]
 ));
-
-const isMultiple = computed(() => Boolean(selectAttrs.value?.multiple));
-const useFilterInput = computed(() => props.filterable && !isMultiple.value);
 
 watch(
     () => model.value,
@@ -412,9 +448,7 @@ watch(
         }
 
         const match = resolveMatch(value);
-        if (match) {
-            model.value = match.value;
-        }
+        model.value = match ? match.value : '';
     }
 );
 
@@ -429,15 +463,23 @@ defineExpose({ focus: () => input.value.focus() });
 
 <template>
     <!-- Floating Select -->
-    <div class="relative">
+    <div class="relative min-w-0">
         <input
             v-if="useFilterInput"
+            :id="controlId"
             v-model="filterQuery"
             ref="input"
             v-bind="inputAttrs"
             :class="selectClass"
+            :required="required"
+            :aria-required="required ? 'true' : undefined"
             :placeholder="filterPlaceholder || placeholder || label"
             :aria-label="filterPlaceholder || label"
+            role="combobox"
+            aria-autocomplete="list"
+            :aria-expanded="isOpen"
+            :aria-controls="listboxId"
+            :aria-activedescendant="activeOptionId"
             autocomplete="off"
             @focus="handleFocus"
             @blur="handleBlur"
@@ -449,34 +491,57 @@ defineExpose({ focus: () => input.value.focus() });
             type="button"
             class="absolute inset-y-0 end-0 flex items-center px-3 text-stone-400 hover:text-stone-600 dark:text-neutral-500 dark:hover:text-neutral-300"
             :class="isDisabled ? 'pointer-events-none opacity-50' : ''"
+            :disabled="isDisabled"
+            :aria-label="resolvedToggleLabel"
+            :aria-controls="listboxId"
+            :aria-expanded="isOpen"
+            aria-haspopup="listbox"
             @mousedown.prevent
             @click="toggleDropdown"
-            aria-label="Toggle options"
         >
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                 <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.104l3.71-3.873a.75.75 0 1 1 1.08 1.04l-4.24 4.43a.75.75 0 0 1-1.08 0L5.21 8.27a.75.75 0 0 1 .02-1.06z" clip-rule="evenodd" />
             </svg>
         </button>
-        <select v-else v-model="model" ref="input" v-bind="selectAttrs" :class="selectClass">
+        <select
+            v-else
+            :id="controlId"
+            v-model="model"
+            ref="input"
+            v-bind="selectAttrs"
+            :class="selectClass"
+            :required="required"
+            :aria-required="required ? 'true' : undefined"
+        >
             <option v-if="placeholder && !isMultiple" value="">{{ placeholder }}</option>
             <option v-for="option in filteredOptions" :key="option.key" :value="option.value" :disabled="option.disabled">
                 {{ option.label }}
             </option>
         </select>
         <label
+            :for="controlId"
+            :title="label"
             :class="labelClass">
-            <span>{{ label }}</span>
-            <span v-if="required" class="text-red-500 dark:text-red-400"> *</span>
+            <span class="app-floating-label-content">
+                {{ label }}<span v-if="required" class="text-red-500 dark:text-red-400"> *</span>
+            </span>
         </label>
         <div
             v-if="useFilterInput && isOpen"
+            :id="listboxId"
             class="absolute z-30 mt-1 w-full max-h-60 overflow-auto rounded-sm border border-stone-200 bg-white py-1 text-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:border-neutral-700 dark:bg-neutral-900 dark:shadow-[0_10px_40px_10px_rgba(0,0,0,0.2)]"
+            role="listbox"
+            :aria-label="label"
         >
             <button
                 v-for="(option, index) in filteredOptions"
                 :key="option.key"
+                :id="option.id"
                 type="button"
-                class="flex w-full items-center px-3 py-2 text-left text-sm text-stone-700 transition dark:text-neutral-200"
+                class="flex min-w-0 w-full items-center whitespace-normal break-words px-3 py-2 text-left text-sm text-stone-700 transition dark:text-neutral-200"
+                role="option"
+                :aria-selected="isOptionSelected(option)"
+                :aria-disabled="option.disabled"
                 :class="[
                     option.disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-stone-100 dark:hover:bg-neutral-800',
                     index === activeIndex ? 'bg-stone-100 dark:bg-neutral-800' : '',

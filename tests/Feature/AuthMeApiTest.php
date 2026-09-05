@@ -1,6 +1,8 @@
 <?php
 
+use App\Models\CompanyRole;
 use App\Models\Customer;
+use App\Models\Permission;
 use App\Models\PlatformAdmin;
 use App\Models\Role;
 use App\Models\TeamMember;
@@ -37,6 +39,8 @@ test('auth me api returns a stable bootstrap payload for the account owner', fun
         ->assertJsonPath('meta.company.type', 'services')
         ->assertJsonPath('meta.company.onboarded', true)
         ->assertJsonPath('meta.company.logo_url', 'https://example.com/logo.png')
+        ->assertJsonPath('meta.company.custom_logo_url', 'https://example.com/logo.png')
+        ->assertJsonPath('meta.company.has_custom_logo', true)
         ->assertJsonPath('meta.features.assistant', true)
         ->assertJsonPath('meta.features.reservations', true)
         ->assertJsonMissingPath('meta.features.campaigns')
@@ -83,11 +87,61 @@ test('auth me api returns the owner context and team membership for an employee'
         ->assertJsonPath('meta.company.name', 'Northwind Services')
         ->assertJsonPath('meta.company.type', 'services')
         ->assertJsonPath('meta.company.logo_url', 'https://example.com/northwind.png')
+        ->assertJsonPath('meta.company.custom_logo_url', 'https://example.com/northwind.png')
+        ->assertJsonPath('meta.company.has_custom_logo', true)
         ->assertJsonPath('meta.features.assistant', true)
         ->assertJsonPath('meta.platform', null)
         ->assertJsonPath('meta.team.role', 'member')
         ->assertJsonPath('meta.team.permissions.0', 'tasks.view')
         ->assertJsonPath('meta.team.permissions.1', 'quotes.send');
+});
+
+test('auth me api resolves team permissions inherited from an access role', function () {
+    $owner = User::factory()->create([
+        'role_id' => authMeRoleId('owner', 'Account owner role'),
+    ]);
+    $employee = User::factory()->create([
+        'role_id' => authMeRoleId('employee', 'Employee role'),
+    ]);
+    $role = CompanyRole::query()->create([
+        'company_id' => $owner->id,
+        'name' => 'Demo specialist',
+        'slug' => 'demo_specialist',
+        'is_system' => false,
+        'is_default' => false,
+        'is_editable' => true,
+        'is_deletable' => true,
+        'is_active' => true,
+    ]);
+    $permissions = collect([
+        ['group' => 'reservations', 'name' => 'View reservations', 'slug' => 'view_reservations'],
+        ['group' => 'sales', 'name' => 'Create sales', 'slug' => 'create_sales'],
+    ])->map(fn (array $attributes): Permission => Permission::query()->firstOrCreate(
+        ['slug' => $attributes['slug']],
+        $attributes,
+    ));
+    $role->permissions()->sync($permissions->pluck('id')->all());
+
+    TeamMember::factory()->create([
+        'account_id' => $owner->id,
+        'user_id' => $employee->id,
+        'role' => 'member',
+        'company_role_id' => $role->id,
+        'permissions' => [],
+        'is_active' => true,
+    ]);
+
+    Sanctum::actingAs($employee);
+
+    $response = $this->getJson('/api/v1/auth/me')
+        ->assertOk()
+        ->assertJsonPath('meta.team.role', 'member');
+
+    expect($response->json('meta.team.permissions'))->toContain(
+        'view_reservations',
+        'reservations.view',
+        'create_sales',
+    );
 });
 
 test('auth me api resolves the owning workspace for a portal client user', function () {
@@ -130,10 +184,34 @@ test('auth me api resolves the owning workspace for a portal client user', funct
         ->assertJsonPath('meta.company.name', 'Malikia Spa')
         ->assertJsonPath('meta.company.type', 'services')
         ->assertJsonPath('meta.company.logo_url', 'https://example.com/malikia-spa.png')
+        ->assertJsonPath('meta.company.custom_logo_url', 'https://example.com/malikia-spa.png')
+        ->assertJsonPath('meta.company.has_custom_logo', true)
         ->assertJsonPath('meta.features.assistant', true)
         ->assertJsonPath('meta.features.reservations', true)
         ->assertJsonPath('meta.platform', null)
         ->assertJsonPath('meta.team', null);
+});
+
+test('auth me api returns 403 for a client with disabled portal access', function () {
+    $owner = User::factory()->create([
+        'role_id' => authMeRoleId('owner', 'Account owner role'),
+    ]);
+    $client = User::factory()->create([
+        'role_id' => authMeRoleId('client', 'Client role'),
+    ]);
+    Customer::factory()->create([
+        'user_id' => $owner->id,
+        'portal_user_id' => $client->id,
+        'portal_access' => false,
+        'email' => $client->email,
+    ]);
+    Sanctum::actingAs($client);
+
+    $this->getJson('/api/v1/auth/me')
+        ->assertForbidden()
+        ->assertExactJson([
+            'message' => __('ui.auth.portal_access_disabled'),
+        ]);
 });
 
 test('auth me api exposes platform admin permissions when the current user is a platform admin', function () {
@@ -165,11 +243,31 @@ test('auth me api exposes platform admin permissions when the current user is a 
         ->assertJsonPath('meta.is_platform_admin', true)
         ->assertJsonPath('meta.company.name', 'Platform HQ')
         ->assertJsonPath('meta.company.logo_url', 'https://example.com/platform-hq.png')
+        ->assertJsonPath('meta.company.custom_logo_url', 'https://example.com/platform-hq.png')
+        ->assertJsonPath('meta.company.has_custom_logo', true)
         ->assertJsonPath('meta.platform.role', 'operations')
         ->assertJsonPath('meta.platform.permissions.0', 'tenants.manage')
         ->assertJsonPath('meta.platform.permissions.1', 'settings.manage')
         ->assertJsonPath('meta.platform.is_active', true)
         ->assertJsonPath('meta.team', null);
+});
+
+test('auth me api distinguishes the legacy company placeholder from a custom logo', function () {
+    $owner = User::factory()->create([
+        'role_id' => authMeRoleId('owner', 'Account owner role'),
+        'company_name' => 'Logo Pending Inc.',
+        'company_type' => 'services',
+        'company_logo' => 'customers/customer.png',
+    ]);
+
+    Sanctum::actingAs($owner);
+
+    $this->getJson('/api/v1/auth/me')
+        ->assertOk()
+        ->assertJsonPath('meta.company.name', 'Logo Pending Inc.')
+        ->assertJsonPath('meta.company.logo_url', null)
+        ->assertJsonPath('meta.company.custom_logo_url', null)
+        ->assertJsonPath('meta.company.has_custom_logo', false);
 });
 
 test('auth me api requires authentication', function () {

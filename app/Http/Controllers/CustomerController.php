@@ -3,33 +3,42 @@
 namespace App\Http\Controllers;
 
 use App\Enums\CustomerClientType;
+use App\Http\Requests\CustomerActivityRequest;
+use App\Http\Requests\CustomerIndexRequest;
 use App\Http\Requests\CustomerRequest;
 use App\Models\ActivityLog;
 use App\Models\Customer;
+use App\Models\Invoice;
 use App\Models\Product;
-use App\Models\Role;
+use App\Models\Reservation;
 use App\Models\SavedSegment;
 use App\Models\User;
-use App\Notifications\InviteUserNotification;
 use App\Queries\Customers\BuildCustomerDetailViewData;
+use App\Queries\Customers\BuildCustomerIndexStats;
+use App\Queries\Customers\BuildCustomerOperationalIndexData;
+use App\Queries\Customers\BuildCustomerTimelineData;
+use App\Queries\Customers\CustomerIndexFilters;
 use App\Queries\Customers\CustomerReadSelects;
+use App\Services\BillingPlanService;
+use App\Services\BillingSubscriptionService;
 use App\Services\CompanyFeatureService;
+use App\Services\Customers\CustomerActivityAudit;
 use App\Services\Customers\CustomerBulkAudienceBridgeService;
 use App\Services\Customers\CustomerBulkContactService;
+use App\Services\Customers\CustomerPortalAccessService;
+use App\Services\Rbac\AccessControl;
+use App\Services\Rbac\CompanyModuleAccess;
 use App\Support\BulkActions\BulkActionRegistry;
 use App\Support\CRM\SalesActivityTaxonomy;
 use App\Support\Database\UserSelects;
-use App\Support\NotificationDispatcher;
 use App\Utils\FileHandler;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Password;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class CustomerController extends Controller
 {
@@ -40,98 +49,187 @@ class CustomerController extends Controller
      *
      * @return \Inertia\Response
      */
-    public function index(?Request $request)
+    public function index(CustomerIndexRequest $request)
     {
-        $filters = $request->only([
-            'name',
-            'city',
-            'country',
-            'has_quotes',
-            'has_works',
-            'status',
-            'created_from',
-            'created_to',
-            'has_active_package',
-            'package_status',
-            'package_remaining_lte',
-            'package_expires_within_days',
-            'package_is_recurring',
-            'package_recurrence_status',
-            'sort',
-            'direction',
-        ]);
-        $filters['per_page'] = $this->resolveDataTablePerPage($request);
+        $requestedFilters = $request->validated();
+        $requestedFilters['per_page'] = $this->resolveDataTablePerPage($request);
         $user = $request->user();
         if (! $user) {
             abort(403);
         }
+        $this->authorize('viewAny', Customer::class);
         [$accountOwner, $accountId] = $this->resolveCustomerAccount($user);
-        $canEdit = $user->id === $accountId;
+        $accessControl = app(AccessControl::class);
+        $canEdit = $accessControl->userHasPermission($user, 'customers.edit', (int) $accountId);
+        $canDelete = $accessControl->userHasPermission($user, 'customers.delete', (int) $accountId);
+        $canViewNotes = $this->canViewCustomerNotes($user, (int) $accountId);
+        $canManageNotes = $this->canManageCustomerNotes($user, (int) $accountId);
         $canManageSavedSegments = (int) $user->id === (int) $user->accountOwnerId();
-        $campaignsFeatureEnabled = app(CompanyFeatureService::class)->hasFeature($accountOwner, 'campaigns');
+        $featureService = app(CompanyFeatureService::class);
+        $quotesFeatureEnabled = $featureService->hasFeature($accountOwner, 'quotes');
+        $jobsFeatureEnabled = $featureService->hasFeature($accountOwner, 'jobs');
+        $campaignsFeatureEnabled = $featureService->hasFeature($accountOwner, 'campaigns');
+        $salesFeatureEnabled = $featureService->hasFeature($accountOwner, 'sales');
+        $operationalIndexData = app(BuildCustomerOperationalIndexData::class);
+        $customerIndexContext = $operationalIndexData->context($accountOwner);
+        $canCreateCustomer = $user->can('create', Customer::class);
+        $canBook = $user->can('create', Reservation::class);
+        $canViewBilling = $user->can('viewAny', Invoice::class);
+        $canViewSales = $salesFeatureEnabled
+            && $accessControl->userHasPermission($user, 'view_sales', (int) $accountId);
+        $planKey = app(BillingSubscriptionService::class)->resolvePlanKey(
+            $accountOwner,
+            config('billing.plans', [])
+        );
+        $ownerOnlyMode = $planKey !== null
+            && app(BillingPlanService::class)->isOwnerOnlyPlan($planKey);
+        $customerIndexContext = $operationalIndexData->restrictCapabilities($customerIndexContext, [
+            'reservations' => $accessControl->userHasPermission($user, 'reservations.view', (int) $accountId),
+            'team_members' => $accessControl->userHasPermission($user, 'team.view', (int) $accountId),
+            'invoices' => $canViewBilling,
+            'sales' => $canViewSales,
+            'campaigns' => $accessControl->userHasPermission($user, 'campaigns.view', (int) $accountId),
+            'packages' => $accessControl->userHasPermission($user, 'products.view', (int) $accountId)
+                || $accessControl->userHasPermission($user, 'services.view', (int) $accountId)
+                || $accessControl->userHasPermission($user, 'view_sales', (int) $accountId),
+        ]);
+        $customerIndexContext['actions'] = [
+            'can_create_customer' => (bool) $canCreateCustomer,
+            'can_book' => ($customerIndexContext['capabilities']['reservations'] ?? false)
+                && $canBook
+                && ! $ownerOnlyMode,
+            'can_view_billing' => (bool) ($customerIndexContext['capabilities']['invoices'] ?? false),
+        ];
+        $appointmentProfile = ($customerIndexContext['profile'] ?? null) === 'appointment';
+        $showQuoteOperations = $quotesFeatureEnabled
+            && $accessControl->userHasPermission($user, 'quotes.view', (int) $accountId)
+            && ! $appointmentProfile;
+        $showJobOperations = $jobsFeatureEnabled
+            && $accessControl->userHasPermission($user, 'jobs.view', (int) $accountId)
+            && ! $appointmentProfile;
+        $invoicesFeatureEnabled = (bool) ($customerIndexContext['capabilities']['invoices'] ?? false);
+        if (! $showQuoteOperations) {
+            unset($requestedFilters['has_quotes']);
+        }
+        if (! $showJobOperations) {
+            unset($requestedFilters['has_works']);
+        }
+        if (! ($customerIndexContext['capabilities']['packages'] ?? false)) {
+            unset(
+                $requestedFilters['has_active_package'],
+                $requestedFilters['package_status'],
+                $requestedFilters['package_remaining_lte'],
+                $requestedFilters['package_expires_within_days'],
+                $requestedFilters['package_is_recurring'],
+                $requestedFilters['package_recurrence_status']
+            );
+        }
 
+        $allowedSorts = ['company_name', 'first_name', 'created_at'];
+        if ($showQuoteOperations) {
+            $allowedSorts[] = 'quotes_count';
+        }
+        if ($showJobOperations) {
+            $allowedSorts[] = 'works_count';
+        }
+
+        if (isset($requestedFilters['sort']) && ! in_array($requestedFilters['sort'], $allowedSorts, true)) {
+            unset($requestedFilters['sort'], $requestedFilters['direction']);
+        }
+
+        $indexFilters = app(CustomerIndexFilters::class);
+        $filters = $indexFilters->normalize(
+            $requestedFilters,
+            $accountOwner,
+            $customerIndexContext,
+            $accountId
+        );
         $baseQuery = Customer::query()
-            ->filter($filters)
+            ->filter($indexFilters->modelFilters($filters))
             ->byUser($accountId);
+        $indexFilters->apply(
+            $baseQuery,
+            $filters,
+            $accountOwner,
+            $customerIndexContext,
+            $accountId
+        );
 
-        $sort = in_array($filters['sort'] ?? null, ['company_name', 'first_name', 'created_at', 'quotes_count', 'works_count'], true)
+        $sort = in_array($filters['sort'] ?? null, $allowedSorts, true)
             ? $filters['sort']
             : 'created_at';
         $direction = ($filters['direction'] ?? 'desc') === 'asc' ? 'asc' : 'desc';
 
+        $customerCounts = [];
+        if ($invoicesFeatureEnabled) {
+            $customerCounts['invoices as invoices_count'] = fn ($query) => $query->where('user_id', $accountId);
+        }
+        if ($showQuoteOperations) {
+            $customerCounts['quotes as quotes_count'] = fn ($query) => $query->where('user_id', $accountId);
+        }
+        if ($showJobOperations) {
+            $customerCounts['works as works_count'] = fn ($query) => $query->where('user_id', $accountId);
+        }
+
         // Fetch customers with pagination
-        $customers = (clone $baseQuery)
-            ->with(['properties'])
-            ->withCount([
-                'quotes as quotes_count' => fn ($query) => $query->where('user_id', $accountId),
-                'works as works_count' => fn ($query) => $query->where('user_id', $accountId),
-                'invoices as invoices_count' => fn ($query) => $query->where('user_id', $accountId),
-            ])
+        $customersQuery = (clone $baseQuery)
+            ->with(['properties']);
+        if ($customerCounts !== []) {
+            $customersQuery->withCount($customerCounts);
+        }
+        $customers = $customersQuery
             ->orderBy($sort, $direction)
             ->paginate((int) $filters['per_page'])
-            ->withQueryString();
+            ->appends($filters);
+        $operationalIndexData->appendOperationalSummaries(
+            $customers->getCollection(),
+            $accountOwner,
+            $customerIndexContext
+        );
+        if (! $canViewNotes) {
+            $customers->getCollection()->each(
+                fn (Customer $customer): Customer => $customer->makeHidden('description')
+            );
+        }
 
-        $totalCount = (clone $baseQuery)->count();
-        $recentThreshold = now()->subDays(30);
-        $newCount = (clone $baseQuery)
-            ->whereDate('created_at', '>=', $recentThreshold)
-            ->count();
-        $withQuotes = (clone $baseQuery)
-            ->whereHas('quotes', fn ($query) => $query->where('user_id', $accountId))
-            ->count();
-        $withWorks = (clone $baseQuery)
-            ->whereHas('works', fn ($query) => $query->where('user_id', $accountId))
-            ->count();
-        $activeCount = (clone $baseQuery)
-            ->where(function ($query) use ($accountId, $recentThreshold) {
-                $query->whereHas('quotes', function ($sub) use ($accountId, $recentThreshold) {
-                    $sub->where('user_id', $accountId)
-                        ->where('created_at', '>=', $recentThreshold);
-                })->orWhereHas('works', function ($sub) use ($accountId, $recentThreshold) {
-                    $sub->where('user_id', $accountId)
-                        ->where('created_at', '>=', $recentThreshold);
-                });
-            })
-            ->count();
+        $totalCount = $customers->total();
+        $statsBuilder = app(BuildCustomerIndexStats::class);
+        $statsResolver = fn (): array => $statsBuilder->legacy(
+            $baseQuery,
+            $accountOwner,
+            $customerIndexContext,
+            $showQuoteOperations,
+            $showJobOperations,
+            $accountId
+        );
+        $kpisResolver = fn (): array => $statsBuilder->kpis(
+            $accountOwner,
+            $customerIndexContext,
+            $accountId
+        );
 
-        $stats = [
-            'total' => $totalCount,
-            'new' => $newCount,
-            'with_quotes' => $withQuotes,
-            'with_works' => $withWorks,
-            'active' => $activeCount,
-        ];
+        $topCustomers = collect();
+        if ($showQuoteOperations || $showJobOperations) {
+            $activityCounts = [];
+            if ($showQuoteOperations) {
+                $activityCounts['quotes as quotes_count'] = fn ($query) => $query->where('user_id', $accountId);
+            }
+            if ($showJobOperations) {
+                $activityCounts['works as works_count'] = fn ($query) => $query->where('user_id', $accountId);
+            }
 
-        $topCustomers = (clone $baseQuery)
-            ->withCount([
-                'quotes as quotes_count' => fn ($query) => $query->where('user_id', $accountId),
-                'works as works_count' => fn ($query) => $query->where('user_id', $accountId),
-                'invoices as invoices_count' => fn ($query) => $query->where('user_id', $accountId),
-            ])
-            ->orderByDesc('quotes_count')
-            ->orderByDesc('works_count')
-            ->limit(5)
-            ->get(['id', 'company_name', 'first_name', 'last_name', 'logo', 'header_image']);
+            $topCustomersQuery = (clone $baseQuery)->withCount($activityCounts);
+            if ($showQuoteOperations) {
+                $topCustomersQuery->orderByDesc('quotes_count');
+            }
+            if ($showJobOperations) {
+                $topCustomersQuery->orderByDesc('works_count');
+            }
+
+            $topCustomers = $topCustomersQuery
+                ->limit(5)
+                ->get(['id', 'company_name', 'first_name', 'last_name', 'logo', 'header_image']);
+        }
 
         $savedSegments = $canManageSavedSegments
             ? SavedSegment::query()
@@ -154,19 +252,48 @@ class CustomerController extends Controller
                 ])
             : collect();
 
-        // Pass data to Inertia view
+        $activeFilters = $indexFilters->activeFilters($filters);
+        $filterOptionsResolver = fn (): array => $indexFilters->options(
+            $accountOwner,
+            $customerIndexContext,
+            $accountId
+        );
+        $returningJson = $this->shouldReturnJson($request);
+        $resolveLazyProp = static fn (\Closure $resolver): mixed => $returningJson ? $resolver() : $resolver;
+        $filterOptions = $resolveLazyProp($filterOptionsResolver);
+        $filterMeta = [
+            'matching_count' => $totalCount,
+            'active_filters' => $activeFilters,
+            'active_count' => count($activeFilters),
+            'quick_filter_mode' => $filters['quick_filter_mode'] ?? 'all',
+            'available_filters' => $indexFilters->availableQuickFilters($customerIndexContext),
+        ];
+        if ($returningJson) {
+            $filterMeta['options'] = $filterOptions;
+        }
+
+        // Pass data to Inertia view. Expensive global aggregates and filter
+        // options are lazy during partial Inertia reloads.
         return $this->inertiaOrJson('Customer/Index', [
             'customers' => $customers,
             'filters' => $filters,
             'count' => $totalCount,
-            'stats' => $stats,
+            'stats' => $resolveLazyProp($statsResolver),
+            'kpis' => $resolveLazyProp($kpisResolver),
+            'filterMeta' => $filterMeta,
+            'filterOptions' => $filterOptions,
             'topCustomers' => $topCustomers,
             'canEdit' => $canEdit,
+            'canDelete' => $canDelete,
+            'canViewNotes' => $canViewNotes,
+            'canManageNotes' => $canManageNotes,
             'savedSegments' => $savedSegments,
             'canManageSavedSegments' => $canManageSavedSegments,
+            'customerIndexContext' => $customerIndexContext,
             'bulkActions' => app(BulkActionRegistry::class)->definitionFor('customer', [
                 'can_edit' => $canEdit,
-                'contact_enabled' => $canEdit && $campaignsFeatureEnabled,
+                'can_delete' => $canDelete,
+                'contact_enabled' => $canManageSavedSegments && $campaignsFeatureEnabled,
                 'campaign_bridge_enabled' => $campaignsFeatureEnabled,
             ]),
         ]);
@@ -181,8 +308,15 @@ class CustomerController extends Controller
         if (! $user) {
             abort(403);
         }
-        [, $accountId] = $this->resolveCustomerAccount($user);
         $scope = $this->normalizeCustomerOptionScope((string) $request->query('scope', 'full'));
+        [$accountOwner, $accountId] = $this->resolveCustomerAccount(
+            $user,
+            contextPermissions: $this->customerOptionPermissions($scope),
+        );
+        $contextFeature = $this->customerOptionFeature($scope);
+        if ($contextFeature && ! $accountOwner->hasCompanyFeature($contextFeature)) {
+            abort(403);
+        }
         $search = trim((string) $request->query('search', ''));
         $limit = (int) $request->query('limit', 0);
 
@@ -232,13 +366,17 @@ class CustomerController extends Controller
     {
         $user = Auth::user();
         if ($user) {
-            $this->resolveCustomerAccount($user);
+            $this->authorize('create', Customer::class);
+            $this->resolveCustomerAccount($user, false, true);
         }
 
         return $this->inertiaOrJson('Customer/Create', [
             'customer' => new Customer([
                 'client_type' => CustomerClientType::default()->value,
             ]),
+            'canManageNotes' => $user
+                ? $this->canManageCustomerNotes($user, (int) $user->accountOwnerId())
+                : false,
         ]);
     }
 
@@ -257,9 +395,14 @@ class CustomerController extends Controller
         }
 
         $customer->load('properties');
+        $canViewNotes = (bool) ($user?->can('viewNotes', $customer) ?? false);
+        if (! $canViewNotes) {
+            $customer->makeHidden('description');
+        }
 
         return $this->inertiaOrJson('Customer/Create', [
             'customer' => $customer,
+            'canManageNotes' => (bool) ($user?->can('manageNotes', $customer) ?? false),
         ]);
     }
 
@@ -273,12 +416,11 @@ class CustomerController extends Controller
         $this->authorize('view', $customer);
 
         $user = $request?->user();
-        $accountOwner = null;
-        $accountId = $user?->id ?? Auth::id();
-        if ($user) {
-            [$accountOwner, $accountId] = $this->resolveCustomerAccount($user);
+        if (! $user) {
+            abort(403);
         }
-        $canEdit = $user ? $user->can('update', $customer) : false;
+        [$accountOwner, $accountId] = $this->resolveCustomerAccount($user);
+        $canEdit = $user->can('update', $customer);
         $filters = $request?->only([
             'name',
             'status',
@@ -294,28 +436,74 @@ class CustomerController extends Controller
             $filters
         );
 
-        $props['canLogSalesActivity'] = true;
+        $activityRoute = $request?->routeIs('api.*')
+            ? 'api.customer.activity_index'
+            : 'customer.activity_index';
+        $activityEndpoint = route($activityRoute, $customer, false);
+        $props['customerActivity'] = app(BuildCustomerTimelineData::class)->execute(
+            $customer,
+            $user,
+            $accountOwner,
+            $accountId,
+            [
+                'period' => 'last_90_days',
+                'per_page' => 20,
+            ],
+            $activityEndpoint
+        );
+        $props['customerActivityEndpoint'] = $activityEndpoint;
+        $props['canLogSalesActivity'] = $user->can('logActivity', $customer);
         $props['salesActivityQuickActions'] = array_values(SalesActivityTaxonomy::quickActions());
         $props['salesActivityManualActions'] = SalesActivityTaxonomy::manualActionDefinitions();
 
         return $this->inertiaOrJson('Customer/Show', $props);
     }
 
+    public function activity(
+        CustomerActivityRequest $request,
+        Customer $customer,
+        BuildCustomerTimelineData $timeline
+    ) {
+        $this->authorize('view', $customer);
+
+        $user = $request->user();
+        if (! $user) {
+            abort(403);
+        }
+        [$accountOwner, $accountId] = $this->resolveCustomerAccount($user);
+
+        return response()->json($timeline->execute(
+            $customer,
+            $user,
+            $accountOwner,
+            $accountId,
+            $request->validated(),
+            $request->getPathInfo()
+        ));
+    }
+
     public function updateNotes(Request $request, Customer $customer)
     {
-        $this->authorize('update', $customer);
+        $this->authorize('manageNotes', $customer);
 
         $validated = $request->validate([
             'description' => 'nullable|string|max:255',
         ]);
 
+        $before = ['description' => $customer->description];
         $customer->update([
             'description' => $validated['description'] ?? null,
         ]);
 
-        ActivityLog::record($request->user(), $customer, 'notes_updated', [
-            'description' => $customer->description,
-        ], 'Customer notes updated');
+        app(CustomerActivityAudit::class)->recordChanges(
+            $request->user(),
+            $customer,
+            'notes_updated',
+            $before,
+            ['description' => $customer->description],
+            'Customer notes updated',
+            ['note' => $customer->description]
+        );
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
@@ -344,13 +532,19 @@ class CustomerController extends Controller
         $tags = array_map(fn ($tag) => mb_substr($tag, 0, 30), $tags);
         $tags = array_slice($tags, 0, 20);
 
+        $before = ['tags' => $customer->tags ?: []];
         $customer->update([
             'tags' => $tags ?: null,
         ]);
 
-        ActivityLog::record($request->user(), $customer, 'tags_updated', [
-            'tags' => $tags,
-        ], 'Customer tags updated');
+        app(CustomerActivityAudit::class)->recordChanges(
+            $request->user(),
+            $customer,
+            'tags_updated',
+            $before,
+            ['tags' => $customer->tags ?: []],
+            'Customer tags updated'
+        );
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
@@ -368,6 +562,11 @@ class CustomerController extends Controller
     public function updateAutoValidation(Request $request, Customer $customer)
     {
         $this->authorize('update', $customer);
+        $user = $request->user();
+        if (! $user) {
+            abort(403);
+        }
+        [$accountOwner] = $this->resolveCustomerAccount($user);
 
         $validated = $request->validate([
             'auto_accept_quotes' => 'nullable|boolean',
@@ -376,19 +575,28 @@ class CustomerController extends Controller
             'auto_validate_invoices' => 'nullable|boolean',
         ]);
 
-        $customer->update([
+        $preferences = $this->enforceAutoValidationFeatures([
             'auto_accept_quotes' => (bool) ($validated['auto_accept_quotes'] ?? $customer->auto_accept_quotes ?? false),
             'auto_validate_jobs' => (bool) ($validated['auto_validate_jobs'] ?? $customer->auto_validate_jobs ?? false),
             'auto_validate_tasks' => (bool) ($validated['auto_validate_tasks'] ?? $customer->auto_validate_tasks ?? false),
             'auto_validate_invoices' => (bool) ($validated['auto_validate_invoices'] ?? $customer->auto_validate_invoices ?? false),
-        ]);
+        ], $accountOwner);
 
-        ActivityLog::record($request->user(), $customer, 'auto_validation_updated', [
-            'auto_accept_quotes' => $customer->auto_accept_quotes,
-            'auto_validate_jobs' => $customer->auto_validate_jobs,
-            'auto_validate_tasks' => $customer->auto_validate_tasks,
-            'auto_validate_invoices' => $customer->auto_validate_invoices,
-        ], 'Customer auto validation updated');
+        $before = collect(array_keys($preferences))
+            ->mapWithKeys(fn (string $field): array => [$field => (bool) $customer->getAttribute($field)])
+            ->all();
+        $customer->update($preferences);
+
+        app(CustomerActivityAudit::class)->recordChanges(
+            $request->user(),
+            $customer,
+            'auto_validation_updated',
+            $before,
+            collect(array_keys($preferences))
+                ->mapWithKeys(fn (string $field): array => [$field => (bool) $customer->getAttribute($field)])
+                ->all(),
+            'Customer auto validation updated'
+        );
 
         if ($this->shouldReturnJson($request)) {
             return response()->json([
@@ -412,16 +620,29 @@ class CustomerController extends Controller
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\RedirectResponse
      */
-    public function store(CustomerRequest $request)
+    public function store(CustomerRequest $request, CustomerPortalAccessService $portalAccessService)
     {
         $user = $request->user();
         if (! $user) {
             abort(403);
         }
-        [$accountOwner, $accountId] = $this->resolveCustomerAccount($user);
+        $this->authorize('create', Customer::class);
+        [$accountOwner, $accountId] = $this->resolveCustomerAccount($user, false, true);
 
-        $validated = $this->normalizeCustomerPayload($request->validated());
-        $defaultLogo = config('icon_presets.defaults.company', Customer::DEFAULT_LOGO_PATH);
+        $validated = $this->enforceAutoValidationFeatures(
+            $this->normalizeCustomerPayload($request->validated()),
+            $accountOwner
+        );
+        if (
+            array_key_exists('description', $validated)
+            && trim((string) ($validated['description'] ?? '')) !== ''
+        ) {
+            $this->ensureCanManageCustomerNotes($user, $accountId);
+        }
+        $defaultLogo = Customer::defaultLogoPathFor(
+            $validated['client_type'] ?? null,
+            $validated['company_name'] ?? null
+        );
         $logoPath = FileHandler::handleImageUpload('customers', $request, 'logo', $defaultLogo);
         if (! empty($validated['logo_icon']) && ! $request->hasFile('logo')) {
             $logoPath = $validated['logo_icon'];
@@ -433,22 +654,17 @@ class CustomerController extends Controller
             ? (bool) $validated['portal_access']
             : true;
 
-        $customerData = Arr::except($validated, ['temporary_password']);
-        $customerData['portal_access'] = $portalAccess;
+        $customerData = Arr::except($validated, ['temporary_password', 'portal_access']);
+        $customerData['portal_access'] = false;
         $customerData['user_id'] = $accountId;
 
-        [$customer, $portalUser] = DB::transaction(function () use ($validated, $customerData, $portalAccess) {
-            $portalUser = null;
-            if ($portalAccess) {
-                $roleId = $this->resolveClientRoleId();
-                $portalUser = $this->createPortalUser($validated, $roleId);
-                $customerData['portal_user_id'] = $portalUser->id;
-            }
-
+        $portalAccessResult = DB::transaction(function () use ($customerData, $portalAccess, $portalAccessService) {
             $customer = Customer::create($customerData);
 
-            return [$customer, $portalUser];
+            return $portalAccessService->setAccess($customer, $portalAccess);
         });
+        $customer = $portalAccessResult->customer;
+        $portalUser = $portalAccessResult->portalUser;
 
         // Add properties if provided
         if (! empty($validated['properties'])) {
@@ -465,18 +681,8 @@ class CustomerController extends Controller
             'email' => $customer->email,
         ], 'Customer created');
 
-        $inviteQueued = true;
-        if ($portalUser) {
-            $token = Password::broker()->createToken($portalUser);
-            $inviteQueued = NotificationDispatcher::send($portalUser, new InviteUserNotification(
-                $token,
-                $accountOwner?->company_name ?: config('app.name'),
-                $accountOwner?->company_logo_url,
-                'client'
-            ), [
-                'customer_id' => $customer->id,
-            ]);
-        }
+        $inviteQueued = ! $portalAccessResult->invitationRequired
+            || $portalAccessService->sendInvitation($customer, $accountOwner);
 
         if ($this->shouldReturnJson($request)) {
             if (! $inviteQueued) {
@@ -495,26 +701,42 @@ class CustomerController extends Controller
             ], 201);
         }
 
+        $redirectRoute = $request->boolean('create_another')
+            ? 'customer.create'
+            : 'customer.index';
+
         if (! $inviteQueued) {
-            return redirect()->route('customer.index')->with('warning', 'Customer created, but the invite email could not be sent.');
+            return redirect()->route($redirectRoute)->with('warning', 'Customer created, but the invite email could not be sent.');
         }
 
-        return redirect()->route('customer.index')->with('success', 'Customer created successfully.');
+        return redirect()->route($redirectRoute)->with('success', 'Customer created successfully.');
     }
 
     /**
      * Store a customer from quick-create dialogs.
      */
-    public function storeQuick(CustomerRequest $request)
+    public function storeQuick(CustomerRequest $request, CustomerPortalAccessService $portalAccessService)
     {
         $user = $request->user();
         if (! $user) {
             abort(403);
         }
-        [$accountOwner, $accountId] = $this->resolveCustomerAccount($user, true);
+        [$accountOwner, $accountId] = $this->resolveCustomerAccount($user, true, true);
 
-        $validated = $this->normalizeCustomerPayload($request->validated());
-        $defaultLogo = config('icon_presets.defaults.company', Customer::DEFAULT_LOGO_PATH);
+        $validated = $this->enforceAutoValidationFeatures(
+            $this->normalizeCustomerPayload($request->validated()),
+            $accountOwner
+        );
+        if (
+            array_key_exists('description', $validated)
+            && trim((string) ($validated['description'] ?? '')) !== ''
+        ) {
+            $this->ensureCanManageCustomerNotes($user, $accountId);
+        }
+        $defaultLogo = Customer::defaultLogoPathFor(
+            $validated['client_type'] ?? null,
+            $validated['company_name'] ?? null
+        );
         $logoPath = FileHandler::handleImageUpload('customers', $request, 'logo', $defaultLogo);
         if (! empty($validated['logo_icon']) && ! $request->hasFile('logo')) {
             $logoPath = $validated['logo_icon'];
@@ -526,22 +748,16 @@ class CustomerController extends Controller
             ? (bool) $validated['portal_access']
             : true;
 
-        $customerData = Arr::except($validated, ['temporary_password']);
-        $customerData['portal_access'] = $portalAccess;
+        $customerData = Arr::except($validated, ['temporary_password', 'portal_access']);
+        $customerData['portal_access'] = false;
         $customerData['user_id'] = $accountId;
 
-        [$customer, $portalUser] = DB::transaction(function () use ($validated, $customerData, $portalAccess) {
-            $portalUser = null;
-            if ($portalAccess) {
-                $roleId = $this->resolveClientRoleId();
-                $portalUser = $this->createPortalUser($validated, $roleId);
-                $customerData['portal_user_id'] = $portalUser->id;
-            }
-
+        $portalAccessResult = DB::transaction(function () use ($customerData, $portalAccess, $portalAccessService) {
             $customer = Customer::create($customerData);
 
-            return [$customer, $portalUser];
+            return $portalAccessService->setAccess($customer, $portalAccess);
         });
+        $customer = $portalAccessResult->customer;
 
         $property = null;
         if (! empty($validated['properties'])) {
@@ -558,18 +774,8 @@ class CustomerController extends Controller
             'email' => $customer->email,
         ], 'Customer created');
 
-        $inviteQueued = true;
-        if ($portalUser) {
-            $token = Password::broker()->createToken($portalUser);
-            $inviteQueued = NotificationDispatcher::send($portalUser, new InviteUserNotification(
-                $token,
-                $accountOwner?->company_name ?: config('app.name'),
-                $accountOwner?->company_logo_url,
-                'client'
-            ), [
-                'customer_id' => $customer->id,
-            ]);
-        }
+        $inviteQueued = ! $portalAccessResult->invitationRequired
+            || $portalAccessService->sendInvitation($customer, $accountOwner);
 
         $propertyData = [];
         if ($property) {
@@ -612,12 +818,35 @@ class CustomerController extends Controller
     /**
      * Update the specified customer in the database.
      */
-    public function update(CustomerRequest $request, Customer $customer)
-    {
+    public function update(
+        CustomerRequest $request,
+        Customer $customer,
+        CustomerPortalAccessService $portalAccessService
+    ) {
         $this->authorize('update', $customer);
+        $user = $request->user();
+        if (! $user) {
+            abort(403);
+        }
+        [$accountOwner] = $this->resolveCustomerAccount($user);
+        $audit = app(CustomerActivityAudit::class);
+        $before = $audit->profileSnapshot($customer);
+        $notesBefore = (string) ($customer->description ?? '');
 
-        $validated = $this->normalizeCustomerPayload($request->validated(), $customer);
-        $defaultLogo = config('icon_presets.defaults.company', Customer::DEFAULT_LOGO_PATH);
+        $validated = $this->enforceAutoValidationFeatures(
+            $this->normalizeCustomerPayload($request->validated(), $customer),
+            $accountOwner
+        );
+        if (
+            array_key_exists('description', $validated)
+            && (string) ($validated['description'] ?? '') !== (string) ($customer->description ?? '')
+        ) {
+            $this->authorize('manageNotes', $customer);
+        }
+        $defaultLogo = Customer::defaultLogoPathFor(
+            $validated['client_type'] ?? null,
+            $validated['company_name'] ?? null
+        );
         $validated['logo'] = FileHandler::handleImageUpload(
             'customers',
             $request,
@@ -647,7 +876,22 @@ class CustomerController extends Controller
             $customer->header_image
         );
 
-        $customer->update($validated);
+        $portalAccess = (bool) ($validated['portal_access'] ?? $customer->portal_access);
+        unset($validated['portal_access']);
+
+        $portalAccessResult = DB::transaction(function () use (
+            $customer,
+            $validated,
+            $portalAccess,
+            $portalAccessService
+        ) {
+            $customer->update($validated);
+
+            return $portalAccessService->setAccess($customer, $portalAccess);
+        });
+        $customer = $portalAccessResult->customer;
+        $inviteQueued = ! $portalAccessResult->invitationRequired
+            || $portalAccessService->sendInvitation($customer, $accountOwner);
 
         if (! empty($validated['properties'])) {
             $propertyPayload = $validated['properties'];
@@ -676,19 +920,81 @@ class CustomerController extends Controller
             }
         }
 
-        ActivityLog::record($request->user(), $customer, 'updated', [
-            'company_name' => $customer->company_name,
-            'email' => $customer->email,
-        ], 'Customer updated');
+        $customer->refresh();
+        $audit->recordChanges(
+            $request->user(),
+            $customer,
+            'updated',
+            $before,
+            $audit->profileSnapshot($customer),
+            'Customer updated'
+        );
+        $notesAfter = (string) ($customer->description ?? '');
+        if ($notesBefore !== $notesAfter) {
+            $audit->recordChanges(
+                $request->user(),
+                $customer,
+                'notes_updated',
+                ['description' => $notesBefore],
+                ['description' => $notesAfter],
+                'Customer notes updated',
+                ['note' => $notesAfter]
+            );
+        }
 
         if ($this->shouldReturnJson($request)) {
+            $responseCustomer = $customer->load('properties');
+            if (! $user->can('viewNotes', $customer)) {
+                $responseCustomer->makeHidden('description');
+            }
+
             return response()->json([
-                'message' => 'Customer updated successfully.',
-                'customer' => $customer->load('properties'),
+                'message' => $inviteQueued
+                    ? 'Customer updated successfully.'
+                    : 'Customer updated, but the invite email could not be sent.',
+                'warning' => ! $inviteQueued,
+                'customer' => $responseCustomer,
             ]);
         }
 
+        if (! $inviteQueued) {
+            return redirect()
+                ->route('customer.index')
+                ->with('warning', 'Customer updated, but the invite email could not be sent.');
+        }
+
         return redirect()->route('customer.index')->with('success', 'Customer updated successfully.');
+    }
+
+    public function resendPortalInvitation(
+        Request $request,
+        Customer $customer,
+        CustomerPortalAccessService $portalAccessService
+    ) {
+        $this->authorize('update', $customer);
+
+        $user = $request->user();
+        if (! $user) {
+            abort(403);
+        }
+        [$accountOwner] = $this->resolveCustomerAccount($user);
+
+        $inviteQueued = $portalAccessService->sendInvitation($customer, $accountOwner);
+        $message = $inviteQueued
+            ? 'Portal invitation sent.'
+            : 'The portal invitation could not be sent.';
+
+        if ($this->shouldReturnJson($request)) {
+            return response()->json([
+                'message' => $message,
+                'warning' => ! $inviteQueued,
+            ]);
+        }
+
+        return redirect()->back()->with(
+            $inviteQueued ? 'success' : 'warning',
+            $message
+        );
     }
 
     /**
@@ -698,7 +1004,10 @@ class CustomerController extends Controller
     {
         $this->authorize('delete', $customer);
 
-        FileHandler::deleteFile($customer->logo, Customer::DEFAULT_LOGO_PATH);
+        FileHandler::deleteFile(
+            $customer->logo,
+            Customer::defaultLogoPathFor($customer->client_type, $customer->company_name)
+        );
         FileHandler::deleteFile($customer->header_image, 'customers/customer.png');
         ActivityLog::record($request->user(), $customer, 'deleted', [
             'company_name' => $customer->company_name,
@@ -718,13 +1027,13 @@ class CustomerController extends Controller
     /**
      * Bulk actions on customers.
      */
-    public function bulk(Request $request)
+    public function bulk(Request $request, CustomerPortalAccessService $portalAccessService)
     {
         $user = $request->user();
         if (! $user) {
             abort(403);
         }
-        [, $accountId] = $this->resolveCustomerAccount($user);
+        [$accountOwner, $accountId] = $this->resolveCustomerAccount($user);
 
         $data = $request->validate([
             'action' => 'required|in:portal_enable,portal_disable,archive,restore,delete',
@@ -742,17 +1051,30 @@ class CustomerController extends Controller
             foreach ($customers as $customer) {
                 $this->authorize('update', $customer);
             }
-            Customer::query()
-                ->byUser($accountId)
-                ->whereIn('id', $data['ids'])
-                ->update(['portal_access' => true]);
+            $result = $this->updateCustomerPortalAccessWithAudit(
+                $customers,
+                $user,
+                $accountOwner,
+                true,
+                $portalAccessService,
+                'portal_access_enabled',
+                'Customer portal access enabled'
+            );
 
             if ($this->shouldReturnJson($request)) {
                 return response()->json($this->bulkActionResult(
                     'Portal access enabled.',
                     $data['ids'],
-                    $processedIds
+                    $result['processed_ids'],
+                    [
+                        'failed_count' => $result['failed_count'],
+                        'errors' => $result['errors'],
+                    ]
                 ));
+            }
+
+            if ($result['errors'] !== []) {
+                return redirect()->back()->with('warning', implode(' ', $result['errors']));
             }
 
             return redirect()->back()->with('success', 'Portal access enabled.');
@@ -762,17 +1084,30 @@ class CustomerController extends Controller
             foreach ($customers as $customer) {
                 $this->authorize('update', $customer);
             }
-            Customer::query()
-                ->byUser($accountId)
-                ->whereIn('id', $data['ids'])
-                ->update(['portal_access' => false]);
+            $result = $this->updateCustomerPortalAccessWithAudit(
+                $customers,
+                $user,
+                $accountOwner,
+                false,
+                $portalAccessService,
+                'portal_access_disabled',
+                'Customer portal access disabled'
+            );
 
             if ($this->shouldReturnJson($request)) {
                 return response()->json($this->bulkActionResult(
                     'Portal access disabled.',
                     $data['ids'],
-                    $processedIds
+                    $result['processed_ids'],
+                    [
+                        'failed_count' => $result['failed_count'],
+                        'errors' => $result['errors'],
+                    ]
                 ));
+            }
+
+            if ($result['errors'] !== []) {
+                return redirect()->back()->with('warning', implode(' ', $result['errors']));
             }
 
             return redirect()->back()->with('success', 'Portal access disabled.');
@@ -782,10 +1117,14 @@ class CustomerController extends Controller
             foreach ($customers as $customer) {
                 $this->authorize('update', $customer);
             }
-            Customer::query()
-                ->byUser($accountId)
-                ->whereIn('id', $data['ids'])
-                ->update(['is_active' => false]);
+            $this->updateCustomersWithAudit(
+                $customers,
+                $user,
+                'is_active',
+                false,
+                'customer_archived',
+                'Customer archived'
+            );
 
             if ($this->shouldReturnJson($request)) {
                 return response()->json($this->bulkActionResult(
@@ -802,10 +1141,14 @@ class CustomerController extends Controller
             foreach ($customers as $customer) {
                 $this->authorize('update', $customer);
             }
-            Customer::query()
-                ->byUser($accountId)
-                ->whereIn('id', $data['ids'])
-                ->update(['is_active' => true]);
+            $this->updateCustomersWithAudit(
+                $customers,
+                $user,
+                'is_active',
+                true,
+                'customer_restored',
+                'Customer restored'
+            );
 
             if ($this->shouldReturnJson($request)) {
                 return response()->json($this->bulkActionResult(
@@ -820,7 +1163,10 @@ class CustomerController extends Controller
 
         foreach ($customers as $customer) {
             $this->authorize('delete', $customer);
-            FileHandler::deleteFile($customer->logo, Customer::DEFAULT_LOGO_PATH);
+            FileHandler::deleteFile(
+                $customer->logo,
+                Customer::defaultLogoPathFor($customer->client_type, $customer->company_name)
+            );
             FileHandler::deleteFile($customer->header_image, 'customers/customer.png');
             $customer->delete();
         }
@@ -1052,40 +1398,201 @@ class CustomerController extends Controller
         );
     }
 
-    private function resolveCustomerAccount(User $user, bool $allowPos = false): array
-    {
+    /** @param iterable<int, Customer> $customers */
+    private function updateCustomersWithAudit(
+        iterable $customers,
+        User $actor,
+        string $field,
+        mixed $value,
+        string $action,
+        string $description
+    ): void {
+        $audit = app(CustomerActivityAudit::class);
+
+        DB::transaction(function () use ($customers, $actor, $field, $value, $action, $description, $audit): void {
+            foreach ($customers as $customer) {
+                $before = [$field => $customer->getAttribute($field)];
+                $customer->setAttribute($field, $value);
+                if (! $customer->isDirty($field)) {
+                    continue;
+                }
+
+                $customer->save();
+                $audit->recordChanges(
+                    $actor,
+                    $customer,
+                    $action,
+                    $before,
+                    [$field => $customer->getAttribute($field)],
+                    $description,
+                    ['source' => 'bulk']
+                );
+            }
+        });
+    }
+
+    /**
+     * @param  iterable<int, Customer>  $customers
+     * @return array{processed_ids: array<int, int>, failed_count: int, errors: array<int, string>}
+     */
+    private function updateCustomerPortalAccessWithAudit(
+        iterable $customers,
+        User $actor,
+        User $accountOwner,
+        bool $enabled,
+        CustomerPortalAccessService $portalAccessService,
+        string $action,
+        string $description
+    ): array {
+        $audit = app(CustomerActivityAudit::class);
+        $processedIds = [];
+        $failedCount = 0;
+        $errors = [];
+
+        foreach ($customers as $customer) {
+            try {
+                $result = DB::transaction(function () use (
+                    $customer,
+                    $actor,
+                    $enabled,
+                    $portalAccessService,
+                    $audit,
+                    $action,
+                    $description
+                ) {
+                    $before = ['portal_access' => (bool) $customer->portal_access];
+                    $result = $portalAccessService->setAccess($customer, $enabled);
+
+                    if ($result->accessChanged || $result->portalUserCreated || $result->portalUserLinked) {
+                        $audit->recordChanges(
+                            $actor,
+                            $result->customer,
+                            $action,
+                            $before,
+                            ['portal_access' => (bool) $result->customer->portal_access],
+                            $description,
+                            ['source' => 'bulk']
+                        );
+                    }
+
+                    return $result;
+                });
+                $processedIds[] = (int) $result->customer->id;
+
+                if (
+                    $result->invitationRequired
+                    && ! $portalAccessService->sendInvitation($result->customer, $accountOwner)
+                ) {
+                    $errors[] = sprintf(
+                        'Customer %d: portal access was enabled, but the invitation could not be sent.',
+                        $result->customer->id
+                    );
+                }
+            } catch (ValidationException $exception) {
+                $failedCount++;
+                $message = collect($exception->errors())->flatten()->first()
+                    ?: 'Portal access could not be updated.';
+                $errors[] = sprintf('Customer %d: %s', $customer->id, $message);
+            }
+        }
+
+        return [
+            'processed_ids' => $processedIds,
+            'failed_count' => $failedCount,
+            'errors' => $errors,
+        ];
+    }
+
+    private function resolveCustomerAccount(
+        User $user,
+        bool $allowPos = false,
+        bool $requireCustomerCreation = false,
+        array $contextPermissions = [],
+    ): array {
         $ownerId = $user->accountOwnerId();
         $owner = $ownerId === $user->id
             ? $user
             : User::query()
-                ->select(UserSelects::companySummary())
+                ->select(UserSelects::companyFeatureContext())
                 ->find($ownerId);
 
         if (! $owner) {
             abort(403);
         }
 
-        $accountId = $user->id;
-        if ($owner->company_type === 'products') {
-            if ($user->id !== $owner->id) {
-                $membership = $user->relationLoaded('teamMembership')
-                    ? $user->teamMembership
-                    : $user->teamMembership()->first();
-                $canManage = $membership?->hasPermission('sales.manage') ?? false;
-                $canPos = $allowPos ? ($membership?->hasPermission('sales.pos') ?? false) : false;
-                if (! $membership || (! $canManage && ! $canPos)) {
-                    abort(403);
-                }
+        if ($user->id === $owner->id) {
+            $canUseCustomerModule = app(CompanyModuleAccess::class)->allows(
+                $user,
+                'customers',
+                (int) $owner->id,
+            );
+
+            if (! $canUseCustomerModule && ! $requireCustomerCreation && $contextPermissions === []) {
+                abort(403);
             }
-            $accountId = $owner->id;
+
+            return [$owner, $owner->id];
         }
 
-        return [$owner, $accountId];
+        $membership = $user->relationLoaded('teamMembership')
+            ? $user->teamMembership
+            : $user->teamMembership()->first();
+        $validMembership = $membership
+            && (int) $membership->account_id === (int) $owner->id
+            && $membership->is_active;
+
+        if (! $validMembership) {
+            abort(403);
+        }
+
+        $user->setRelation('teamMembership', $membership);
+        $canUseCustomerModule = app(CompanyModuleAccess::class)->allows(
+            $user,
+            'customers',
+            (int) $owner->id,
+        );
+        $canCreateCustomer = $requireCustomerCreation
+            && $membership->hasPermission('customers.create');
+        $canCreateFromPointOfSale = $requireCustomerCreation
+            && $allowPos
+            && app(CompanyFeatureService::class)->hasFeature($owner, 'sales')
+            && (
+                $membership->hasPermission('sales.manage')
+                || $membership->hasPermission('sales.pos')
+            );
+        $canUseContext = collect($contextPermissions)
+            ->contains(fn (string $permission): bool => $membership->hasPermission($permission));
+
+        if (! $canUseCustomerModule && ! $canCreateCustomer && ! $canCreateFromPointOfSale && ! $canUseContext) {
+            abort(403);
+        }
+
+        return [$owner, $owner->id];
     }
 
     private function ensureBulkContactAuthorized(User $user, int $accountId): void
     {
         if ($user->id !== $accountId) {
+            abort(403);
+        }
+    }
+
+    private function canViewCustomerNotes(User $user, int $accountId): bool
+    {
+        $accessControl = app(AccessControl::class);
+
+        return $accessControl->userHasPermission($user, 'view_client_notes', $accountId)
+            || $accessControl->userHasPermission($user, 'manage_client_notes', $accountId);
+    }
+
+    private function canManageCustomerNotes(User $user, int $accountId): bool
+    {
+        return app(AccessControl::class)->userHasPermission($user, 'manage_client_notes', $accountId);
+    }
+
+    private function ensureCanManageCustomerNotes(User $user, int $accountId): void
+    {
+        if (! $this->canManageCustomerNotes($user, $accountId)) {
             abort(403);
         }
     }
@@ -1116,14 +1623,6 @@ class CustomerController extends Controller
             ->whereKey($normalizedId)
             ->with('category')
             ->first();
-    }
-
-    private function resolveClientRoleId(): int
-    {
-        return Role::firstOrCreate(
-            ['name' => 'client'],
-            ['description' => 'Access to client functionalities']
-        )->id;
     }
 
     private function normalizeCustomerPayload(array $validated, ?Customer $customer = null): array
@@ -1157,7 +1656,7 @@ class CustomerController extends Controller
             : false;
         $validated['portal_access'] = array_key_exists('portal_access', $validated)
             ? (bool) $validated['portal_access']
-            : ($customer ? false : true);
+            : (bool) ($customer?->portal_access ?? true);
         $validated['billing_mode'] = $validated['billing_mode'] ?? $customer?->billing_mode ?? 'end_of_job';
         $validated['billing_grouping'] = $validated['billing_grouping'] ?? $customer?->billing_grouping ?? 'single';
         $validated['discount_rate'] = array_key_exists('discount_rate', $validated) && is_numeric($validated['discount_rate'])
@@ -1179,11 +1678,67 @@ class CustomerController extends Controller
         return $validated;
     }
 
+    private function enforceAutoValidationFeatures(array $payload, User $accountOwner): array
+    {
+        $featureService = app(CompanyFeatureService::class);
+        $featureFields = [
+            'quotes' => 'auto_accept_quotes',
+            'jobs' => 'auto_validate_jobs',
+            'tasks' => 'auto_validate_tasks',
+            'invoices' => 'auto_validate_invoices',
+        ];
+
+        foreach ($featureFields as $feature => $field) {
+            if (! $featureService->hasFeature($accountOwner, $feature)) {
+                $payload[$field] = false;
+            }
+        }
+
+        return $payload;
+    }
+
     private function normalizeCustomerOptionScope(string $scope): string
     {
         return in_array($scope, ['full', 'request', 'quote', 'audience'], true)
             ? $scope
             : 'full';
+    }
+
+    /**
+     * Permissions for bounded selectors embedded in another authorized module.
+     *
+     * @return list<string>
+     */
+    private function customerOptionPermissions(string $scope): array
+    {
+        return match ($scope) {
+            'request' => [
+                'requests.create',
+                'requests.edit',
+                'prospects.create',
+                'prospects.edit',
+                'prospects.convert',
+            ],
+            'quote' => [
+                'quotes.create',
+                'quotes.edit',
+            ],
+            'audience' => [
+                'campaigns.manage',
+                'campaigns.send',
+            ],
+            default => [],
+        };
+    }
+
+    private function customerOptionFeature(string $scope): ?string
+    {
+        return match ($scope) {
+            'request' => 'requests',
+            'quote' => 'quotes',
+            'audience' => 'campaigns',
+            default => null,
+        };
     }
 
     private function customerOptionScopeIncludesProperties(string $scope): bool
@@ -1252,25 +1807,5 @@ class CustomerController extends Controller
             ->values();
 
         return $payload;
-    }
-
-    private function createPortalUser(array $validated, int $roleId): User
-    {
-        $name = trim(($validated['first_name'] ?? '').' '.($validated['last_name'] ?? ''));
-        if ($name === '') {
-            $name = $validated['company_name'] ?? $validated['email'];
-        }
-
-        return User::create([
-            'name' => $name ?: $validated['email'],
-            'email' => $validated['email'],
-            'password' => Hash::make(Str::random(32)),
-            'role_id' => $roleId,
-            'phone_number' => $validated['phone'] ?? null,
-            'company_name' => ($validated['client_type'] ?? null) === CustomerClientType::COMPANY->value
-                ? ($validated['company_name'] ?? null)
-                : null,
-            'must_change_password' => true,
-        ]);
     }
 }

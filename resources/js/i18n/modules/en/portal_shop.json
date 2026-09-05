@@ -17,7 +17,14 @@
       "back_to_dashboard": "Back to dashboard",
       "reset_filters": "Reset",
       "cancel_order": "Cancel order",
-      "cancel_confirm": "Cancel this order?"
+      "cancel_confirm": "Cancel this order?",
+      "close_cart": "Close cart",
+      "close_product_details": "Close product details",
+      "decrease_quantity": "Decrease quantity for {product}",
+      "increase_quantity": "Increase quantity for {product}"
+    },
+    "validation": {
+      "title": "Please correct the highlighted information before continuing."
     },
     "locked_notice": "This order is already in delivery or completed. Changes are locked.",
     "status": {
@@ -127,7 +134,8 @@
       "delivery": "Delivery",
       "total": "Total",
       "checkout_update": "Update order",
-      "checkout_create": "Place order"
+      "checkout_create": "Place order",
+      "checkout_processing": "Submitting..."
     },
     "stock": {
       "out": "Out of stock",

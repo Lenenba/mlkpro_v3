@@ -1,89 +1,7 @@
 {
   "customers": {
-    "title": "Clients",
-    "stats": {
-      "total": "Total clients",
-      "new": "Nouveaux (30 jours)",
-      "active": "Actifs (30 jours)",
-      "with_quotes": "Avec devis",
-      "with_jobs": "Avec chantiers"
-    },
-    "activity": {
-      "title": "Activite client",
-      "subtitle": "Devis + chantiers",
-      "actions": "{count} actions",
-      "empty": "Aucune activite client.",
-      "quotes_short": "d",
-      "jobs_short": "c"
-    },
-    "view": {
-      "table": "Table",
-      "cards": "Cartes"
-    },
-    "filters": {
-      "search_placeholder": "Rechercher nom, societe, email ou telephone",
-      "city": "Ville",
-      "country": "Pays",
-      "quotes": "Devis",
-      "requests": "Demandes",
-      "jobs": "Chantiers",
-      "status": "Statut",
-      "created_from": "Cree a partir du",
-      "created_to": "Cree jusqu'au",
-      "with_quotes": "Avec devis",
-      "no_quotes": "Sans devis",
-      "with_jobs": "Avec chantiers",
-      "no_jobs": "Sans chantiers",
-      "active_package": "Forfait actif",
-      "with_active_package": "Avec forfait actif",
-      "no_active_package": "Sans forfait actif",
-      "package_status": "Statut forfait",
-      "package_remaining_lte": "Solde forfait <= ",
-      "package_expires_within_days": "Expire dans N jours",
-      "package_recurrence": "Recurrence forfait",
-      "package_recurring": "Forfait recurrent",
-      "package_non_recurring": "Forfait non recurrent",
-      "package_recurrence_status": "Statut recurrence"
-    },
-    "saved_segments": {
-      "title": "Segments sauvegardes",
-      "manage": "Creer / gerer",
-      "summary_empty": "Aucun segment selectionne",
-      "selected_label": "Segment actif",
-      "snapshot_label": "Snapshot courant",
-      "dialog_hint": "Appliquez un segment existant ou sauvegardez l'etat actuel des filtres.",
-      "selection_panel": "Appliquer un segment",
-      "management_panel": "Sauvegarder l'etat courant",
-      "select_label": "Segment sauvegarde",
-      "select_placeholder": "Choisir un segment",
-      "name_label": "Nom du segment",
-      "name_placeholder": "Ex. Clients actifs Montreal",
-      "apply": "Appliquer",
-      "save_current": "Sauver filtres",
-      "update_selected": "Mettre a jour",
-      "delete_selected": "Supprimer",
-      "cached_count": "{count} en cache",
-      "updated_at": "Mis a jour {value}",
-      "current_snapshot_ready": "Le filtre actuel est pret a etre sauvegarde.",
-      "empty_state": "Aucun segment sauvegarde pour l'instant.",
-      "info_created": "Segment sauvegarde cree.",
-      "info_updated": "Segment sauvegarde mis a jour.",
-      "info_deleted": "Segment sauvegarde supprime.",
-      "error_load": "Impossible de charger les segments sauvegardes.",
-      "error_save": "Impossible d'enregistrer ce segment sauvegarde.",
-      "error_delete": "Impossible de supprimer ce segment sauvegarde.",
-      "confirm_delete": "Supprimer le segment sauvegarde \"{name}\" ?"
-    },
     "actions": {
-      "filters": "Filtres",
-      "clear": "Effacer",
-      "add_customer": "Ajouter client",
-      "archive": "Archiver",
-      "restore": "Restaurer",
       "delete": "Supprimer",
-      "delete_confirm": "Supprimer \"{name}\" ?",
-      "archive_confirm": "{action} \"{name}\" ?",
-      "view": "Voir",
       "edit": "Modifier",
       "back_to_list": "Retour a la liste",
       "more_actions": "... Plus d'actions",
@@ -95,196 +13,35 @@
       "save": "Enregistrer",
       "save_changes": "Enregistrer modifications"
     },
-    "bulk": {
-      "title": "Actions en lot",
-      "enable_portal": "Activer acces portail",
-      "disable_portal": "Desactiver acces portail",
-      "delete_confirm": "Supprimer les clients selectionnes ?"
-    },
-    "bulk_contact": {
-      "action": "Contacter la selection",
-      "title": "Contacter les clients selectionnes",
-      "subtitle": "Envoyez un email ou un SMS directement depuis la liste clients.",
-      "selection_summary": "{count} client(s) selectionne(s)",
-      "fields": {
-        "objective": "Objectif",
-        "channel": "Canal",
-        "template": "Template sauvegarde",
-        "offer": "Produit ou service",
-        "subject": "Sujet",
-        "body": "Message"
-      },
-      "objectives": {
-        "payment_followup": "Relance paiement",
-        "promotion": "Promotion",
-        "announcement": "Annonce",
-        "manual_message": "Message libre"
-      },
-      "channels": {
-        "email": "Email",
-        "sms": "SMS"
-      },
-      "payment_followup_hint": "Si le sujet ou le message restent vides, un rappel suggere sera utilise.",
-      "template_hint_email": "Vous pouvez garder le template Malikia suggere ou appliquer un template sauvegarde du module Campaigns.",
-      "template_applied_hint": "Le template sauvegarde est applique. Vous pouvez encore ajuster le contenu avant l envoi.",
-      "template_default_option": "Aucun template sauvegarde",
-      "clear_template": "Retirer le template",
-      "loading_templates": "Chargement des templates...",
-      "no_templates": "Aucun template sauvegarde disponible pour ce canal ou cet objectif.",
-      "template_load_error": "Impossible de charger les templates marketing pour le moment.",
-      "offer_search_placeholder": "Rechercher un produit ou un service a promouvoir",
-      "no_offer_results": "Aucun produit ou service ne correspond a cette recherche.",
-      "clear_offer": "Retirer",
-      "offer_required_hint": "Pour une promotion, selectionnez l offre que vous souhaitez mettre en avant.",
-      "loading_offers": "Recherche du catalogue...",
-      "body_required_hint": "Le message est requis pour cet envoi.",
-      "sms_length": "{count} caracteres",
-      "preview_title": "Apercu des destinataires",
-      "preview_subtitle": "Le systeme verifie les destinataires eligibles avant l'envoi.",
-      "preview": {
-        "selected": "Selectionnes",
-        "eligible": "Eligibles",
-        "excluded": "Exclus",
-        "selected_offer": "Offre selectionnee",
-        "reasons_title": "Principales raisons d'exclusion",
-        "eligible_examples": "Exemples eligibles",
-        "excluded_examples": "Exemples exclus",
-        "invoice_summary": "{count} facture(s) ouvertes, {amount} {currency}"
-      },
-      "actions": {
-        "refresh_preview": "Actualiser l'aperçu",
-        "refreshing": "Actualisation...",
-        "close": "Fermer",
-        "send": "Envoyer",
-        "sending": "Envoi..."
-      },
-      "preview_error": "Impossible de verifier les destinataires pour le moment.",
-      "send_error": "Impossible d'envoyer ce message en lot.",
-      "result_summary": "Envoyes: {sent}, echecs: {failed}, ignores: {skipped}",
-      "result": {
-        "processed": "Traites",
-        "sent": "Envoyes",
-        "failed": "Echecs",
-        "skipped": "Ignores",
-        "reasons_title": "Motifs principaux",
-        "failures_title": "Exemples d echecs"
-      },
-      "tokens_title": "Tokens disponibles",
-      "tokens_hint": "Vous pouvez utiliser ces tokens dans le sujet ou le message.",
-      "reasons": {
-        "channel_disabled": "Canal desactive",
-        "missing_destination": "Coordonnee manquante ou invalide",
-        "no_open_invoices": "Aucune facture ouverte",
-        "consent_missing": "Consentement manquant",
-        "consent_revoked": "Consentement revoque",
-        "opted_out": "Destinataire desinscrit",
-        "quiet_hours": "Bloque pendant les heures calmes",
-        "fatigue_limit": "Limite anti-fatigue atteinte",
-        "mail_exception": "Echec email",
-        "sms_error": "Echec SMS",
-        "invalid_recipient": "Destinataire invalide",
-        "send_failed": "Envoi echoue"
-      },
-      "tokens_map": {
-        "customerName": "Nom complet du client",
-        "firstName": "Prenom du client",
-        "companyName": "Societe du client",
-        "customerEmail": "Email du client",
-        "customerPhone": "Telephone du client",
-        "unpaidInvoiceCount": "Nombre de factures ouvertes",
-        "balanceDue": "Solde du",
-        "offerName": "Nom du produit ou service",
-        "offerPrice": "Prix de l offre",
-        "offerUrl": "Lien de l offre",
-        "offerImageUrl": "Image de l offre",
-        "promoPercent": "Pourcentage promo",
-        "promoCode": "Code promo",
-        "promoEndDate": "Date de fin promo",
-        "productName": "Nom du produit",
-        "serviceName": "Nom du service",
-        "brandName": "Nom de votre entreprise",
-        "brandReplyToEmail": "Email de reponse",
-        "brandPhone": "Telephone de l'entreprise"
-      },
-      "template_types": {
-        "general": "General",
-        "promotion": "Promotion",
-        "announcement": "Annonce"
-      },
-      "offer_types": {
-        "product": "Produit",
-        "service": "Service"
-      },
-      "campaign_bridge": {
-        "title": "Reutiliser cette selection en marketing",
-        "subtitle": "Ajoutez les clients selectionnes a une mailing list ou ouvrez directement le wizard Campaigns avec cette audience.",
-        "existing_label": "Mailing list existante",
-        "existing_placeholder": "Choisir une mailing list existante",
-        "new_label": "Nouvelle mailing list",
-        "helper": "Si une mailing list existante est choisie, les clients selectionnes y seront ajoutes. Sinon, une nouvelle liste sera creee pour l ouverture dans Campaigns.",
-        "loading_lists": "Chargement des mailing lists...",
-        "actions": {
-          "add_to_existing": "Ajouter a la liste",
-          "create_list": "Creer la liste",
-          "open_campaigns": "Ouvrir dans Campaigns",
-          "opening_campaigns": "Ouverture de Campaigns..."
-        },
-        "messages": {
-          "saved_existing": "{added} clients ajoutes a {list}. Deja presents: {alreadyPresent}. Total: {total}.",
-          "created": "La mailing list {list} a ete creee avec {total} clients."
-        },
-        "errors": {
-          "load_lists": "Impossible de charger les mailing lists marketing pour le moment.",
-          "save_selection": "Impossible d ajouter cette selection a la mailing list choisie.",
-          "create_list": "Impossible de creer la mailing list pour cette selection.",
-          "open_campaign": "Impossible d ouvrir Campaigns avec cette audience pour le moment."
-        },
-        "default_names": {
-          "promotion": "Audience promo",
-          "announcement": "Audience annonce",
-          "payment_followup": "Audience relance paiement",
-          "manual_message": "Audience clients"
-        }
-      }
-    },
-    "table": {
-      "company": "Societe",
-      "contact": "Contact",
-      "phone": "Telephone",
-      "city": "Ville",
-      "quotes": "Devis",
-      "jobs": "Chantiers",
-      "created": "Cree"
-    },
     "labels": {
-      "selected": "{count} selectionnes",
       "customer_fallback": "Client",
-      "customer_initial": "C",
-      "unknown_city": "Ville inconnue",
-      "logo_alt": "Logo client",
-      "quotes": "Devis",
-      "jobs": "Chantiers",
-      "created": "Cree",
+      "logo_alt": "Photo ou logo du client",
       "no_phone": "Pas de telephone",
       "none": "-",
       "unknown_status": "Statut inconnu"
     },
-    "empty": {
-      "title": "Aucun client",
-      "subtitle": "Ajoutez un client pour demarrer votre base.",
-      "action": "Ajouter un client"
-    },
-    "pagination": {
-      "previous": "Precedent",
-      "next": "Suivant",
-      "of": "sur",
-      "results": "resultats"
-    },
-    "status": {
-      "active": "Actif",
-      "archived": "Archive"
-    },
     "details": {
+      "preview": {
+        "title": "Aperçu client",
+        "quotes": "Devis",
+        "active_jobs": "Chantiers actifs",
+        "jobs": "Chantiers",
+        "invoices": "Factures",
+        "requests": "Demandes",
+        "balance_due": "Solde dû",
+        "latest_quote": "Dernier devis",
+        "quote_number": "Devis {number}",
+        "quote_fallback": "Devis",
+        "total": "Total",
+        "no_quotes": "Aucun devis.",
+        "latest_job": "Dernier chantier",
+        "job_fallback": "Chantier",
+        "no_jobs": "Aucun chantier.",
+        "latest_invoice": "Dernière facture",
+        "invoice_number": "Facture {number}",
+        "invoice_fallback": "Facture",
+        "no_invoices": "Aucune facture."
+      },
       "sales": {
         "title": "Ventes",
         "view_all": "Voir tout",
@@ -325,6 +82,77 @@
       "activity": {
         "title": "Activite recente pour ce client",
         "empty": "Aucune activite recente."
+      },
+      "history": {
+        "title": "Historique unifié",
+        "subtitle": "Rendez-vous, facturation, communications et changements de profil dans une seule chronologie.",
+        "reset": "Réinitialiser",
+        "period_label": "Période",
+        "types_label": "Types d’activité",
+        "from": "Du",
+        "to": "Au",
+        "apply": "Appliquer",
+        "active_filters": "Filtres actifs",
+        "remove_period": "Retirer le filtre de période",
+        "remove_type": "Retirer le filtre {type}",
+        "loaded_count": "{count} activités",
+        "loaded_count_more": "{count}+ activités",
+        "unknown_date": "Date inconnue",
+        "system_actor": "Système",
+        "by_actor": "Par {actor}",
+        "list_label": "Chronologie des activités du client",
+        "periods": {
+          "last_7_days": "7 derniers jours",
+          "last_30_days": "30 derniers jours",
+          "last_90_days": "90 derniers jours",
+          "last_6_months": "6 derniers mois",
+          "current_year": "Année en cours",
+          "previous_year": "Année précédente",
+          "all": "Historique complet",
+          "custom": "Période personnalisée"
+        },
+        "types": {
+          "all": "Tous",
+          "appointments": "Rendez-vous",
+          "invoices": "Factures",
+          "payments": "Paiements",
+          "notes": "Notes",
+          "communications": "Communications",
+          "profile_changes": "Profil"
+        },
+        "statuses": {
+          "completed": "Terminé",
+          "confirmed": "Confirmé",
+          "cancelled": "Annulé",
+          "no_show": "Absent",
+          "rescheduled": "Replanifié",
+          "pending": "En attente",
+          "paid": "Payé",
+          "partial": "Partiel",
+          "refunded": "Remboursé",
+          "reversed": "Renversé",
+          "failed": "Échec",
+          "sent": "Envoyé",
+          "delivered": "Livré",
+          "opened": "Ouvert",
+          "recorded": "Consigné"
+        },
+        "validation": {
+          "dates_required": "Sélectionnez une date de début et une date de fin.",
+          "invalid_range": "La date de fin doit être postérieure ou égale à la date de début."
+        },
+        "states": {
+          "loading": "Chargement de l’historique…",
+          "loading_more": "Chargement…",
+          "load_more": "Charger plus",
+          "error_title": "Historique indisponible",
+          "error_description": "Impossible de charger l’historique.",
+          "retry": "Réessayer",
+          "empty_title": "Aucune activité",
+          "empty_description": "Les interactions de ce client apparaîtront ici.",
+          "no_results_title": "Aucune activité trouvée",
+          "no_results_description": "Essayez une période plus large ou retirez un filtre."
+        }
       },
       "sales_activity": {
         "title": "Timeline CRM",
@@ -403,27 +231,6 @@
           "assistant_label": "Assistant"
         }
       },
-      "preview": {
-        "title": "Apercu client",
-        "quotes": "Devis",
-        "active_jobs": "Chantiers actifs",
-        "jobs": "Chantiers",
-        "invoices": "Factures",
-        "requests": "Demandes",
-        "balance_due": "Solde du",
-        "latest_quote": "Dernier devis",
-        "quote_number": "Devis {number}",
-        "quote_fallback": "Devis",
-        "total": "Total",
-        "no_quotes": "Aucun devis.",
-        "latest_job": "Dernier chantier",
-        "job_fallback": "Chantier",
-        "no_jobs": "Aucun chantier.",
-        "latest_invoice": "Derniere facture",
-        "invoice_number": "Facture {number}",
-        "invoice_fallback": "Facture",
-        "no_invoices": "Aucune facture."
-      },
       "contact": {
         "title": "Coordonnees",
         "fields": {
@@ -440,7 +247,7 @@
         "title": "Panneau client",
         "tabs": {
           "profile": "Profil",
-          "packages": "Forfaits",
+        "packages": "Packs et forfaits",
           "marketing": "Marketing",
           "automation": "Automatisation",
           "finance": "Finance"
@@ -512,6 +319,15 @@
       },
       "customer_packages": {
         "title": "Forfaits client",
+        "combined_title": "Packs et forfaits du client",
+        "pack_type": "Pack",
+        "forfait_type": "Forfait",
+        "purchased_packs_title": "Packs achetés",
+        "purchased_packs_empty": "Aucun pack acheté par ce client.",
+        "purchased_on": "Acheté le",
+        "quantity": "Quantité",
+        "amount": "Montant",
+        "invoice": "Facture",
         "assign_action": "Attribuer forfait",
         "assign_submit": "Attribuer",
         "consume_action": "Consommer",
@@ -547,7 +363,8 @@
           "total": "Total",
           "active": "Actifs",
           "remaining": "Solde",
-          "expiring": "Expire bientot"
+          "expiring": "Expire bientot",
+          "packs": "Packs"
         },
         "fields": {
           "offer": "Forfait",
@@ -581,6 +398,17 @@
           "expired": "Expire",
           "cancelled": "Annule"
         },
+        "invoice_statuses": {
+          "draft": "Brouillon",
+          "sent": "Envoyée",
+          "awaiting_acceptance": "En attente d’acceptation",
+          "accepted": "Acceptée",
+          "rejected": "Refusée",
+          "partial": "Partiellement payée",
+          "paid": "Payée",
+          "overdue": "En retard",
+          "void": "Annulée"
+        },
         "recurrence_statuses": {
           "active": "Recurrence active",
           "payment_due": "Paiement du",
@@ -612,15 +440,31 @@
         "new": "Nouveau client",
         "edit": "Modifier client"
       },
+      "intro": {
+        "new": "Créez une fiche client complète, prête pour la suite.",
+        "edit": "Mettez à jour les informations, les accès et les préférences de ce client.",
+        "required": "Les champs marqués d’un astérisque sont obligatoires."
+      },
       "sections": {
         "client_details": "Details client",
         "company_details": "Details de l'entreprise",
         "main_contact": "Contact principal",
         "contact_details": "Coordonnees",
+        "profile": "Profil et illustration",
         "auto_validation": "Validation auto client",
         "additional_details": "Details client additionnels",
         "billing_preferences": "Preferences de facturation",
         "location": "Localisation"
+      },
+      "section_help": {
+        "client_details": "Choisissez le type de client et renseignez ses coordonnées principales.",
+        "profile": "Ajoutez une photo, un logo ou choisissez une icône prédéfinie.",
+        "portal_access_create": "L’activation crée un accès portail et peut envoyer une invitation au client.",
+        "portal_access_edit": "Gérez l’accès de ce client à son portail.",
+        "auto_validation": "Choisissez les étapes qui pourront être validées automatiquement pour ce client.",
+        "additional_details": "Ajoutez du contexte interne, la provenance du client et sa remise permanente.",
+        "location": "Recherchez une adresse ou saisissez-la manuellement.",
+        "billing_preferences": "Définissez quand et comment les factures de ce client seront regroupées."
       },
       "client_types": {
         "company": "Entreprise",
@@ -631,27 +475,36 @@
         "title": "Titre",
         "first_name": "Prenom",
         "last_name": "Nom",
+        "birth_date": "Date de naissance",
         "company_name": "Entreprise",
         "registration_number": "Numero d'immatriculation",
         "industry": "Secteur",
         "company_logo": "Logo entreprise",
         "upload_company_logo": "Televerser logo entreprise",
+        "profile_photo": "Photo de profil",
+        "upload_profile_photo": "Televerser une photo de profil",
         "choose_company_icon": "Ou choisir une icone",
+        "choose_profile_icon": "Ou choisir un avatar",
         "company_icon_alt": "Icone entreprise",
+        "profile_icon_alt": "Avatar du client",
         "default_icon": "Defaut",
         "clear_icon": "Retirer icone",
+        "reset_icon": "Utiliser l'icone par defaut",
         "phone": "Telephone",
         "email": "Adresse email",
         "portal_access": "Donner acces a la plateforme",
         "description": "Description",
         "referred_by": "Reference par",
         "discount_rate": "Remise fidelite (%)",
+        "discount_rate_hint": "Remise permanente de 0 à 100 % pour ce client.",
         "search_address": "Rechercher une adresse",
+        "manual_address_hint": "Vous pouvez aussi compléter l’adresse manuellement ci-dessous.",
         "notes": "Notes"
       },
       "auto_accept_quotes": "Auto acceptation des devis",
       "billing": {
         "same_as_property": "Adresse de facturation identique a l'adresse du bien",
+        "same_as_address": "Adresse de facturation identique a l'adresse principale",
         "mode": "Mode de facturation",
         "grouping": "Regroupement",
         "cycle": "Cycle",
@@ -662,6 +515,7 @@
         "per_task": "Par tache",
         "per_segment": "Par segment",
         "end_of_job": "Fin de chantier",
+        "end_of_service": "Fin de la prestation",
         "deferred": "Differe"
       },
       "billing_groupings": {
@@ -682,7 +536,13 @@
       "actions": {
         "save_create_another": "Enregistrer et creer un autre",
         "save_client": "Enregistrer client",
-        "update_client": "Mettre a jour client"
+        "update_client": "Mettre a jour client",
+        "saving": "Enregistrement…"
+      },
+      "actions_hint": "Vérifiez les informations avant d’enregistrer.",
+      "states": {
+        "enabled": "Activé",
+        "disabled": "Désactivé"
       },
       "errors": {
         "city_required": "La ville est requise pour enregistrer une localisation.",

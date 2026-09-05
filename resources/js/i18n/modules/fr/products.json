@@ -359,6 +359,7 @@
       "selected_image": "Image selectionnee"
     },
     "images": {
+      "additional": "Images supplémentaires",
       "primary": "Principale",
       "set_primary": "Mettre en principale"
     },

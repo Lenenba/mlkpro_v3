@@ -1,7 +1,7 @@
 {
   "social": {
     "workspace": {
-      "eyebrow": "Malikia Pulse",
+      "eyebrow": "Pulse",
       "actions": {
         "back_to_growth": "Volver al hub de crecimiento"
       },
@@ -26,7 +26,7 @@
     },
     "visual_preview": {
       "generic_platform": "Pulse",
-      "generic_account": "Malikia Pulse",
+      "generic_account": "Pulse",
       "generic_meta": "Preview social",
       "empty_text": "El texto del post aparecera aqui.",
       "image_alt": "Imagen de preview del post Pulse",
@@ -63,9 +63,51 @@
         "generated_at": "Generado el"
       }
     },
+    "delivery_axes": {
+      "summary_label": "Estado editorial y de distribucion",
+      "failure_reason_label": "Motivo del fallo",
+      "labels": {
+        "editorial": "Editorial",
+        "delivery": "Distribucion",
+        "sync": "Sincronizacion"
+      },
+      "statuses": {
+        "editorial": {
+          "draft": "Borrador",
+          "pending_approval": "Pendiente de aprobacion",
+          "approved": "Aprobado",
+          "rejected": "Rechazado",
+          "archived": "Archivado"
+        },
+        "delivery": {
+          "not_submitted": "No enviado",
+          "queued": "En cola",
+          "submitted": "Enviado",
+          "scheduled": "Programado",
+          "remote_approval_required": "Aprobacion remota requerida",
+          "publishing": "Publicando",
+          "sending": "Enviando",
+          "published": "Publicado",
+          "partial_failed": "Fallo parcial",
+          "failed": "Fallo",
+          "unknown": "Estado desconocido",
+          "canceled": "Cancelado"
+        },
+        "sync": {
+          "pending": "Pendiente",
+          "synced": "Sincronizado",
+          "error": "Error de sincronizacion",
+          "reconnect_required": "Reconexion requerida"
+        }
+      },
+      "verification": {
+        "title": "Verificacion requerida",
+        "description": "No vuelvas a publicar hasta que se confirme el estado remoto."
+      }
+    },
     "index_page": {
-      "head_title": "Espacio Malikia Pulse",
-      "page_title": "Espacio Malikia Pulse",
+      "head_title": "Espacio Pulse",
+      "page_title": "Espacio Pulse",
       "page_description": "Pasa de las cuentas conectadas a los primeros borradores listos para publicar sin salir del modulo.",
       "read_only_title": "Acceso Pulse de solo lectura",
       "read_only_description": "Puedes revisar las cuentas y los borradores existentes, pero solo los usuarios autorizados pueden cambiar el contenido por ahora.",
@@ -103,45 +145,45 @@
       "empty_value": "No disponible"
     },
     "accounts_page": {
-      "head_title": "Cuentas de Malikia Pulse",
-      "page_title": "Cuentas de Malikia Pulse",
-      "page_description": "Prepara, conecta y sigue las cuentas sociales que Malikia Pulse usara para la publicacion multi-red.",
+      "head_title": "Cuentas de Pulse",
+      "page_title": "Cuentas de Pulse",
+      "page_description": "Prepara, conecta y sigue las cuentas sociales que Pulse usara para la publicacion multi-red.",
       "actions": {
         "back_to_growth": "Volver al hub de crecimiento"
       }
     },
     "composer_page": {
-      "head_title": "Composer de Malikia Pulse",
-      "page_title": "Composer de Malikia Pulse",
+      "head_title": "Composer de Pulse",
+      "page_title": "Composer de Pulse",
       "page_description": "Crea, publica o programa un post Pulse simple con texto, imagen, enlace, programacion y seleccion de varias cuentas."
     },
     "templates_page": {
-      "head_title": "Templates de Malikia Pulse",
-      "page_title": "Templates de Malikia Pulse",
+      "head_title": "Templates de Pulse",
+      "page_title": "Templates de Pulse",
       "page_description": "Guarda estructuras de posts reutilizables, conserva las cuentas objetivo correctas y recargalas directamente dentro del composer."
     },
     "history_page": {
-      "head_title": "Historial de Malikia Pulse",
-      "page_title": "Historial de Malikia Pulse",
+      "head_title": "Historial de Pulse",
+      "page_title": "Historial de Pulse",
       "page_description": "Revisa los ultimos posts Pulse, filtra el historial, duplica contenido util y vuelve a abrir los posts publicados como repost editable."
     },
     "calendar_page": {
-      "head_title": "Calendario de Malikia Pulse",
+      "head_title": "Calendario de Pulse",
       "page_title": "Calendario editorial Pulse",
       "page_description": "Planifica la semana, detecta validaciones y manten las publicaciones visibles sin volver pesado el workspace."
     },
     "brand_voice_page": {
-      "head_title": "Voz de Malikia Pulse",
+      "head_title": "Voz de Pulse",
       "page_title": "Voz de marca Pulse",
       "page_description": "Mantiene los posts de Autopilot alineados con tu tono, CTA y hashtags sin agregar ruido."
     },
     "media_page": {
-      "head_title": "Medios de Malikia Pulse",
+      "head_title": "Medios de Pulse",
       "page_title": "Biblioteca de medios Pulse",
       "page_description": "Encuentra imagenes importadas, generadas o ya usadas, y reutilizalas en un borrador."
     },
     "campaigns_page": {
-      "head_title": "Campanas de Malikia Pulse",
+      "head_title": "Campanas de Pulse",
       "page_title": "Modo campana Pulse",
       "page_description": "Convierte una intencion en varios borradores planificados, luego ajusta cada post antes de validar."
     },
@@ -198,6 +240,8 @@
         "status_scheduled": "Programado"
       },
       "fields": {
+        "media": "Medio",
+        "media_help": "Suelta tus imágenes, vídeos o PDF. El tipo se detecta automáticamente.",
         "text": "Texto del post",
         "image_file": "Imagen desde tu ordenador",
         "image_url": "URL de la imagen",
@@ -214,6 +258,8 @@
         "update_draft": "Guardar cambios",
         "save_as_template": "Guardar como template",
         "submit_for_approval": "Enviar para aprobacion",
+        "retry_post": "Reintentar",
+        "retrying_post": "Reintentando...",
         "publish_now": "Publicar ahora",
         "schedule_post": "Programar post",
         "approve_post": "Aprobar y publicar",
@@ -231,7 +277,7 @@
         "append_hashtags": "Anadir hashtags",
         "append_cta": "Anadir este CTA",
         "add_hashtag": "Anadir hashtag",
-        "publish_with_pulse": "Publicar con Malikia Pulse"
+        "publish_with_pulse": "Publicar con Pulse"
       },
       "statuses": {
         "draft": "Borrador",
@@ -273,6 +319,8 @@
         "approve_success": "La solicitud Pulse fue aprobada.",
         "reject_error": "No se pudo rechazar la solicitud Pulse.",
         "reject_success": "La solicitud Pulse fue rechazada.",
+        "retry_error": "No se pudo reintentar la publicacion Pulse.",
+        "retry_success": "La publicacion Pulse se puso de nuevo en cola.",
         "publish_error": "No se pudo poner en cola el post Pulse para publicarlo.",
         "publish_success": "El post Pulse se puso en cola para publicarlo.",
         "schedule_error": "No se pudo programar el post Pulse.",
@@ -308,6 +356,8 @@
       "fields": {
         "name": "Nombre del template",
         "text": "Texto del post",
+        "media": "Medios",
+        "media_help": "Añade hasta 20 imágenes, vídeos o PDF. El tipo se detecta automáticamente.",
         "image_file": "Imagen desde tu ordenador",
         "image_url": "URL de la imagen",
         "link_url": "Enlace de destino",
@@ -359,6 +409,8 @@
         "reload": "Recargar",
         "apply_filters": "Aplicar filtros",
         "reset_filters": "Restablecer",
+        "retry_post": "Reintentar",
+        "retrying_post": "Reintentando...",
         "edit_draft": "Editar borrador",
         "approve_post": "Aprobar",
         "reject_post": "Rechazar",
@@ -375,6 +427,8 @@
         "approve_success": "La solicitud Pulse fue aprobada desde el historial.",
         "reject_error": "No se pudo rechazar la solicitud Pulse desde el historial.",
         "reject_success": "La solicitud Pulse fue rechazada desde el historial.",
+        "retry_error": "No se pudo reintentar la publicacion Pulse.",
+        "retry_success": "La publicacion Pulse se puso de nuevo en cola.",
         "duplicate_error": "No se pudo duplicar este post Pulse.",
         "duplicate_success": "El post Pulse se ha duplicado.",
         "repost_error": "No se pudo reabrir este post Pulse como repost.",
@@ -387,6 +441,15 @@
         "updated_at": "Actualizado"
       },
       "targets_title": "Destinos",
+      "target_statuses": {
+        "pending": "Pendiente",
+        "scheduled": "Programado",
+        "publishing": "Publicando",
+        "published": "Publicado",
+        "failed": "Fallido",
+        "canceled": "Cancelado"
+      },
+      "target_failure_reason": "Fallo: {reason}",
       "no_targets": "Ningun destino conectado esta actualmente asociado a esta copia.",
       "empty_title": "Todavia no hay posts Pulse en este historial",
       "empty_description": "Publica, programa o guarda un primer borrador para empezar a construir el historial reutilizable de Pulse.",
@@ -464,12 +527,16 @@
         "week": "Semana",
         "month": "Mes",
         "reload": "Recargar",
+        "retry_post": "Reintentar",
+        "retrying_post": "Reintentando...",
         "open_composer": "Abrir composer",
         "reschedule": "Reprogramar",
         "clear_schedule": "Quitar fecha"
       },
       "messages": {
         "load_error": "No se pudo recargar el calendario Pulse.",
+        "retry_error": "No se pudo reintentar la publicacion Pulse.",
+        "retry_success": "La publicacion Pulse se puso de nuevo en cola.",
         "reschedule_error": "No se pudo reprogramar el post Pulse.",
         "reschedule_success": "El post Pulse fue reprogramado."
       },
@@ -755,7 +822,7 @@
         "pending": "Pendientes",
         "automated": "Automatizadas",
         "manual": "Manuales",
-        "stale": "Pendientes antiguas"
+        "stale": "Validaciones antiguas"
       },
       "fields": {
         "search": "Buscar texto, fuente o enlace",
@@ -814,7 +881,7 @@
       "empty_value": "No disponible"
     },
     "accounts_manager": {
-      "hero_eyebrow": "Malikia Pulse",
+      "hero_eyebrow": "Pulse",
       "title": "Conecta tus redes",
       "description": "Elige una red, inicia la autenticacion y luego confirma rapidamente que la conexion esta lista para publicar.",
       "directory_hint": "Un clic sobre una plataforma basta para empezar la conexion.",
@@ -900,6 +967,7 @@
       "statuses": {
         "draft": "Borrador",
         "pending": "Pendiente",
+        "authorizing": "Conectando",
         "connected": "Conectada",
         "error": "Error",
         "reconnect_required": "Reconectar",
@@ -928,6 +996,82 @@
         "confirm_delete": "Eliminar {name}?"
       },
       "empty_value": "No disponible"
+    },
+    "buffer_connector": {
+      "local_mode": "Prueba local real",
+      "oauth_mode": "OAuth de Buffer",
+      "delivery_enabled": "Publicacion activada",
+      "delivery_disabled": "Publicacion desactivada",
+      "loading": "Cargando cuentas Buffer.",
+      "opens_new_tab": "Se abre en una pestana nueva",
+      "title": "Conexion y canales de Buffer",
+      "description": "Las cuentas sincronizadas permanecen disponibles en Pulse. Consulta Buffer solo para buscar nuevos canales o volver a sincronizar voluntariamente.",
+      "configuration_title": "OAuth de Buffer no disponible",
+      "configuration_oauth": "Configura el cliente OAuth de Buffer en el servidor.",
+      "connect_prompt": "Conecta tu cuenta de Buffer para mostrar sus canales.",
+      "owner_only": "Solo el propietario de la cuenta puede consultar Buffer e importar sus canales.",
+      "account_label": "Cuenta Buffer",
+      "account_fallback": "Cuenta Buffer conectada",
+      "synchronized_title": "Cuentas sincronizadas con Pulse",
+      "synchronized_description": "Estas cuentas siguen visibles después de actualizar la página o volver más tarde, incluso si necesitan reconectarse.",
+      "synchronized_count": "Sincronizadas: {count}",
+      "synchronized_empty_title": "No hay cuentas Buffer sincronizadas",
+      "synchronized_empty_description": "Busca las cuentas disponibles en Buffer e importa las que quieras utilizar en Pulse.",
+      "synchronized_account_fallback": "Cuenta Buffer sincronizada",
+      "available_title": "Nuevas cuentas disponibles en Buffer",
+      "available_description": "Aquí solo se muestran las cuentas que todavía no están sincronizadas con Pulse.",
+      "available_count": "Disponibles: {count}",
+      "all_synchronized_title": "Todas las cuentas Buffer ya están sincronizadas",
+      "all_synchronized_description": "No hay cuentas nuevas disponibles. Actualiza la búsqueda más tarde para detectar las cuentas añadidas en Buffer.",
+      "last_error_label": "Último error",
+      "organization_label": "Organizacion",
+      "catalog_summary": "Canales: {channels} · importados: {imported}",
+      "no_channels": "No hay canales Buffer disponibles en esta organizacion.",
+      "actions": {
+        "connect": "Conectar Buffer",
+        "connecting": "Conectando...",
+        "enable_publishing": "Activar publicación",
+        "enabling_publishing": "Autorizando...",
+        "view_accounts": "Ver mis cuentas",
+        "refresh": "Resincronizar",
+        "search_new_accounts": "Buscar nuevas cuentas",
+        "refresh_search": "Actualizar búsqueda",
+        "disconnect": "Desconectar",
+        "disconnecting": "Desconectando...",
+        "add_in_buffer": "Agregar en Buffer",
+        "sync_all": "Sincronizar todos los canales",
+        "syncing_all": "Sincronizando...",
+        "import": "Importar en Pulse",
+        "importing": "Importando...",
+        "imported": "Importado",
+        "reactivate": "Reactivar en Pulse"
+      },
+      "states": {
+        "connected": "Conectado",
+        "disconnected_account": "Desconectado",
+        "available": "Disponible para importar",
+        "imported": "Ya importado en Pulse",
+        "queue_paused": "Disponible · cola de Buffer pausada",
+        "publishing_active": "Publicación activa en Pulse",
+        "publishing_inactive": "Publicación inactiva en Pulse"
+      },
+      "block_reasons": {
+        "unsupported_service": "Red no compatible con Pulse",
+        "disconnected": "Canal desconectado en Buffer",
+        "locked": "Canal bloqueado en Buffer"
+      },
+      "messages": {
+        "connect_error": "No se pudo conectar la cuenta de Buffer.",
+        "disconnect_error": "No se pudo desconectar la cuenta de Buffer.",
+        "disconnect_success": "La cuenta de Buffer se desconecto.",
+        "confirm_disconnect": "Desconectar {name}?",
+        "load_error": "No se pudieron cargar las cuentas Buffer.",
+        "publishing_required": "Activa la publicación de Buffer antes de sincronizar o reactivar estos canales en Pulse.",
+        "sync_error": "No se pudieron sincronizar los canales de Buffer.",
+        "sync_success": "Sincronización completada: {active} de {synced} canales están listos para publicar. {skipped} omitidos.",
+        "import_error": "No se pudo importar el canal Buffer.",
+        "import_success": "El canal Buffer se sincronizó con Pulse."
+      }
     }
   }
 }

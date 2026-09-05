@@ -54,6 +54,37 @@ Voir aussi:
 4. Lancez le provisioning
 5. Utilisez ensuite le clone, reset baseline, purge et l envoi d email depuis ce module
 
+## Narrative scenario engine
+
+Rich, reproducible business datasets use the modern Demo Workspace scenario engine. The first complete scenario is the opt-in `studio_naya_coiffure` preset; normal salon defaults remain compact.
+
+Enable demo mode outside production, and enable reset only where baseline recreation is allowed:
+
+```dotenv
+DEMO_ENABLED=true
+DEMO_ALLOW_RESET=true
+```
+
+Create, validate, and reset one exact workspace with:
+
+```bash
+php artisan demo:scenario:create studio_naya_coiffure \
+  --volume=medium \
+  --reference-date=2026-08-20 \
+  --seed=12345 \
+  --admin=superadmin@example.com
+
+php artisan demo:scenario:validate 42
+
+php artisan demo:scenario:reset 42 \
+  --admin=superadmin@example.com \
+  --force
+```
+
+These commands refuse production execution. Reset uses the saved baseline and requires the exact `demo_workspaces.id`; it never searches tenants by company name.
+
+Architecture, safety rules, queue usage, invariants, and the extension guide are documented in [Demo scenario engine](demo/scenario-engine.md).
+
 ## Commandes legacy
 Les commandes suivantes sont volontairement desactivees:
 

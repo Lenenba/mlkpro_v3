@@ -3,6 +3,8 @@ import { computed, reactive, ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
+import ModuleKpiSection from '@/Components/Dashboard/ModuleKpiSection.vue';
 
 const props = defineProps({
     stats: {
@@ -70,10 +72,44 @@ watch(() => props.filters?.search || '', (value) => {
     }, 0);
 }, { immediate: true });
 
+const pendingProgress = (value, label) => {
+    const total = Number(statsState.value?.total_pending);
+    const count = Number(value);
+
+    if (!Number.isFinite(total) || total <= 0 || !Number.isFinite(count)) {
+        return null;
+    }
+
+    return { value: count, max: total, label };
+};
+
 const statCards = computed(() => ([
-    { key: 'total_pending', value: statsState.value?.total_pending ?? 0 },
-    { key: 'expenses_pending', value: statsState.value?.expenses_pending ?? 0 },
-    { key: 'invoices_pending', value: statsState.value?.invoices_pending ?? 0 },
+    {
+        key: 'total_pending',
+        label: t('finance_approvals.stats.total_pending'),
+        value: statsState.value?.total_pending ?? 0,
+        tone: 'amber',
+    },
+    {
+        key: 'expenses_pending',
+        label: t('finance_approvals.stats.expenses_pending'),
+        value: statsState.value?.expenses_pending ?? 0,
+        tone: 'rose',
+        progress: pendingProgress(
+            statsState.value?.expenses_pending,
+            t('finance_approvals.stats.expenses_pending'),
+        ),
+    },
+    {
+        key: 'invoices_pending',
+        label: t('finance_approvals.stats.invoices_pending'),
+        value: statsState.value?.invoices_pending ?? 0,
+        tone: 'sky',
+        progress: pendingProgress(
+            statsState.value?.invoices_pending,
+            t('finance_approvals.stats.invoices_pending'),
+        ),
+    },
 ]));
 
 const expenses = computed(() => expensesState.value.data || []);
@@ -312,20 +348,9 @@ const handleSectionScroll = (documentType, event) => {
                     </div>
                 </div>
 
-                <div class="mt-4 grid gap-3 md:grid-cols-3">
-                    <div
-                        v-for="card in statCards"
-                        :key="card.key"
-                        class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-950"
-                    >
-                        <div class="text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-neutral-400">
-                            {{ $t(`finance_approvals.stats.${card.key}`) }}
-                        </div>
-                        <div class="mt-2 text-2xl font-semibold text-stone-900 dark:text-neutral-100">
-                            {{ card.value }}
-                        </div>
-                    </div>
-                </div>
+                <ModuleKpiSection class="mt-4" module-key="finance-approvals">
+                    <KpiMetricGrid :metrics="statCards" />
+                </ModuleKpiSection>
 
                 <div class="mt-4">
                     <label class="mb-2 block text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-neutral-400">

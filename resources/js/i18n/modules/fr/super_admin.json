@@ -26,7 +26,7 @@
       "kpi": {
         "total_companies": "Total entreprises",
         "onboarded": "Onboardees : {count} ({percent})",
-        "new_companies_30d": "Nouvelles entreprises (30j)",
+        "new_companies_30d": "Nouvelles (30 j)",
         "onboarding_conversion_30d": "Conversion onboarding : {percent}",
         "active_companies": "Entreprises actives",
         "active_wau_mau": "WAU {wau} / MAU {mau}",
@@ -68,7 +68,7 @@
       "alerts": {
         "title": "Alertes plateforme",
         "last_24h": "Dernieres 24h",
-        "limits": "Entreprises proches des limites",
+        "limits": "Limites à surveiller",
         "limit_list": "Limites a surveiller",
         "limit_empty": "Aucune entreprise proche des limites.",
         "stripe_failures": "Echecs Stripe",
@@ -131,16 +131,16 @@
         "title": "Sante",
         "failed_jobs_24h": "Jobs echoues 24h",
         "failed_jobs_7d": "Jobs echoues 7j",
-        "email_failures_24h": "Echecs email 24h",
+        "email_failures_24h": "Échecs email (24 h)",
         "pending_jobs": "Jobs en attente",
         "oldest_job_minutes": "Anciennete job (min)",
         "public_storage": "Stockage public"
       },
       "data_quality": {
         "title": "Qualite des donnees",
-        "customer_email_duplicates": "Doublons email client",
-        "customer_name_duplicates": "Doublons nom client",
-        "product_name_duplicates": "Doublons nom produit"
+        "customer_email_duplicates": "E-mails en doublon",
+        "customer_name_duplicates": "Noms en doublon",
+        "product_name_duplicates": "Produits en doublon"
       },
       "limits": {
         "quotes": "Devis",
@@ -451,19 +451,19 @@
     "announcements": {
       "page_title": "Annonces",
       "title": "Annonces tableau de bord client",
-      "subtitle": "Gerer les videos ou flyers affiches sur les tableaux de bord.",
+      "subtitle": "Gérer les vidéos ou les visuels affichés sur les tableaux de bord.",
       "actions": {
-        "preview": "Apercu des placements",
+        "preview": "Aperçu des emplacements",
         "add": "Ajouter une annonce",
         "confirm_delete": "Supprimer cette annonce ?",
-        "create": "Creer une annonce"
+        "create": "Créer une annonce"
       },
       "stats": {
         "total": "Total",
         "active": "Actives",
         "drafts": "Brouillons",
-        "with_media": "Avec media",
-        "targeted": "Ciblees"
+        "with_media": "Avec média",
+        "targeted": "Ciblées"
       },
       "filters": {
         "search_placeholder": "Rechercher des annonces",
@@ -478,7 +478,7 @@
         "draft": "Brouillon"
       },
       "audience": {
-        "tenants": "Entreprises ciblees",
+        "tenants": "Entreprises ciblées",
         "new_tenants": "Nouvelles entreprises",
         "all": "Toutes les entreprises"
       },
@@ -488,15 +488,15 @@
       },
       "media": {
         "image": "Image",
-        "video": "Video",
-        "none": "Aucun media"
+        "video": "Vidéo",
+        "none": "Aucun média"
       },
       "display_style": {
-        "media_only": "Media seul",
-        "standard": "Carte standard"
+        "media_only": "Média plein cadre",
+        "standard": "Annonce avec contenu"
       },
       "window": {
-        "range": "{start} a {end}",
+        "range": "{start} à {end}",
         "until": "Jusqu'au {end}",
         "from": "Depuis {start}"
       },
@@ -504,37 +504,54 @@
         "title": "Titre",
         "audience": "Audience",
         "status": "Statut",
-        "window": "Periode",
-        "media": "Media",
-        "priority": "Priorite",
+        "window": "Période",
+        "media": "Média",
+        "priority": "Priorité",
         "targets": "Cibles",
         "new_tenants": "Nouvelles entreprises : {days} jours",
-        "attached": "Attache"
+        "attached": "Attaché"
       },
       "empty": "Aucune annonce trouvee.",
       "form": {
         "edit_title": "Modifier l'annonce",
         "new_title": "Nouvelle annonce",
+        "content_section": "Contenu",
+        "content_hint": "Ajoutez au minimum un titre. Une langue non renseignée utilisera automatiquement une version disponible.",
+        "editing_locale": "Langue du contenu",
+        "locale_error": "Erreur à corriger",
+        "locales": {
+          "fr": "Français",
+          "en": "Anglais",
+          "es": "Espagnol"
+        },
         "title": "Titre",
         "status": "Statut",
         "message": "Message",
+        "delivery_section": "Diffusion",
+        "delivery_hint": "Définissez où, quand et auprès de qui l'annonce sera affichée.",
         "display_style": "Style d'affichage",
-        "display_style_hint": "Media seul masque le titre, le message et le lien.",
-        "card_background": "Fond de carte",
+        "display_style_hint": "Le mode « Média plein cadre » affiche uniquement l'image ou la vidéo sur toute la surface. Le titre reste utilisé pour l'accessibilité.",
+        "card_background": "Fond de l'annonce",
         "audience": "Audience",
         "placement": "Placement",
-        "priority": "Priorite",
-        "target_tenants": "Entreprises ciblees",
-        "new_tenant_window": "Fenetre nouvelles entreprises (jours)",
-        "start_date": "Date de debut",
+        "priority": "Priorité",
+        "target_tenants": "Entreprises ciblées",
+        "new_tenant_window": "Fenêtre pour les nouvelles entreprises (jours)",
+        "start_date": "Date de début",
         "end_date": "Date de fin",
-        "media_section": "Media",
-        "media_type": "Type de media",
-        "media_url": "URL media",
-        "upload_file": "Televerser un fichier",
-        "remove_media": "Supprimer le media existant",
-        "current_media": "Media actuel",
-        "link_label": "Libelle du lien",
+        "media_section": "Média",
+        "media_type": "Type de média",
+        "media_url": "URL du média",
+        "upload_file": "Téléverser un fichier",
+        "upload_placeholder": "Choisir une image ou une vidéo",
+        "image_processing_error": "Impossible de traiter cette image.",
+        "image_too_large": "L'image est trop volumineuse. Taille maximale : {size}.",
+        "video_too_large": "La vidéo est trop volumineuse. Taille maximale : {size}.",
+        "unsupported_file_type": "Ce type de fichier n'est pas pris en charge.",
+        "remove_media": "Supprimer le média existant",
+        "current_media": "Média actuel",
+        "color_picker": "Sélectionner la couleur",
+        "link_label": "Libellé du lien",
         "link_url": "URL du lien"
       }
     },
@@ -653,6 +670,7 @@
         "presence": "Presence",
         "planning": "Planning",
         "sales": "Ventes",
+        "sales_crm": "CRM commercial avance",
         "promotions": "Promotions",
         "expenses": "Depenses",
         "accounting": "Comptabilite",
@@ -662,7 +680,7 @@
         "assistant": "Assistant IA",
         "loyalty": "Fidelite",
         "campaigns": "Campagnes",
-        "social": "Malikia Pulse"
+        "social": "Pulse"
       }
     },
     "welcome_builder": {

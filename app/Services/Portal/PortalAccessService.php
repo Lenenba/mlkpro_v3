@@ -13,11 +13,25 @@ use Illuminate\Http\Request;
 
 class PortalAccessService
 {
+    public function clientHasPortalAccess(User $user): bool
+    {
+        if (! $user->isClient()) {
+            return false;
+        }
+
+        return (bool) $this->clientCustomer($user)?->portal_access;
+    }
+
     public function customer(Request $request): Customer
     {
-        $customer = $request->user()?->customerProfile;
-        if (! $customer) {
+        $user = $request->user();
+        if (! $user instanceof User || ! $user->isClient()) {
             abort(403);
+        }
+
+        $customer = $this->clientCustomer($user);
+        if (! $customer || ! $customer->portal_access) {
+            abort(403, __('ui.auth.portal_access_disabled'));
         }
 
         return $customer;
@@ -59,21 +73,24 @@ class PortalAccessService
 
     public function assertInvoice(Customer $customer, Invoice $invoice): void
     {
-        if ((int) $invoice->customer_id !== (int) $customer->id) {
+        if ((int) $invoice->customer_id !== (int) $customer->id
+            || (int) $invoice->user_id !== (int) $customer->user_id) {
             abort(403);
         }
     }
 
     public function assertQuote(Customer $customer, Quote $quote): void
     {
-        if ((int) $quote->customer_id !== (int) $customer->id) {
+        if ((int) $quote->customer_id !== (int) $customer->id
+            || (int) $quote->user_id !== (int) $customer->user_id) {
             abort(403);
         }
     }
 
     public function assertWork(Customer $customer, Work $work): void
     {
-        if ((int) $work->customer_id !== (int) $customer->id) {
+        if ((int) $work->customer_id !== (int) $customer->id
+            || (int) $work->user_id !== (int) $customer->user_id) {
             abort(403);
         }
     }
@@ -83,7 +100,12 @@ class PortalAccessService
         $task->loadMissing('work');
 
         $workCustomerId = (int) ($task->work?->customer_id ?? 0);
-        if ((int) $task->customer_id !== (int) $customer->id && $workCustomerId !== (int) $customer->id) {
+        $belongsToCustomer = (int) $task->customer_id === (int) $customer->id
+            || $workCustomerId === (int) $customer->id;
+        $belongsToAccount = (int) $task->account_id === (int) $customer->user_id
+            && (! $task->work || (int) $task->work->user_id === (int) $customer->user_id);
+
+        if (! $belongsToCustomer || ! $belongsToAccount) {
             abort(403);
         }
     }
@@ -109,5 +131,17 @@ class PortalAccessService
         }
 
         return $owner;
+    }
+
+    private function clientCustomer(User $user): ?Customer
+    {
+        if ($user->relationLoaded('customerProfile')) {
+            return $user->customerProfile;
+        }
+
+        $customer = $user->customerProfile()->first();
+        $user->setRelation('customerProfile', $customer);
+
+        return $customer;
     }
 }

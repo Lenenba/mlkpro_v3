@@ -26,7 +26,7 @@
       "kpi": {
         "total_companies": "Total empresas",
         "onboarded": "Incorporado: {count} ({percent})",
-        "new_companies_30d": "Nuevas empresas (30d)",
+        "new_companies_30d": "Nuevas (30 días)",
         "onboarding_conversion_30d": "Conversión de incorporación: {percent}",
         "active_companies": "Empresas activas",
         "active_wau_mau": "WAU {wau} / MAU {mau}",
@@ -68,7 +68,7 @@
       "alerts": {
         "title": "Alertas de plataforma",
         "last_24h": "Últimas 24h",
-        "limits": "Inquilinos cerca de los límites",
+        "limits": "Límites casi alcanzados",
         "limit_list": "Limitar alertas",
         "limit_empty": "Ningún inquilino está cerca de sus límites.",
         "stripe_failures": "Fallos de rayas",
@@ -131,16 +131,16 @@
         "title": "Salud",
         "failed_jobs_24h": "Trabajos fallidos 24h",
         "failed_jobs_7d": "Trabajos fallidos 7d",
-        "email_failures_24h": "Fallos de correo electrónico 24h",
+        "email_failures_24h": "Fallos de email (24 h)",
         "pending_jobs": "Trabajos pendientes",
         "oldest_job_minutes": "Edad laboral más antigua (min)",
         "public_storage": "Almacenamiento público"
       },
       "data_quality": {
         "title": "Calidad de datos",
-        "customer_email_duplicates": "Duplicados de correo electrónico del cliente",
-        "customer_name_duplicates": "Duplicados del nombre del cliente",
-        "product_name_duplicates": "Duplicados del nombre del producto"
+        "customer_email_duplicates": "Correos duplicados",
+        "customer_name_duplicates": "Nombres duplicados",
+        "product_name_duplicates": "Productos duplicados"
       },
       "limits": {
         "quotes": "Cotizaciones",
@@ -492,8 +492,8 @@
         "none": "Sin medios"
       },
       "display_style": {
-        "media_only": "Solo medios",
-        "standard": "Tarjeta estándar"
+        "media_only": "Medio a ancho completo",
+        "standard": "Anuncio con contenido"
       },
       "window": {
         "range": "{start} a {end}",
@@ -515,12 +515,23 @@
       "form": {
         "edit_title": "Editar anuncio",
         "new_title": "Nuevo anuncio",
+        "content_section": "Contenido",
+        "content_hint": "Añada al menos un título. Un idioma vacío utilizará automáticamente una versión disponible.",
+        "editing_locale": "Idioma del contenido",
+        "locale_error": "Error por corregir",
+        "locales": {
+          "fr": "Francés",
+          "en": "Inglés",
+          "es": "Español"
+        },
         "title": "Título",
         "status": "Estado",
         "message": "Mensaje",
+        "delivery_section": "Difusión",
+        "delivery_hint": "Defina dónde, cuándo y para quién se mostrará el anuncio.",
         "display_style": "Estilo de visualización",
-        "display_style_hint": "Los medios solo ocultan el título, el mensaje y el enlace.",
-        "card_background": "Fondo de la tarjeta",
+        "display_style_hint": "El modo «Medio a ancho completo» ocupa todo el panel y solo muestra la imagen o el vídeo. El título se conserva para la accesibilidad.",
+        "card_background": "Fondo del anuncio",
         "audience": "Audiencia",
         "placement": "Colocación",
         "priority": "Prioridad",
@@ -532,8 +543,14 @@
         "media_type": "Tipo de medio",
         "media_url": "URL de medios",
         "upload_file": "Subir archivo",
+        "upload_placeholder": "Elegir una imagen o un vídeo",
+        "image_processing_error": "No se pudo procesar esta imagen.",
+        "image_too_large": "La imagen es demasiado grande. Tamaño máximo: {size}.",
+        "video_too_large": "El vídeo es demasiado grande. Tamaño máximo: {size}.",
+        "unsupported_file_type": "Este tipo de archivo no es compatible.",
         "remove_media": "Eliminar medios existentes",
         "current_media": "Medios actuales",
+        "color_picker": "Seleccionar color",
         "link_label": "Etiqueta de enlace",
         "link_url": "URL del enlace"
       }
@@ -653,6 +670,7 @@
         "presence": "Presencia",
         "planning": "Planificación",
         "sales": "Ventas",
+        "sales_crm": "CRM comercial avanzado",
         "promotions": "Promociones",
         "expenses": "Gastos",
         "accounting": "Contabilidad",
@@ -662,7 +680,7 @@
         "assistant": "asistente de IA",
         "loyalty": "Lealtad",
         "campaigns": "Campañas",
-        "social": "Malikia Pulse"
+        "social": "Pulse"
       }
     },
     "welcome_builder": {

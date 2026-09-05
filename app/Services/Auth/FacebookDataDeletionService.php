@@ -153,18 +153,11 @@ class FacebookDataDeletionService
             $socialAccountCount = (clone $socialAccounts)->count();
             $socialAccounts->delete();
 
-            $socialConnections = SocialAccountConnection::query()
-                ->where('user_id', $user->id)
-                ->where('platform', SocialAccountConnection::PLATFORM_FACEBOOK);
-
-            $socialConnectionCount = (clone $socialConnections)->count();
-            $socialConnections->delete();
-
             return [
                 'matched_user' => true,
                 'matched_user_id' => $user->id,
                 'deleted_facebook_social_accounts' => $socialAccountCount,
-                'deleted_facebook_social_connections' => $socialConnectionCount,
+                'deleted_facebook_social_connections' => 0,
                 'deleted_local_account' => false,
                 'provider_user_id' => $providerUserId,
             ];

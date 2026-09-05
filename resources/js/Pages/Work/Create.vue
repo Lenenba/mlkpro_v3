@@ -20,6 +20,7 @@ import ProductTableList from '@/Components/ProductTableList.vue';
 import InputError from '@/Components/InputError.vue';
 import { useI18n } from 'vue-i18n';
 import { useAccountFeatures } from '@/Composables/useAccountFeatures';
+import CompanyBrandLogo from '@/Components/CompanyBrandLogo.vue';
 
 const props = defineProps({
     works: Object,
@@ -41,7 +42,6 @@ const page = usePage();
 const { t } = useI18n();
 const { hasFeature } = useAccountFeatures();
 const companyName = computed(() => page.props.auth?.account?.company?.name || t('jobs.company_fallback'));
-const companyLogo = computed(() => page.props.auth?.account?.company?.logo_url || null);
 const isEditing = computed(() => Boolean(props.work?.id));
 const pageTitle = computed(() => t(isEditing.value ? 'jobs.edit_title' : 'jobs.create_title'));
 const hasTeamMembersFeature = computed(() => hasFeature('team_members'));
@@ -802,12 +802,14 @@ onBeforeUnmount(() => {
                         <!-- Header -->
                         <div class="flex flex-col gap-3 border-b border-stone-200 pb-4 sm:flex-row sm:items-start sm:justify-between dark:border-neutral-700">
                             <div class="flex items-center gap-3">
-                                <img v-if="companyLogo"
-                                    :src="companyLogo"
-                                    :alt="companyName"
-                                    class="h-12 w-12 rounded-sm border border-stone-200 object-cover dark:border-neutral-700"
+                                <CompanyBrandLogo
+                                    :company="page.props.auth?.account?.company"
+                                    :name="companyName"
+                                    :show-fallback-name="false"
+                                    container-class="h-12 w-12 p-1"
+                                    class="shrink-0 shadow-none"
                                     loading="lazy"
-                                    decoding="async" />
+                                />
                                 <div>
                                     <p class="text-xs uppercase text-stone-500 dark:text-neutral-400">
                                         {{ companyName }}
@@ -892,6 +894,7 @@ onBeforeUnmount(() => {
                     >
                         <ProductTableList
                             v-model="form.products"
+                            search-scope="job"
                             :read-only="isLockedFromQuote"
                             :allow-mixed-types="true"
                             :enable-price-lookup="true"

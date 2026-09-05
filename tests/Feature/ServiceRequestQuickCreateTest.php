@@ -30,6 +30,12 @@ it('creates a service request linked to an existing customer without creating a 
         'contact_name' => 'Quick Customer',
         'contact_email' => 'quick.customer@example.com',
         'contact_phone' => '+1 555 1000',
+        'street1' => '1250 Rue Sainte-Catherine Ouest',
+        'street2' => 'Suite 400',
+        'city' => 'Montréal',
+        'state' => 'Québec',
+        'postal_code' => 'H3G 1P1',
+        'country' => 'Canada',
         'meta' => [
             'budget' => 250,
         ],
@@ -42,6 +48,12 @@ it('creates a service request linked to an existing customer without creating a 
         ->and($serviceRequest->source)->toBe('manual_admin')
         ->and($serviceRequest->channel)->toBe('phone')
         ->and($serviceRequest->status)->toBe(ServiceRequest::STATUS_NEW)
+        ->and($serviceRequest->street1)->toBe('1250 Rue Sainte-Catherine Ouest')
+        ->and($serviceRequest->street2)->toBe('Suite 400')
+        ->and($serviceRequest->city)->toBe('Montréal')
+        ->and($serviceRequest->state)->toBe('Québec')
+        ->and($serviceRequest->postal_code)->toBe('H3G 1P1')
+        ->and($serviceRequest->country)->toBe('Canada')
         ->and((float) data_get($serviceRequest->meta, 'budget'))->toBe(250.0);
 
     expect(LeadRequest::query()->where('user_id', $owner->id)->count())->toBe(0);

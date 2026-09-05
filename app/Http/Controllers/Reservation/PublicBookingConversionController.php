@@ -18,8 +18,8 @@ class PublicBookingConversionController extends Controller
     public function show(Request $request, Reservation $reservation)
     {
         $account = $this->resolveAccount($request);
-        $this->authorize('view', $reservation);
         $this->assertReservationBelongsToAccount($reservation, $account);
+        $this->authorize('update', $reservation);
         $reservation->loadMissing('prospect:id,contact_name,contact_email,contact_phone,meta,customer_id,converted_customer_id,converted_at');
         $prospect = $reservation->prospect;
 
@@ -37,8 +37,8 @@ class PublicBookingConversionController extends Controller
     public function store(Request $request, Reservation $reservation)
     {
         $account = $this->resolveAccount($request);
-        $this->authorize('update', $reservation);
         $this->assertReservationBelongsToAccount($reservation, $account);
+        $this->authorize('update', $reservation);
         $reservation->loadMissing('prospect');
 
         $validated = $request->validate([
@@ -62,12 +62,36 @@ class PublicBookingConversionController extends Controller
         ]);
 
         $result = $this->conversionService->convert($reservation, $validated, $request->user());
+        $customer = $result['customer'];
+        $convertedReservation = $result['reservation'];
+        $prospect = $result['prospect'];
 
         return response()->json([
             'message' => 'Public booking prospect converted to customer.',
-            'customer' => $result['customer'],
-            'reservation' => $result['reservation'],
-            'prospect' => $result['prospect'],
+            'customer' => [
+                'id' => (int) $customer->id,
+                'display_name' => $customer->company_name
+                    ?: trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''))
+                    ?: $customer->email,
+                'first_name' => $customer->first_name,
+                'last_name' => $customer->last_name,
+                'company_name' => $customer->company_name,
+                'email' => $customer->email,
+                'phone' => $customer->phone,
+            ],
+            'reservation' => [
+                'id' => (int) $convertedReservation->id,
+                'client_id' => $convertedReservation->client_id ? (int) $convertedReservation->client_id : null,
+                'prospect_id' => $convertedReservation->prospect_id ? (int) $convertedReservation->prospect_id : null,
+                'status' => (string) $convertedReservation->status,
+            ],
+            'prospect' => [
+                'id' => (int) $prospect->id,
+                'customer_id' => $prospect->customer_id ? (int) $prospect->customer_id : null,
+                'converted_customer_id' => $prospect->converted_customer_id ? (int) $prospect->converted_customer_id : null,
+                'status' => (string) $prospect->status,
+                'converted_at' => $prospect->converted_at?->toIso8601String(),
+            ],
             'matches' => $result['matches'],
         ]);
     }

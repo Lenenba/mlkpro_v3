@@ -1,4 +1,9 @@
 <script setup>
+import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
+import { buildKpiProgress } from '@/utils/kpi';
+
 const props = defineProps({
     stats: {
         type: Object,
@@ -8,78 +13,47 @@ const props = defineProps({
 
 const formatNumber = (value) =>
     Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
+
+const { t } = useI18n();
+
+const metrics = computed(() => [
+    {
+        key: 'total',
+        label: t('jobs.stats.total'),
+        value: formatNumber(props.stats.total),
+        tone: 'indigo',
+    },
+    {
+        key: 'scheduled',
+        label: t('jobs.stats.scheduled'),
+        value: formatNumber(props.stats.scheduled),
+        tone: 'sky',
+        progress: buildKpiProgress(props.stats.scheduled, props.stats.total),
+    },
+    {
+        key: 'in_progress',
+        label: t('jobs.stats.in_progress'),
+        value: formatNumber(props.stats.in_progress),
+        tone: 'amber',
+        progress: buildKpiProgress(props.stats.in_progress, props.stats.total),
+    },
+    {
+        key: 'completed',
+        label: t('jobs.stats.completed'),
+        value: formatNumber(props.stats.completed),
+        tone: 'emerald',
+        progress: buildKpiProgress(props.stats.completed, props.stats.total),
+    },
+    {
+        key: 'cancelled',
+        label: t('jobs.stats.cancelled'),
+        value: formatNumber(props.stats.cancelled),
+        tone: 'rose',
+        progress: buildKpiProgress(props.stats.cancelled, props.stats.total),
+    },
+]);
 </script>
 
 <template>
-    <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-2 md:gap-3 lg:gap-5">
-        <div
-            class="p-4 sm:p-5 bg-white border border-t-4 border-t-indigo-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-            <div class="sm:flex sm:gap-x-3">
-                <div class="sm:order-1 grow space-y-1">
-                    <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        {{ $t('jobs.stats.total') }}
-                    </h2>
-                    <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
-                        {{ formatNumber(stats.total) }}
-                    </p>
-                </div>
-            </div>
-        </div>
-
-        <div
-            class="p-4 sm:p-5 bg-white border border-t-4 border-t-sky-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-            <div class="sm:flex sm:gap-x-3">
-                <div class="sm:order-1 grow space-y-1">
-                    <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        {{ $t('jobs.stats.scheduled') }}
-                    </h2>
-                    <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
-                        {{ formatNumber(stats.scheduled) }}
-                    </p>
-                </div>
-            </div>
-        </div>
-
-        <div
-            class="p-4 sm:p-5 bg-white border border-t-4 border-t-amber-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-            <div class="sm:flex sm:gap-x-3">
-                <div class="sm:order-1 grow space-y-1">
-                    <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        {{ $t('jobs.stats.in_progress') }}
-                    </h2>
-                    <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
-                        {{ formatNumber(stats.in_progress) }}
-                    </p>
-                </div>
-            </div>
-        </div>
-
-        <div
-            class="p-4 sm:p-5 bg-white border border-t-4 border-t-emerald-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-            <div class="sm:flex sm:gap-x-3">
-                <div class="sm:order-1 grow space-y-1">
-                    <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        {{ $t('jobs.stats.completed') }}
-                    </h2>
-                    <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
-                        {{ formatNumber(stats.completed) }}
-                    </p>
-                </div>
-            </div>
-        </div>
-
-        <div
-            class="p-4 sm:p-5 bg-white border border-t-4 border-t-rose-600 border-stone-200 rounded-sm shadow-sm dark:bg-neutral-800 dark:border-neutral-700">
-            <div class="sm:flex sm:gap-x-3">
-                <div class="sm:order-1 grow space-y-1">
-                    <h2 class="sm:mb-2 text-sm text-stone-500 dark:text-neutral-400">
-                        {{ $t('jobs.stats.cancelled') }}
-                    </h2>
-                    <p class="text-lg md:text-xl font-semibold text-stone-800 dark:text-neutral-200">
-                        {{ formatNumber(stats.cancelled) }}
-                    </p>
-                </div>
-            </div>
-        </div>
-    </div>
+    <KpiMetricGrid :metrics="metrics" />
 </template>

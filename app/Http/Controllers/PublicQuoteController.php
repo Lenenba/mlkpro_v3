@@ -10,7 +10,9 @@ use App\Models\User;
 use App\Models\Work;
 use App\Models\WorkChecklistItem;
 use App\Notifications\ActionEmailNotification;
+use App\Services\Portal\PortalCapabilityService;
 use App\Services\Prospects\ProspectConversionService;
+use App\Services\TenantBrandingResolver;
 use App\Services\UsageLimitService;
 use App\Support\NotificationDispatcher;
 use Illuminate\Http\Request;
@@ -24,10 +26,14 @@ class PublicQuoteController extends Controller
 {
     private const LINK_TTL_DAYS = 7;
 
+    public function __construct(
+        private readonly PortalCapabilityService $portalCapabilities,
+    ) {}
+
     public function show(Request $request, Quote $quote): Response
     {
         $quote->load([
-            'customer:id,company_name,first_name,last_name,email,phone,portal_access,portal_user_id',
+            'customer:id,company_name,first_name,last_name,email,phone,portal_access,portal_user_id,auto_accept_quotes',
             'property:id,street1,street2,city,state,zip,country',
             'products',
             'taxes.tax',
@@ -35,10 +41,18 @@ class PublicQuoteController extends Controller
 
         $customer = $quote->customer;
         $owner = User::find($quote->user_id);
+        $tenantBranding = app(TenantBrandingResolver::class)->forAccountOwner($owner);
+        $capabilities = $owner
+            ? $this->portalCapabilities->forOwner($owner, $customer)
+            : [];
 
         $hasDecision = in_array($quote->status, ['accepted', 'declined'], true);
-        $allowAccept = ! $quote->isArchived() && ! $hasDecision;
-        $allowDecline = ! $quote->isArchived() && ! $hasDecision;
+        $allowAccept = ! $quote->isArchived()
+            && ! $hasDecision
+            && data_get($capabilities, 'quotes.accept') === true;
+        $allowDecline = ! $quote->isArchived()
+            && ! $hasDecision
+            && data_get($capabilities, 'quotes.decline') === true;
         $statusMessage = null;
         if ($quote->isArchived()) {
             $statusMessage = __('public.quote.status.archived_cannot_update');
@@ -46,6 +60,8 @@ class PublicQuoteController extends Controller
             $statusMessage = __('public.quote.status.already_accepted');
         } elseif ($quote->status === 'declined') {
             $statusMessage = __('public.quote.status.already_declined');
+        } elseif (! $allowAccept && ! $allowDecline) {
+            $statusMessage = __('ui.portal.capability_unavailable');
         }
 
         $expiresAt = $this->resolveExpiry($request);
@@ -110,8 +126,10 @@ class PublicQuoteController extends Controller
                 'taxes' => $taxes,
             ],
             'company' => [
-                'name' => $owner?->company_name ?: config('app.name'),
-                'logo_url' => $owner?->company_logo_url,
+                'name' => $tenantBranding['name'],
+                'logo_url' => $tenantBranding['custom_logo_url'],
+                'custom_logo_url' => $tenantBranding['custom_logo_url'],
+                'has_custom_logo' => $tenantBranding['has_custom_logo'],
                 'currency_code' => $owner?->businessCurrencyCode(),
             ],
             'allowAccept' => $allowAccept,
@@ -124,6 +142,8 @@ class PublicQuoteController extends Controller
 
     public function accept(Request $request, Quote $quote)
     {
+        $this->authorizeCapability($quote, 'quotes.accept');
+
         if ($quote->isArchived()) {
             return redirect()->back()->withErrors([
                 'status' => __('public.quote.actions.archived_cannot_accept'),
@@ -277,6 +297,8 @@ class PublicQuoteController extends Controller
 
     public function decline(Request $request, Quote $quote)
     {
+        $this->authorizeCapability($quote, 'quotes.decline');
+
         if ($quote->isArchived()) {
             return redirect()->back()->withErrors([
                 'status' => __('public.quote.actions.archived_cannot_decline'),
@@ -347,6 +369,20 @@ class PublicQuoteController extends Controller
         });
 
         $work->products()->sync($pivotData->toArray());
+    }
+
+    private function authorizeCapability(Quote $quote, string $capability): void
+    {
+        $owner = User::query()->find($quote->user_id);
+        $capabilities = $owner
+            ? $this->portalCapabilities->forOwner($owner, $quote->customer)
+            : [];
+
+        abort_unless(
+            data_get($capabilities, $capability) === true,
+            403,
+            __('ui.portal.capability_unavailable')
+        );
     }
 
     private function resolveExpiry(Request $request): Carbon

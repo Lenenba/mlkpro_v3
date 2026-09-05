@@ -28,6 +28,7 @@ class Payment extends Model
     protected $fillable = [
         'invoice_id',
         'sale_id',
+        'reservation_queue_item_id',
         'customer_id',
         'user_id',
         'amount',
@@ -49,7 +50,11 @@ class Payment extends Model
         'provider_reference',
         'notes',
         'paid_at',
+        'idempotency_key',
+        'request_fingerprint',
     ];
+
+    protected $hidden = ['idempotency_key', 'request_fingerprint'];
 
     protected $casts = [
         'amount' => 'decimal:2',
@@ -101,6 +106,11 @@ class Payment extends Model
         return $this->belongsTo(Sale::class);
     }
 
+    public function reservationQueueItem(): BelongsTo
+    {
+        return $this->belongsTo(ReservationQueueItem::class);
+    }
+
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Customer::class);
@@ -132,6 +142,17 @@ class Payment extends Model
         $reversed = (float) ($this->tip_reversed_amount ?? 0);
 
         return max(0, round($tip - $reversed, 2));
+    }
+
+    public function getChargedNetAmountAttribute(): float
+    {
+        $tip = (float) ($this->tip_amount ?? 0);
+        $reversed = min($tip, max(0, (float) ($this->tip_reversed_amount ?? 0)));
+        $charged = $this->charged_total === null
+            ? (float) $this->amount + $tip
+            : (float) $this->charged_total;
+
+        return max(0, round($charged - $reversed, 2));
     }
 
     public static function settledStatuses(): array

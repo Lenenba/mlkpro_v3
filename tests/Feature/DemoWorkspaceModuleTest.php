@@ -5,6 +5,7 @@ use App\Jobs\ProvisionDemoWorkspaceJob;
 use App\Models\AccountingEntry;
 use App\Models\AccountingEntryBatch;
 use App\Models\ActivityLog;
+use App\Models\CompanyRole;
 use App\Models\DemoWorkspace;
 use App\Models\DemoWorkspaceTemplate;
 use App\Models\Expense;
@@ -18,6 +19,7 @@ use App\Services\Demo\DemoWorkspaceCatalog;
 use App\Support\PlatformPermissions;
 use Illuminate\Contracts\Bus\Dispatcher;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -186,8 +188,11 @@ it('allows platform admins with demo permissions to access the demo builder page
             ->where('options.modules', fn ($modules) => collect($modules)->pluck('key')->contains('expenses')
                 && collect($modules)->pluck('key')->contains('accounting'))
             ->has('options.scenario_packs')
+            ->has('options.data_volumes', 3)
+            ->where('options.demo_scenarios', fn ($scenarios) => collect($scenarios)->pluck('key')->contains('studio_naya_coiffure'))
             ->has('options.extra_access_roles')
             ->has('defaults.selected_modules')
+            ->where('defaults.scenario_key', null)
             ->has('template_defaults.selected_modules')
         );
 });
@@ -201,6 +206,29 @@ it('includes expenses in default demo module packs for service and commerce demo
         ->and($catalog->defaultModules('services', 'salon'))->toContain('expenses')
         ->and($catalog->defaultModules('services', 'salon'))->not->toContain('accounting')
         ->and($catalog->defaultModules('products', 'retail'))->toContain('expenses');
+});
+
+it('keeps field service modules disabled in salon demo defaults', function () {
+    /** @var DemoWorkspaceCatalog $catalog */
+    $catalog = app(DemoWorkspaceCatalog::class);
+    $disabledModules = ['requests', 'quotes', 'plan_scans', 'jobs', 'tasks', 'products'];
+    $modules = $catalog->defaultModules('services', 'salon');
+    $features = $catalog->featureMap($modules);
+    $preset = collect($catalog->presets())->firstWhere('key', 'salon_queue');
+
+    expect($modules)
+        ->toContain('services', 'reservations', 'planning', 'invoices')
+        ->and(array_values(array_intersect($modules, $disabledModules)))->toBe([])
+        ->and($catalog->defaults()['selected_modules'])->toBe($modules)
+        ->and($preset)->not->toBeNull()
+        ->and($preset['modules'] ?? null)->toBe($modules)
+        ->and($catalog->defaultScenarioPacks('services', 'salon', $modules))
+        ->toContain('salon_queue', 'reservation_to_service')
+        ->not->toContain('service_quote_to_invoice');
+
+    foreach ($disabledModules as $module) {
+        expect($features[$module] ?? null)->toBeFalse();
+    }
 });
 
 it('allows platform admins with demo permissions to access a demo workspace details page', function () {
@@ -272,11 +300,58 @@ it('can create, duplicate and archive demo templates', function () {
     expect($template->fresh()->is_default)->toBeFalse();
 });
 
+it('persists canonical narrative scenario inputs on demo templates', function () {
+    $admin = demoWorkspacePlatformAdmin([PlatformPermissions::DEMOS_MANAGE]);
+    $catalog = app(DemoWorkspaceCatalog::class);
+    $preset = collect($catalog->presets())->firstWhere('key', 'studio_naya_coiffure');
+    $payload = demoWorkspaceTemplatePayload([
+        'scenario_key' => 'studio_naya_coiffure',
+        'data_volume' => 'small',
+        'reference_date' => '2026-08-20',
+        'random_seed' => 12345,
+        'scenario_version' => 99,
+    ]);
+    $payload['selected_modules'] = $preset['modules'];
+    $payload['scenario_packs'] = $preset['scenario_packs'];
+
+    $this->actingAs($admin)
+        ->post(route('superadmin.demo-workspaces.templates.store'), $payload)
+        ->assertRedirect(route('superadmin.demo-workspaces.create'))
+        ->assertSessionHas('success');
+
+    $template = DemoWorkspaceTemplate::query()->firstOrFail();
+
+    expect($template->scenario_key)->toBe('studio_naya_coiffure')
+        ->and($template->data_volume?->value)->toBe('small')
+        ->and($template->reference_date?->toDateString())->toBe('2026-08-20')
+        ->and($template->random_seed)->toBe(12345)
+        ->and($template->scenario_version)->toBe(1);
+});
+
+it('rejects a narrative scenario request with missing required modules', function () {
+    $admin = demoWorkspacePlatformAdmin([PlatformPermissions::DEMOS_MANAGE]);
+    $catalog = app(DemoWorkspaceCatalog::class);
+    $preset = collect($catalog->presets())->firstWhere('key', 'studio_naya_coiffure');
+    $payload = demoWorkspacePayload();
+    $payload['scenario_key'] = $preset['scenario_key'];
+    $payload['data_volume'] = 'small';
+    $payload['reference_date'] = '2026-08-20';
+    $payload['random_seed'] = 12345;
+    $payload['selected_modules'] = array_values(array_diff($preset['modules'], ['services']));
+    $payload['scenario_packs'] = $preset['scenario_packs'];
+
+    $this->actingAs($admin)
+        ->post(route('superadmin.demo-workspaces.store'), $payload)
+        ->assertSessionHasErrors('selected_modules');
+
+    expect(DemoWorkspace::query()->count())->toBe(0);
+});
+
 it('provisions a realistic service demo workspace from the admin module', function () {
-    config()->set('async.workloads.demos.run_inline', true);
     Storage::fake('public');
 
     $admin = demoWorkspacePlatformAdmin([PlatformPermissions::DEMOS_MANAGE]);
+    $disabledSalonModules = ['requests', 'quotes', 'plan_scans', 'jobs', 'tasks', 'products', 'sales_crm'];
     $payload = demoWorkspacePayload([
         'prefill_source' => 'crm',
         'prefill_payload' => [
@@ -300,6 +375,9 @@ it('provisions a realistic service demo workspace from the admin module', functi
     expect($workspace->owner)->not->toBeNull();
     expect($workspace->owner?->is_demo)->toBeTrue();
     expect($workspace->owner?->demo_type)->toBe('custom');
+    expect($workspace->selected_modules)->not->toContain(...$disabledSalonModules);
+    expect(collect($workspace->owner?->company_features ?? [])->only($disabledSalonModules)->all())
+        ->toBe(array_fill_keys($disabledSalonModules, false));
     expect($workspace->provisioning_status)->toBe('ready');
     expect($workspace->provisioning_progress)->toBe(100);
     expect($workspace->prefill_source)->toBe('crm');
@@ -313,6 +391,11 @@ it('provisions a realistic service demo workspace from the admin module', functi
     expect($workspace->baseline_snapshot)->not->toBeEmpty();
     expect($workspace->baseline_created_at)->not->toBeNull();
     expect($workspace->seed_summary['customers'] ?? 0)->toBeGreaterThan(0);
+    expect($workspace->seed_summary['products'] ?? null)->toBe(0);
+    expect($workspace->seed_summary['requests'] ?? null)->toBe(0);
+    expect($workspace->seed_summary['quotes'] ?? null)->toBe(0);
+    expect($workspace->seed_summary['works'] ?? null)->toBe(0);
+    expect($workspace->seed_summary['tasks'] ?? null)->toBe(0);
     expect($workspace->seed_summary['reservations'] ?? 0)->toBeGreaterThan(0);
     expect($workspace->seed_summary['queue_items'] ?? 0)->toBeGreaterThan(0);
     expect($workspace->seed_summary['invoices'] ?? 0)->toBeGreaterThan(0);
@@ -325,6 +408,26 @@ it('provisions a realistic service demo workspace from the admin module', functi
         ->whereIn('expense_id', Expense::query()->where('user_id', $workspace->owner_user_id)->select('id'))
         ->count())->toBeGreaterThan(0);
     expect(TeamMember::query()->where('account_id', $workspace->owner_user_id)->count())->toBeGreaterThan(0);
+    $demoTeamMembers = TeamMember::query()
+        ->forAccount((int) $workspace->owner_user_id)
+        ->with('companyRole.permissions:id,slug')
+        ->get();
+    $demoCompanyRoles = CompanyRole::query()
+        ->where('company_id', $workspace->owner_user_id)
+        ->with('permissions:id,slug')
+        ->get();
+
+    expect(data_get($workspace->seed_summary, 'company_roles'))->toBe($demoCompanyRoles->count())
+        ->and(data_get($workspace->seed_summary, 'role_assignments'))->toBe($demoTeamMembers->count())
+        ->and($demoCompanyRoles)->not->toBeEmpty()
+        ->and($demoCompanyRoles->every(
+            fn (CompanyRole $role): bool => $role->permissions->isNotEmpty(),
+        ))->toBeTrue()
+        ->and($demoTeamMembers->every(
+            fn (TeamMember $member): bool => $member->company_role_id !== null
+                && (int) $member->companyRole?->company_id === (int) $workspace->owner_user_id
+                && $member->permissions === [],
+        ))->toBeTrue();
     Storage::disk('public')->assertExists(
         ExpenseAttachment::query()
             ->whereIn('expense_id', Expense::query()->where('user_id', $workspace->owner_user_id)->select('id'))
@@ -341,7 +444,6 @@ it('provisions a realistic service demo workspace from the admin module', functi
 });
 
 it('can dispatch an already queued demo workspace again', function () {
-    config()->set('async.workloads.demos.run_inline', true);
     Storage::fake('public');
 
     $admin = demoWorkspacePlatformAdmin([PlatformPermissions::DEMOS_MANAGE]);
@@ -361,6 +463,47 @@ it('can dispatch an already queued demo workspace again', function () {
     expect($workspace->provisioning_status)->toBe('ready');
     expect($workspace->provisioning_progress)->toBe(100);
     expect($workspace->owner)->not->toBeNull();
+});
+
+it('always dispatches web provisioning through the configured queue', function () {
+    config()->set('async.workloads.demos.run_inline', true);
+    Bus::fake([ProvisionDemoWorkspaceJob::class]);
+
+    $admin = demoWorkspacePlatformAdmin([PlatformPermissions::DEMOS_MANAGE]);
+
+    $this->actingAs($admin)
+        ->post(route('superadmin.demo-workspaces.store'), demoWorkspacePayload())
+        ->assertSessionHas('success');
+
+    $workspace = DemoWorkspace::query()->firstOrFail();
+
+    Bus::assertDispatched(ProvisionDemoWorkspaceJob::class, fn (ProvisionDemoWorkspaceJob $job): bool => $job->workspaceId === $workspace->id
+        && $job->actorUserId === $admin->id
+        && $job->isReset === false);
+    Bus::assertNotDispatchedSync(ProvisionDemoWorkspaceJob::class);
+
+    expect($workspace->provisioning_status)->toBe('queued')
+        ->and($workspace->provisioning_progress)->toBe(5);
+});
+
+it('preserves baseline reset intent when redispatching a queued workspace', function () {
+    $admin = demoWorkspacePlatformAdmin([PlatformPermissions::DEMOS_MANAGE]);
+    $workspace = app(\App\Services\Demo\DemoWorkspaceProvisioner::class)
+        ->queueCreate(demoWorkspacePayload(), $admin);
+    $workspace->forceFill([
+        'provisioning_stage' => \App\Services\Demo\DemoWorkspaceProvisioner::STAGE_QUEUED_FOR_BASELINE_RESET,
+    ])->save();
+    Bus::fake([ProvisionDemoWorkspaceJob::class]);
+
+    $this->actingAs($admin)
+        ->post(route('superadmin.demo-workspaces.queue', $workspace))
+        ->assertRedirect(demoWorkspaceProvisioningRoute($workspace))
+        ->assertSessionHas('success');
+
+    Bus::assertDispatched(ProvisionDemoWorkspaceJob::class, fn (ProvisionDemoWorkspaceJob $job): bool => $job->workspaceId === $workspace->id
+        && $job->actorUserId === $admin->id
+        && $job->isReset === true);
+    Bus::assertNotDispatchedSync(ProvisionDemoWorkspaceJob::class);
 });
 
 it('can create a workspace from a template, mark it sent and extend expiration', function () {

@@ -5,10 +5,12 @@ namespace App\Services\Social;
 use App\Models\SocialAccountConnection;
 use App\Models\SocialAutomationRule;
 use App\Models\SocialPost;
+use App\Models\SocialPostRevision;
 use App\Models\SocialPostTarget;
 use App\Models\User;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class SocialPostService
@@ -19,39 +21,69 @@ class SocialPostService
         private readonly SocialMediaAssetService $mediaAssetService,
         private readonly SocialPostQualityService $qualityService,
         private readonly SocialAiTraceService $aiTraceService,
+        private readonly SocialPostRevisionService $revisionService,
+        private readonly SocialPostRetryPolicy $retryPolicy,
+        private readonly SocialScheduledTimeResolver $scheduledTimeResolver,
     ) {}
 
     /**
      * @return Collection<int, SocialPost>
      */
-    public function listDraftsForOwner(User $owner, int $limit = 8): Collection
-    {
-        return SocialPost::query()
+    public function listDraftsForOwner(
+        User $owner,
+        int $limit = 8,
+        ?int $includedFailedPostId = null,
+    ): Collection {
+        $relationships = [
+            'automationRule',
+            'targets.socialAccountConnection',
+            'targets.latestCreateOutbox',
+            'latestApprovalRequest.requestedBy',
+            'latestApprovalRequest.resolvedBy',
+        ];
+        $drafts = SocialPost::query()
             ->byUser($owner->id)
             ->whereIn('status', [
                 SocialPost::STATUS_DRAFT,
                 SocialPost::STATUS_SCHEDULED,
                 SocialPost::STATUS_PENDING_APPROVAL,
             ])
-            ->with([
-                'automationRule',
-                'targets.socialAccountConnection',
-                'latestApprovalRequest.requestedBy',
-                'latestApprovalRequest.resolvedBy',
-            ])
+            ->with($relationships)
             ->orderByRaw("case status when 'draft' then 0 when 'pending_approval' then 1 when 'scheduled' then 2 else 3 end")
             ->orderByDesc('updated_at')
             ->limit($limit)
             ->get();
+
+        if ($includedFailedPostId === null || $drafts->contains('id', $includedFailedPostId)) {
+            return $drafts;
+        }
+
+        $includedPost = SocialPost::query()
+            ->byUser($owner->id)
+            ->whereKey($includedFailedPostId)
+            ->whereIn('status', [
+                SocialPost::STATUS_FAILED,
+                SocialPost::STATUS_PARTIAL_FAILED,
+            ])
+            ->with($relationships)
+            ->first();
+
+        return $includedPost instanceof SocialPost
+            ? $drafts->prepend($includedPost)
+            : $drafts;
     }
 
     /**
      * @return array<int, array<string, mixed>>
      */
-    public function draftPayloads(User $owner, int $limit = 8): array
-    {
-        return $this->listDraftsForOwner($owner, $limit)
-            ->map(fn (SocialPost $post) => $this->payload($post))
+    public function draftPayloads(
+        User $owner,
+        int $limit = 8,
+        bool $canPublish = false,
+        ?int $includedFailedPostId = null,
+    ): array {
+        return $this->listDraftsForOwner($owner, $limit, $includedFailedPostId)
+            ->map(fn (SocialPost $post) => $this->payload($post, $canPublish))
             ->values()
             ->all();
     }
@@ -67,6 +99,7 @@ class SocialPostService
             ->with([
                 'automationRule',
                 'targets.socialAccountConnection',
+                'targets.latestCreateOutbox',
                 'latestApprovalRequest.requestedBy',
                 'latestApprovalRequest.resolvedBy',
             ])
@@ -108,10 +141,14 @@ class SocialPostService
      * @param  array<string, mixed>  $filters
      * @return array<int, array<string, mixed>>
      */
-    public function historyPayloads(User $owner, array $filters = [], int $limit = 24): array
-    {
+    public function historyPayloads(
+        User $owner,
+        array $filters = [],
+        int $limit = 24,
+        bool $canPublish = false,
+    ): array {
         return $this->listHistoryForOwner($owner, $filters, $limit)
-            ->map(fn (SocialPost $post) => $this->payload($post))
+            ->map(fn (SocialPost $post) => $this->payload($post, $canPublish))
             ->values()
             ->all();
     }
@@ -119,13 +156,14 @@ class SocialPostService
     /**
      * @return array<int, array<string, mixed>>
      */
-    public function calendarPayloads(User $owner, int $limit = 140): array
+    public function calendarPayloads(User $owner, int $limit = 140, bool $canPublish = false): array
     {
         return SocialPost::query()
             ->byUser($owner->id)
             ->with([
                 'automationRule',
                 'targets.socialAccountConnection',
+                'targets.latestCreateOutbox',
                 'latestApprovalRequest.requestedBy',
                 'latestApprovalRequest.resolvedBy',
             ])
@@ -141,7 +179,7 @@ class SocialPostService
             ->latest('updated_at')
             ->limit(max(1, min(240, $limit)))
             ->get()
-            ->map(fn (SocialPost $post) => $this->calendarPayload($post))
+            ->map(fn (SocialPost $post) => $this->calendarPayload($post, $canPublish))
             ->sortBy(fn (array $payload): string => (string) ($payload['calendar_at'] ?? ''))
             ->values()
             ->all();
@@ -152,7 +190,7 @@ class SocialPostService
      */
     public function connectedAccountOptions(User $owner): array
     {
-        return collect($this->connectionService->listPayloads($owner))
+        return collect($this->connectionService->listPublishingPayloads($owner))
             ->filter(fn (array $connection): bool => (bool) ($connection['is_connected'] ?? false))
             ->map(function (array $connection): array {
                 return [
@@ -211,11 +249,17 @@ class SocialPostService
     {
         $targetConnections = $this->resolveTargetConnections($owner, (array) ($payload['target_connection_ids'] ?? []));
         $attributes = $this->postAttributes($owner, $actor, $payload, $targetConnections);
+        $postId = DB::transaction(function () use ($actor, $attributes, $targetConnections): int {
+            $post = SocialPost::query()->create($attributes);
+            $this->syncTargetsFromConnections($post, $targetConnections, $attributes['status']);
+            $this->revisionService->capture($post, $actor);
 
-        $post = SocialPost::query()->create($attributes);
-        $this->syncTargets($post, $targetConnections, $attributes['status']);
+            return (int) $post->id;
+        });
 
-        return $post->fresh(['targets.socialAccountConnection']);
+        return SocialPost::query()
+            ->with(['targets.socialAccountConnection', 'revisions'])
+            ->findOrFail($postId);
     }
 
     /**
@@ -223,20 +267,66 @@ class SocialPostService
      */
     public function updateDraft(User $owner, User $actor, SocialPost $post, array $payload): SocialPost
     {
+        return $this->updateDraftWithPreviousMedia($owner, $actor, $post, $payload)['post'];
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array{post: SocialPost, previous_media_payload: array<int, array<string, mixed>>|null}
+     */
+    public function updateDraftWithPreviousMedia(
+        User $owner,
+        User $actor,
+        SocialPost $post,
+        array $payload,
+    ): array {
         $this->assertOwnership($owner, $post);
-        $this->assertEditable($post);
 
-        $targetConnections = $this->resolveTargetConnections($owner, (array) ($payload['target_connection_ids'] ?? []));
-        $attributes = $this->postAttributes($owner, $actor, $payload, $targetConnections);
+        $update = DB::transaction(function () use ($owner, $actor, $post, $payload): array {
+            $lockedPost = $this->lockedPost($owner, $post);
+            $this->assertEditable($lockedPost);
+            $previousMediaPayload = is_array($lockedPost->media_payload)
+                ? $lockedPost->media_payload
+                : null;
 
-        $post->forceFill([
-            ...$attributes,
-            'created_by_user_id' => $post->created_by_user_id ?: $actor->id,
-        ])->save();
+            $targetConnections = $this->resolveTargetConnections(
+                $owner,
+                (array) ($payload['target_connection_ids'] ?? [])
+            );
+            $attributes = $this->postAttributes($owner, $actor, $payload, $targetConnections);
 
-        $this->syncTargets($post, $targetConnections, $attributes['status']);
+            $lockedPost->forceFill([
+                ...$attributes,
+                'created_by_user_id' => $lockedPost->created_by_user_id ?: $actor->id,
+            ])->save();
 
-        return $post->fresh(['targets.socialAccountConnection']);
+            $this->syncTargetsFromConnections($lockedPost, $targetConnections, $attributes['status']);
+            $this->revisionService->capture($lockedPost, $actor);
+
+            return [
+                'post_id' => (int) $lockedPost->id,
+                'previous_media_payload' => $previousMediaPayload,
+            ];
+        });
+
+        return [
+            'post' => SocialPost::query()
+                ->with(['targets.socialAccountConnection'])
+                ->findOrFail($update['post_id']),
+            'previous_media_payload' => $update['previous_media_payload'],
+        ];
+    }
+
+    public function ensureDraftCanBeUpdated(User $owner, SocialPost $post): void
+    {
+        $this->assertOwnership($owner, $post);
+
+        $currentPost = SocialPost::query()
+            ->byUser((int) $owner->id)
+            ->whereKey($post->getKey())
+            ->firstOrFail();
+
+        $this->assertEditable($currentPost);
     }
 
     /**
@@ -245,32 +335,44 @@ class SocialPostService
     public function rescheduleDraft(User $owner, User $actor, SocialPost $post, array $payload): SocialPost
     {
         $this->assertOwnership($owner, $post);
-        $this->assertEditable($post);
 
-        $scheduledFor = $this->nullableDateTime($payload, 'scheduled_for');
-        if ($scheduledFor instanceof Carbon && $scheduledFor->lessThanOrEqualTo(now())) {
-            throw ValidationException::withMessages([
-                'scheduled_for' => 'Choose a future date before scheduling this Pulse post.',
-            ]);
-        }
+        $postId = DB::transaction(function () use ($owner, $actor, $post, $payload): int {
+            $lockedPost = $this->lockedPost($owner, $post);
+            $this->assertEditable($lockedPost);
 
-        $status = $scheduledFor instanceof Carbon
-            ? SocialPost::STATUS_SCHEDULED
-            : SocialPost::STATUS_DRAFT;
+            $scheduledFor = $this->scheduledTimeResolver->resolve(
+                $owner,
+                $payload['scheduled_for'] ?? null,
+            );
+            if ($scheduledFor instanceof Carbon && $scheduledFor->lessThanOrEqualTo(now())) {
+                throw ValidationException::withMessages([
+                    'scheduled_for' => 'Choose a future date before scheduling this Pulse post.',
+                ]);
+            }
 
-        $post->forceFill([
-            'updated_by_user_id' => $actor->id,
-            'status' => $status,
-            'scheduled_for' => $scheduledFor,
-            'metadata' => array_merge((array) ($post->metadata ?? []), [
-                'calendar_rescheduled_at' => now()->toIso8601String(),
-                'calendar_rescheduled_by_user_id' => $actor->id,
-            ]),
-        ])->save();
+            $status = $scheduledFor instanceof Carbon
+                ? SocialPost::STATUS_SCHEDULED
+                : SocialPost::STATUS_DRAFT;
 
-        $this->syncExistingTargetStatus($post, $status);
+            $lockedPost->forceFill([
+                'updated_by_user_id' => $actor->id,
+                'status' => $status,
+                'scheduled_for' => $scheduledFor,
+                'metadata' => array_merge((array) ($lockedPost->metadata ?? []), [
+                    'calendar_rescheduled_at' => now()->toIso8601String(),
+                    'calendar_rescheduled_by_user_id' => $actor->id,
+                ]),
+            ])->save();
 
-        return $post->fresh(['targets.socialAccountConnection']);
+            $this->syncExistingTargetStatus($lockedPost, $status);
+            $this->revisionService->capture($lockedPost, $actor);
+
+            return (int) $lockedPost->id;
+        });
+
+        return SocialPost::query()
+            ->with(['targets.socialAccountConnection'])
+            ->findOrFail($postId);
     }
 
     /**
@@ -300,23 +402,42 @@ class SocialPostService
             ]);
         }
 
-        $post = SocialPost::query()->create([
-            'user_id' => $owner->id,
-            'created_by_user_id' => $actor->id,
-            'updated_by_user_id' => $actor->id,
-            'source_type' => $this->nullableString($payload, 'source_type'),
-            'source_id' => data_get($payload, 'source_id') ? (int) data_get($payload, 'source_id') : null,
-            'social_automation_rule_id' => $rule->id,
-            'content_payload' => $payload['content_payload'] ?? null,
-            'media_payload' => $mediaPayload,
-            'link_url' => $linkUrl,
-            'status' => SocialPost::STATUS_DRAFT,
-            'metadata' => $payload['metadata'] ?? null,
-        ]);
+        $postId = DB::transaction(function () use (
+            $actor,
+            $linkUrl,
+            $mediaPayload,
+            $owner,
+            $payload,
+            $rule,
+            $targetConnections,
+        ): int {
+            $post = SocialPost::query()->create([
+                'user_id' => $owner->id,
+                'created_by_user_id' => $actor->id,
+                'updated_by_user_id' => $actor->id,
+                'source_type' => $this->nullableString($payload, 'source_type'),
+                'source_id' => data_get($payload, 'source_id') ? (int) data_get($payload, 'source_id') : null,
+                'social_automation_rule_id' => $rule->id,
+                'content_payload' => $payload['content_payload'] ?? null,
+                'media_payload' => $mediaPayload,
+                'link_url' => $linkUrl,
+                'status' => SocialPost::STATUS_DRAFT,
+                'metadata' => $payload['metadata'] ?? null,
+            ]);
 
-        $this->syncTargetsFromConnections($post, $targetConnections, SocialPost::STATUS_DRAFT);
+            $this->syncTargetsFromConnections($post, $targetConnections, SocialPost::STATUS_DRAFT);
+            $this->revisionService->capture(
+                $post,
+                $actor,
+                SocialPostRevision::ORIGIN_AUTOMATION,
+            );
 
-        return $post->fresh(['targets.socialAccountConnection', 'automationRule']);
+            return (int) $post->id;
+        });
+
+        return SocialPost::query()
+            ->with(['targets.socialAccountConnection', 'automationRule', 'revisions'])
+            ->findOrFail($postId);
     }
 
     public function duplicate(User $owner, User $actor, SocialPost $source): SocialPost
@@ -338,12 +459,13 @@ class SocialPostService
     /**
      * @return array<string, mixed>
      */
-    public function payload(SocialPost $post): array
+    public function payload(SocialPost $post, bool $canPublish = false): array
     {
         $post->loadMissing([
             'user',
             'automationRule',
             'targets.socialAccountConnection',
+            'targets.latestCreateOutbox',
             'latestApprovalRequest.requestedBy',
             'latestApprovalRequest.resolvedBy',
         ]);
@@ -351,12 +473,30 @@ class SocialPostService
         $text = trim((string) data_get($post->content_payload, 'text', ''));
         $approvalRequest = $post->latestApprovalRequest;
         $automationRule = $post->automationRule;
+        $selectedTargets = $post->targets;
+
+        if ((bool) config('services.buffer.delivery.enabled', false)) {
+            $selectedTargets = $selectedTargets
+                ->filter(fn (SocialPostTarget $target): bool => (
+                    $target->socialAccountConnection?->usesBufferPublishingTransport() === true
+                ));
+        }
 
         return [
             'id' => $post->id,
             'status' => (string) $post->status,
+            'editorial_status' => $post->editorial_status !== null
+                ? (string) $post->editorial_status
+                : null,
+            'delivery_status' => $post->delivery_status !== null
+                ? (string) $post->delivery_status
+                : null,
+            'sync_status' => $post->sync_status !== null
+                ? (string) $post->sync_status
+                : null,
             'text' => $text !== '' ? $text : null,
             'image_url' => $this->mediaAssetService->imageUrl((array) ($post->media_payload ?? [])),
+            'media_assets' => array_values((array) ($post->media_payload ?? [])),
             'link_url' => $post->link_url,
             'link_cta_label' => $this->linkCtaLabel($post->metadata),
             'source_type' => $post->source_type,
@@ -371,10 +511,15 @@ class SocialPostService
                 : null,
             'source_label' => data_get($post->metadata, 'source.label'),
             'scheduled_for' => optional($post->scheduled_for)->toIso8601String(),
+            'scheduled_local_time' => optional($post->scheduled_local_time)->format('Y-m-d\TH:i'),
+            'scheduled_timezone' => $post->scheduled_timezone,
             'published_at' => optional($post->published_at)->toIso8601String(),
             'failed_at' => optional($post->failed_at)->toIso8601String(),
             'failure_reason' => $post->failure_reason,
-            'selected_target_connection_ids' => $post->targets
+            'can_retry' => $this->canRetry($post, $canPublish),
+            'is_queued_publication' => $this->isQueuedPublication($post),
+            'is_editable' => $this->isEditable($post),
+            'selected_target_connection_ids' => $selectedTargets
                 ->pluck('social_account_connection_id')
                 ->filter()
                 ->map(fn ($id) => (int) $id)
@@ -382,23 +527,34 @@ class SocialPostService
                 ->all(),
             'selected_accounts_count' => $post->targets->count(),
             'targets' => $post->targets
-                ->map(function (SocialPostTarget $target): array {
+                ->map(function (SocialPostTarget $target) use ($post): array {
                     $connection = $target->socialAccountConnection;
 
                     return [
                         'id' => $target->id,
                         'social_account_connection_id' => $target->social_account_connection_id,
                         'status' => (string) $target->status,
+                        'editorial_status' => $post->editorial_status !== null
+                            ? (string) $post->editorial_status
+                            : null,
+                        'delivery_status' => $target->delivery_status !== null
+                            ? (string) $target->delivery_status
+                            : null,
+                        'sync_status' => $target->sync_status !== null
+                            ? (string) $target->sync_status
+                            : null,
                         'label' => $connection?->label ?? data_get($target->metadata, 'snapshot_label'),
-                        'provider_label' => $connection?->label
-                            ? data_get($target->metadata, 'provider_label')
-                            : data_get($target->metadata, 'provider_label'),
+                        'provider_label' => data_get($target->metadata, 'provider_label'),
                         'platform' => $connection?->platform ?? data_get($target->metadata, 'platform'),
                         'display_name' => $connection?->display_name ?? data_get($target->metadata, 'display_name'),
                         'account_handle' => $connection?->account_handle ?? data_get($target->metadata, 'account_handle'),
                         'published_at' => optional($target->published_at)->toIso8601String(),
                         'failed_at' => optional($target->failed_at)->toIso8601String(),
                         'failure_reason' => $target->failure_reason,
+                        'submitted_at' => optional($target->submitted_at)->toIso8601String(),
+                        'remote_scheduled_for' => optional($target->remote_scheduled_for)->toIso8601String(),
+                        'last_synced_at' => optional($target->last_synced_at)->toIso8601String(),
+                        'next_reconcile_at' => optional($target->next_reconcile_at)->toIso8601String(),
                     ];
                 })
                 ->values()
@@ -449,20 +605,15 @@ class SocialPostService
     /**
      * @return array<string, mixed>
      */
-    private function calendarPayload(SocialPost $post): array
+    private function calendarPayload(SocialPost $post, bool $canPublish): array
     {
-        $payload = $this->payload($post);
+        $payload = $this->payload($post, $canPublish);
         $calendarAt = $this->calendarDateFor($post);
-        $isQueuedPublication = (bool) data_get($post->metadata, 'publish_requested_at');
 
         return array_merge($payload, [
             'calendar_at' => optional($calendarAt)->toIso8601String(),
             'calendar_bucket' => $this->calendarBucketFor($post),
-            'can_reschedule' => in_array((string) $post->status, [
-                SocialPost::STATUS_DRAFT,
-                SocialPost::STATUS_SCHEDULED,
-            ], true) && ! $isQueuedPublication,
-            'is_queued_publication' => $isQueuedPublication,
+            'can_reschedule' => $this->isEditable($post),
         ]);
     }
 
@@ -509,6 +660,15 @@ class SocialPostService
         }
     }
 
+    private function lockedPost(User $owner, SocialPost $post): SocialPost
+    {
+        return SocialPost::query()
+            ->byUser((int) $owner->id)
+            ->whereKey($post->getKey())
+            ->lockForUpdate()
+            ->firstOrFail();
+    }
+
     private function assertEditable(SocialPost $post): void
     {
         if ((string) $post->status === SocialPost::STATUS_PENDING_APPROVAL) {
@@ -517,14 +677,46 @@ class SocialPostService
             ]);
         }
 
-        $publishRequestedAt = data_get($post->metadata, 'publish_requested_at');
-        if (! $publishRequestedAt) {
+        if ($this->isEditable($post)) {
             return;
         }
 
         throw ValidationException::withMessages([
             'post' => 'This Pulse post is already queued or published. Duplicate it instead of editing the live record.',
         ]);
+    }
+
+    private function isQueuedPublication(SocialPost $post): bool
+    {
+        return (bool) data_get($post->metadata, 'publish_requested_at');
+    }
+
+    public function canRetry(SocialPost $post, bool $canPublish): bool
+    {
+        if (! $canPublish
+            || ! in_array((string) $post->status, [
+                SocialPost::STATUS_FAILED,
+                SocialPost::STATUS_PARTIAL_FAILED,
+            ], true)
+            || (string) $post->delivery_status === SocialPost::DELIVERY_STATUS_UNKNOWN) {
+            return false;
+        }
+
+        $post->loadMissing('targets');
+
+        if ($this->retryPolicy->hasAmbiguousOutcome($post, $post->targets)) {
+            return false;
+        }
+
+        return $this->retryPolicy->retryableTargetIds($post, $post->targets) !== [];
+    }
+
+    private function isEditable(SocialPost $post): bool
+    {
+        return in_array((string) $post->status, [
+            SocialPost::STATUS_DRAFT,
+            SocialPost::STATUS_SCHEDULED,
+        ], true) && ! $this->isQueuedPublication($post);
     }
 
     private function createEditableCopy(User $owner, User $actor, SocialPost $source, string $mode): SocialPost
@@ -547,41 +739,63 @@ class SocialPostService
                 ->get()
             : collect();
 
+        if ((bool) config('services.buffer.delivery.enabled', false)) {
+            $recoveredConnections = $recoveredConnections
+                ->filter(fn (SocialAccountConnection $connection): bool => (
+                    $connection->usesBufferPublishingTransport()
+                ));
+        }
+
         $image = collect((array) ($source->media_payload ?? []))
             ->first(fn (array $item): bool => trim((string) ($item['url'] ?? '')) !== '');
 
-        $copy = SocialPost::query()->create([
-            'user_id' => $owner->id,
-            'created_by_user_id' => $actor->id,
-            'updated_by_user_id' => $actor->id,
-            'source_type' => $source->source_type,
-            'source_id' => $source->source_id,
-            'content_payload' => (array) ($source->content_payload ?? []),
-            'media_payload' => (array) ($source->media_payload ?? []),
-            'link_url' => $source->link_url,
-            'status' => SocialPost::STATUS_DRAFT,
-            'scheduled_for' => null,
-            'published_at' => null,
-            'failed_at' => null,
-            'failure_reason' => null,
-            'metadata' => array_filter([
-                'selected_target_count' => $recoveredConnections->count(),
-                'draft_saved_from' => $mode === 'repost' ? 'social_history_repost' : 'social_history_duplicate',
-                'has_image' => $image !== null,
-                'has_link' => trim((string) ($source->link_url ?? '')) !== '',
-                'link_cta_label' => $this->linkCtaLabel($source->metadata),
-                'copied_from_post_id' => $source->id,
-                'copied_from_status' => (string) $source->status,
-                'copy_mode' => $mode,
-                'repost_of_post_id' => $mode === 'repost' ? $source->id : null,
-                'recovered_target_count' => $recoveredConnections->count(),
-                'missing_target_count' => max(0, $originalTargetIds->count() - $recoveredConnections->count()),
-            ], fn ($value) => $value !== null),
-        ]);
+        $copyId = DB::transaction(function () use (
+            $actor,
+            $image,
+            $mode,
+            $originalTargetIds,
+            $owner,
+            $recoveredConnections,
+            $source,
+        ): int {
+            $copy = SocialPost::query()->create([
+                'user_id' => $owner->id,
+                'created_by_user_id' => $actor->id,
+                'updated_by_user_id' => $actor->id,
+                'source_type' => $source->source_type,
+                'source_id' => $source->source_id,
+                'content_payload' => (array) ($source->content_payload ?? []),
+                'media_payload' => (array) ($source->media_payload ?? []),
+                'link_url' => $source->link_url,
+                'status' => SocialPost::STATUS_DRAFT,
+                'scheduled_for' => null,
+                'published_at' => null,
+                'failed_at' => null,
+                'failure_reason' => null,
+                'metadata' => array_filter([
+                    'selected_target_count' => $recoveredConnections->count(),
+                    'draft_saved_from' => $mode === 'repost' ? 'social_history_repost' : 'social_history_duplicate',
+                    'has_image' => $image !== null,
+                    'has_link' => trim((string) ($source->link_url ?? '')) !== '',
+                    'link_cta_label' => $this->linkCtaLabel($source->metadata),
+                    'copied_from_post_id' => $source->id,
+                    'copied_from_status' => (string) $source->status,
+                    'copy_mode' => $mode,
+                    'repost_of_post_id' => $mode === 'repost' ? $source->id : null,
+                    'recovered_target_count' => $recoveredConnections->count(),
+                    'missing_target_count' => max(0, $originalTargetIds->count() - $recoveredConnections->count()),
+                ], fn ($value) => $value !== null),
+            ]);
 
-        $this->syncTargetsFromConnections($copy, $recoveredConnections, SocialPost::STATUS_DRAFT);
+            $this->syncTargetsFromConnections($copy, $recoveredConnections, SocialPost::STATUS_DRAFT);
+            $this->revisionService->capture($copy, $actor);
 
-        return $copy->fresh(['targets.socialAccountConnection']);
+            return (int) $copy->id;
+        });
+
+        return SocialPost::query()
+            ->with(['targets.socialAccountConnection', 'revisions'])
+            ->findOrFail($copyId);
     }
 
     /**
@@ -629,16 +843,19 @@ class SocialPostService
     private function postAttributes(User $owner, User $actor, array $payload, Collection $targetConnections): array
     {
         $text = $this->nullableString($payload, 'text');
-        $mediaPayload = $this->mediaAssetService->imageMediaPayload($payload);
+        $mediaPayload = $this->mediaAssetService->mediaPayload($payload);
         $linkUrl = $this->nullableString($payload, 'link_url');
         $linkCtaLabel = $linkUrl !== null ? $this->nullableString($payload, 'link_cta_label') : null;
-        $scheduledFor = $this->nullableDateTime($payload, 'scheduled_for');
+        $scheduledFor = $this->scheduledTimeResolver->resolve(
+            $owner,
+            $payload['scheduled_for'] ?? null,
+        );
         $source = $this->prefillService->validateSourceReference($owner, $payload);
         $extraMetadata = is_array($payload['metadata'] ?? null) ? $payload['metadata'] : [];
 
         if ($text === null && $mediaPayload === null && $linkUrl === null) {
             throw ValidationException::withMessages([
-                'text' => 'Add some text, an image, or a destination link before saving this Pulse draft.',
+                'text' => 'Add some text, media, or a destination link before saving this Pulse draft.',
             ]);
         }
 
@@ -665,7 +882,8 @@ class SocialPostService
                 'draft_saved_from' => $source['source_type'] !== null
                     ? 'social_prefill_'.$source['source_type']
                     : 'social_composer',
-                'has_image' => $mediaPayload !== null,
+                'has_image' => $this->mediaAssetService->imageUrl($mediaPayload) !== null,
+                'has_media' => $mediaPayload !== null,
                 'has_link' => $linkUrl !== null,
                 'link_cta_label' => $linkCtaLabel,
                 'source' => $source['source_type'] !== null
@@ -682,45 +900,82 @@ class SocialPostService
     /**
      * @param  Collection<int, SocialAccountConnection>  $targetConnections
      */
-    private function syncTargets(SocialPost $post, Collection $targetConnections, string $postStatus): void
-    {
-        $this->syncTargetsFromConnections($post, $targetConnections, $postStatus);
-    }
-
-    /**
-     * @param  Collection<int, SocialAccountConnection>  $targetConnections
-     */
     private function syncTargetsFromConnections(SocialPost $post, Collection $targetConnections, string $postStatus): void
     {
-        $post->targets()->delete();
-
-        if ($targetConnections->isEmpty()) {
-            return;
-        }
-
         $targetStatus = $postStatus === SocialPost::STATUS_SCHEDULED
             ? SocialPostTarget::STATUS_SCHEDULED
             : SocialPostTarget::STATUS_PENDING;
+        $existingTargets = $post->targets()->lockForUpdate()->get()
+            ->keyBy('social_account_connection_id');
+        $selectedConnectionIds = $targetConnections->pluck('id')->map(fn (mixed $id): int => (int) $id);
 
-        $post->targets()->createMany(
-            $targetConnections
-                ->map(function (SocialAccountConnection $connection) use ($targetStatus): array {
-                    return [
-                        'social_account_connection_id' => $connection->id,
-                        'status' => $targetStatus,
-                        'metadata' => [
-                            'snapshot_label' => $connection->label,
-                            'provider_label' => data_get($connection->metadata, 'provider_label'),
-                            'platform' => $connection->platform,
-                            'display_name' => $connection->display_name,
-                            'account_handle' => $connection->account_handle,
-                            'target_type' => data_get($connection->metadata, 'target_type'),
-                        ],
-                    ];
-                })
-                ->values()
-                ->all()
-        );
+        foreach ($existingTargets as $connectionId => $target) {
+            if ($selectedConnectionIds->contains((int) $connectionId)) {
+                continue;
+            }
+
+            if ($this->targetHasSubmissionHistory($post, $target)) {
+                throw ValidationException::withMessages([
+                    'target_connection_ids' => 'A submitted Pulse destination cannot be removed from its historical post.',
+                ]);
+            }
+
+            $target->delete();
+        }
+
+        foreach ($targetConnections as $connection) {
+            $this->assertConnectionTransportReady($connection);
+            $attributes = [
+                'delivery_provider' => $connection->delivery_provider,
+                'transport_generation' => $connection->transport_generation,
+                'logical_destination_key' => $connection->logical_destination_key,
+                'status' => $targetStatus,
+                'metadata' => [
+                    'snapshot_label' => $connection->label,
+                    'provider_label' => data_get($connection->metadata, 'provider_label'),
+                    'platform' => $connection->platform,
+                    'display_name' => $connection->display_name,
+                    'account_handle' => $connection->account_handle,
+                    'target_type' => data_get($connection->metadata, 'target_type'),
+                ],
+            ];
+            $target = $existingTargets->get($connection->id);
+
+            if ($target) {
+                $target->forceFill($attributes)->save();
+
+                continue;
+            }
+
+            $post->targets()->create([
+                'social_account_connection_id' => $connection->id,
+                ...$attributes,
+            ]);
+        }
+    }
+
+    private function targetHasSubmissionHistory(SocialPost $post, SocialPostTarget $target): bool
+    {
+        return $target->last_submitted_revision_id !== null
+            || filled(data_get($target->metadata, 'dispatch_requested_at'))
+            || filled(data_get($post->metadata, 'publish_requested_at'))
+            || in_array((string) $target->delivery_status, [
+                SocialPost::DELIVERY_STATUS_QUEUED,
+                SocialPost::DELIVERY_STATUS_SUBMITTED,
+                SocialPost::DELIVERY_STATUS_SCHEDULED,
+                SocialPost::DELIVERY_STATUS_REMOTE_APPROVAL_REQUIRED,
+                SocialPost::DELIVERY_STATUS_PUBLISHING,
+                SocialPost::DELIVERY_STATUS_PUBLISHED,
+                SocialPost::DELIVERY_STATUS_FAILED,
+                SocialPost::DELIVERY_STATUS_UNKNOWN,
+                SocialPost::DELIVERY_STATUS_CANCELED,
+            ], true)
+            || in_array((string) $target->status, [
+                SocialPostTarget::STATUS_PUBLISHING,
+                SocialPostTarget::STATUS_PUBLISHED,
+                SocialPostTarget::STATUS_FAILED,
+                SocialPostTarget::STATUS_CANCELED,
+            ], true);
     }
 
     private function syncExistingTargetStatus(SocialPost $post, string $postStatus): void
@@ -732,6 +987,28 @@ class SocialPostService
         $post->targets()->update([
             'status' => $targetStatus,
         ]);
+    }
+
+    private function assertConnectionTransportReady(SocialAccountConnection $connection): void
+    {
+        $usesDirectTransport = (string) $connection->delivery_provider
+                === SocialAccountConnection::DELIVERY_PROVIDER_DIRECT
+            && (string) $connection->transport_generation
+                === SocialAccountConnection::TRANSPORT_GENERATION_DIRECT_V1;
+        $usesBufferTransport = $connection->usesBufferPublishingTransport();
+
+        if ((bool) config('services.buffer.delivery.enabled', false) && ! $usesBufferTransport) {
+            throw ValidationException::withMessages([
+                'target_connection_ids' => 'Only active channels imported from Buffer can be selected for a Pulse post.',
+            ]);
+        }
+
+        if ((! $usesDirectTransport && ! $usesBufferTransport)
+            || preg_match('/\Aldk:v1:[0-9a-f]{64}\z/', (string) $connection->logical_destination_key) !== 1) {
+            throw ValidationException::withMessages([
+                'target_connection_ids' => 'Reconnect this social account before selecting it for a Pulse post.',
+            ]);
+        }
     }
 
     /**
@@ -752,15 +1029,5 @@ class SocialPostService
         $value = trim((string) data_get($metadata, 'link_cta_label', ''));
 
         return $value !== '' ? $value : null;
-    }
-
-    /**
-     * @param  array<string, mixed>  $payload
-     */
-    private function nullableDateTime(array $payload, string $key): ?Carbon
-    {
-        $value = $this->nullableString($payload, $key);
-
-        return $value !== null ? Carbon::parse($value) : null;
     }
 }

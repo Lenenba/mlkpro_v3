@@ -3,8 +3,11 @@ import { computed, reactive, ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import AdminPaginationLinks from '@/Components/DataTable/AdminPaginationLinks.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
+import ModuleKpiSection from '@/Components/Dashboard/ModuleKpiSection.vue';
 import AppBreadcrumbs from '@/Components/UI/AppBreadcrumbs.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import { buildSparklinePoints } from '@/utils/kpi';
 
 const props = defineProps({
     status: {
@@ -117,10 +120,10 @@ const filterState = reactive({
 });
 
 const sourceCards = computed(() => ([
-    { key: 'expenses', value: props.source_counts?.expenses ?? 0 },
-    { key: 'invoices', value: props.source_counts?.invoices ?? 0 },
-    { key: 'payments', value: props.source_counts?.payments ?? 0 },
-    { key: 'sales', value: props.source_counts?.sales ?? 0 },
+    { key: 'expenses', label: t('accounting.source_counts.expenses'), value: props.source_counts?.expenses ?? 0, tone: 'amber' },
+    { key: 'invoices', label: t('accounting.source_counts.invoices'), value: props.source_counts?.invoices ?? 0, tone: 'sky' },
+    { key: 'payments', label: t('accounting.source_counts.payments'), value: props.source_counts?.payments ?? 0, tone: 'emerald' },
+    { key: 'sales', label: t('accounting.source_counts.sales'), value: props.source_counts?.sales ?? 0, tone: 'indigo' },
 ]));
 
 const financeApprovalModeLabel = computed(() => (
@@ -140,47 +143,105 @@ const mobileSummaryCards = computed(() => ([
         key: 'cash_in',
         label: t('accounting.mobile.cards.cash_in'),
         value: formatMoney(props.mobile_summary?.cash_in ?? 0),
+        tone: 'emerald',
     },
     {
         key: 'cash_out',
         label: t('accounting.mobile.cards.cash_out'),
         value: formatMoney(props.mobile_summary?.cash_out ?? 0),
+        tone: 'rose',
     },
     {
         key: 'net_tax_due',
         label: t('accounting.mobile.cards.net_tax_due'),
         value: formatMoney(props.mobile_summary?.net_tax_due ?? 0),
+        tone: 'amber',
     },
     {
         key: 'open_period_count',
         label: t('accounting.mobile.cards.open_periods'),
         value: props.mobile_summary?.open_period_count ?? 0,
+        tone: 'sky',
     },
     {
         key: 'unreconciled_entry_count',
         label: t('accounting.mobile.cards.unreconciled_entries'),
         value: props.mobile_summary?.unreconciled_entry_count ?? 0,
+        tone: 'orange',
     },
     {
         key: 'pending_batch_count',
         label: t('accounting.mobile.cards.pending_batches'),
         value: props.mobile_summary?.pending_batch_count ?? 0,
+        tone: 'indigo',
     },
 ]));
 
+const accountingPeriods = computed(() => (
+    Array.isArray(props.periods)
+        ? props.periods.slice(0, 6).reverse()
+        : []
+));
+
+const accountingPeriodPoints = (key) => {
+    if (!accountingPeriods.value.length) {
+        return [];
+    }
+
+    return buildSparklinePoints(
+        accountingPeriods.value.map((period) => Number(period?.[key] || 0))
+    );
+};
+
 const summaryCards = computed(() => ([
-    { key: 'entry_count', label: t('accounting.journal.summary.entry_count'), value: props.journal_summary?.entry_count ?? 0 },
-    { key: 'batch_count', label: t('accounting.journal.summary.batch_count'), value: props.journal_summary?.batch_count ?? 0 },
-    { key: 'debit_total', label: t('accounting.journal.summary.debit_total'), value: formatMoney(props.journal_summary?.debit_total ?? 0) },
-    { key: 'credit_total', label: t('accounting.journal.summary.credit_total'), value: formatMoney(props.journal_summary?.credit_total ?? 0) },
-    { key: 'review_required_count', label: t('accounting.journal.summary.review_required_count'), value: props.journal_summary?.review_required_count ?? 0 },
+    { key: 'entry_count', label: t('accounting.journal.summary.entry_count'), value: props.journal_summary?.entry_count ?? 0, tone: 'stone', points: accountingPeriodPoints('entry_count') },
+    { key: 'batch_count', label: t('accounting.journal.summary.batch_count'), value: props.journal_summary?.batch_count ?? 0, tone: 'sky', points: accountingPeriodPoints('batch_count') },
+    { key: 'debit_total', label: t('accounting.journal.summary.debit_total'), value: formatMoney(props.journal_summary?.debit_total ?? 0), tone: 'emerald', points: accountingPeriodPoints('debit_total') },
+    { key: 'credit_total', label: t('accounting.journal.summary.credit_total'), value: formatMoney(props.journal_summary?.credit_total ?? 0), tone: 'amber', points: accountingPeriodPoints('credit_total') },
+    { key: 'review_required_count', label: t('accounting.journal.summary.review_required_count'), value: props.journal_summary?.review_required_count ?? 0, tone: 'rose' },
 ]));
 
 const taxCards = computed(() => ([
-    { key: 'taxes_collected', label: t('accounting.taxes.cards.taxes_collected'), value: formatMoney(props.tax_summary?.taxes_collected ?? 0) },
-    { key: 'taxes_paid', label: t('accounting.taxes.cards.taxes_paid'), value: formatMoney(props.tax_summary?.taxes_paid ?? 0) },
-    { key: 'net_tax_due', label: t('accounting.taxes.cards.net_tax_due'), value: formatMoney(props.tax_summary?.net_tax_due ?? 0) },
-    { key: 'review_required_count', label: t('accounting.taxes.cards.review_required_count'), value: props.tax_summary?.review_required_count ?? 0 },
+    { key: 'taxes_collected', label: t('accounting.taxes.cards.taxes_collected'), value: formatMoney(props.tax_summary?.taxes_collected ?? 0), tone: 'emerald' },
+    { key: 'taxes_paid', label: t('accounting.taxes.cards.taxes_paid'), value: formatMoney(props.tax_summary?.taxes_paid ?? 0), tone: 'sky' },
+    { key: 'net_tax_due', label: t('accounting.taxes.cards.net_tax_due'), value: formatMoney(props.tax_summary?.net_tax_due ?? 0), tone: 'amber' },
+    { key: 'review_required_count', label: t('accounting.taxes.cards.review_required_count'), value: props.tax_summary?.review_required_count ?? 0, tone: 'rose' },
+]));
+
+const taxSourceCards = computed(() => (props.tax_summary?.source_breakdown ?? []).map((row) => ({
+    key: `${row.source_type}-${row.direction}`,
+    label: sourceTypeLabel(row.source_type),
+    value: formatMoney(row.amount),
+    context: t(`accounting.taxes.directions.${row.direction}`),
+    tone: row.direction === 'collected' ? 'emerald' : 'sky',
+})));
+
+const periodSummaryCards = computed(() => ([
+    { key: 'open', label: t('accounting.periods.summary.open'), value: props.period_summary?.open_count ?? 0, tone: 'emerald' },
+    { key: 'in_review', label: t('accounting.periods.summary.in_review'), value: props.period_summary?.in_review_count ?? 0, tone: 'amber' },
+    { key: 'closed', label: t('accounting.periods.summary.closed'), value: props.period_summary?.closed_count ?? 0, tone: 'stone' },
+    { key: 'reopened', label: t('accounting.periods.summary.reopened'), value: props.period_summary?.reopened_count ?? 0, tone: 'sky' },
+]));
+
+const reviewStatusCards = computed(() => ([
+    {
+        key: 'unreviewed',
+        label: t('accounting.journal.review_statuses.unreviewed'),
+        value: props.review_workspace?.entry_status_counts?.unreviewed ?? 0,
+        tone: 'amber',
+    },
+    {
+        key: 'reviewed',
+        label: t('accounting.journal.review_statuses.reviewed'),
+        value: props.review_workspace?.entry_status_counts?.reviewed ?? 0,
+        tone: 'sky',
+    },
+    {
+        key: 'reconciled',
+        label: t('accounting.journal.review_statuses.reconciled'),
+        value: props.review_workspace?.entry_status_counts?.reconciled ?? 0,
+        tone: 'emerald',
+    },
 ]));
 
 const tabs = computed(() => ([
@@ -531,20 +592,13 @@ function roleLimitLabel(value) {
                 </div>
 
                 <div class="grid gap-4 px-5 py-5 lg:grid-cols-[1.6fr,1fr]">
-                    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                        <div
-                            v-for="card in sourceCards"
-                            :key="card.key"
-                            class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-950"
-                        >
-                            <div class="text-[11px] font-medium uppercase tracking-[0.16em] text-stone-500 dark:text-neutral-400">
-                                {{ $t(`accounting.source_counts.${card.key}`) }}
-                            </div>
-                            <div class="mt-2 text-2xl font-semibold text-stone-900 dark:text-neutral-100">
-                                {{ card.value }}
-                            </div>
-                        </div>
-                    </div>
+                    <ModuleKpiSection module-key="accounting">
+                        <KpiMetricGrid
+                            :metrics="sourceCards"
+                            grid-class="sm:grid-cols-2 xl:grid-cols-4"
+                            :aria-label="$t('accounting.heading')"
+                        />
+                    </ModuleKpiSection>
 
                     <div class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-950">
                         <div class="text-[11px] font-medium uppercase tracking-[0.16em] text-stone-500 dark:text-neutral-400">
@@ -625,20 +679,10 @@ function roleLimitLabel(value) {
                     </span>
                 </div>
 
-                <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-                    <div
-                        v-for="card in mobileSummaryCards"
-                        :key="card.key"
-                        class="rounded-sm border border-stone-200 bg-stone-50 px-4 py-3 dark:border-neutral-700 dark:bg-neutral-950"
-                    >
-                        <div class="text-[11px] font-medium uppercase tracking-[0.14em] text-stone-500 dark:text-neutral-400">
-                            {{ card.label }}
-                        </div>
-                        <div class="mt-2 text-lg font-semibold text-stone-900 dark:text-neutral-100">
-                            {{ card.value }}
-                        </div>
-                    </div>
-                </div>
+                <KpiMetricGrid
+                    :metrics="mobileSummaryCards"
+                    :aria-label="$t('accounting.mobile.title')"
+                />
 
                 <div>
                     <h3 class="text-sm font-semibold text-stone-900 dark:text-neutral-100">
@@ -707,40 +751,12 @@ function roleLimitLabel(value) {
                                 {{ $t('accounting.periods.subtitle') }}
                             </p>
                         </div>
-                        <div class="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:min-w-[24rem]">
-                            <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-3 dark:border-neutral-700 dark:bg-neutral-950">
-                                <div class="text-[11px] font-medium text-stone-500 dark:text-neutral-400">
-                                    {{ $t('accounting.periods.summary.open') }}
-                                </div>
-                                <div class="mt-2 text-2xl font-semibold text-stone-900 dark:text-neutral-100">
-                                    {{ period_summary.open_count ?? 0 }}
-                                </div>
-                            </div>
-                            <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-3 dark:border-neutral-700 dark:bg-neutral-950">
-                                <div class="text-[11px] font-medium text-stone-500 dark:text-neutral-400">
-                                    {{ $t('accounting.periods.summary.in_review') }}
-                                </div>
-                                <div class="mt-2 text-2xl font-semibold text-stone-900 dark:text-neutral-100">
-                                    {{ period_summary.in_review_count ?? 0 }}
-                                </div>
-                            </div>
-                            <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-3 dark:border-neutral-700 dark:bg-neutral-950">
-                                <div class="text-[11px] font-medium text-stone-500 dark:text-neutral-400">
-                                    {{ $t('accounting.periods.summary.closed') }}
-                                </div>
-                                <div class="mt-2 text-2xl font-semibold text-stone-900 dark:text-neutral-100">
-                                    {{ period_summary.closed_count ?? 0 }}
-                                </div>
-                            </div>
-                            <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-3 dark:border-neutral-700 dark:bg-neutral-950">
-                                <div class="text-[11px] font-medium text-stone-500 dark:text-neutral-400">
-                                    {{ $t('accounting.periods.summary.reopened') }}
-                                </div>
-                                <div class="mt-2 text-2xl font-semibold text-stone-900 dark:text-neutral-100">
-                                    {{ period_summary.reopened_count ?? 0 }}
-                                </div>
-                            </div>
-                        </div>
+                        <KpiMetricGrid
+                            class="xl:min-w-[24rem]"
+                            :metrics="periodSummaryCards"
+                            grid-class="grid-cols-2 sm:grid-cols-4"
+                            :aria-label="$t('accounting.periods.title')"
+                        />
                     </div>
 
                     <div class="mt-4 max-h-[42rem] space-y-3 overflow-y-auto pr-1">
@@ -872,38 +888,20 @@ function roleLimitLabel(value) {
                         </span>
                     </div>
 
-                    <div class="mt-4 grid gap-3 sm:grid-cols-2">
-                        <div
-                            v-for="card in taxCards"
-                            :key="card.key"
-                            class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-950"
-                        >
-                            <div class="text-[11px] font-medium uppercase tracking-[0.16em] text-stone-500 dark:text-neutral-400">
-                                {{ card.label }}
-                            </div>
-                            <div class="mt-2 text-2xl font-semibold text-stone-900 dark:text-neutral-100">
-                                {{ card.value }}
-                            </div>
-                        </div>
-                    </div>
+                    <KpiMetricGrid
+                        class="mt-4"
+                        :metrics="taxCards"
+                        grid-class="sm:grid-cols-2"
+                        :aria-label="$t('accounting.taxes.title')"
+                    />
 
-                    <div class="mt-4 grid gap-3 sm:grid-cols-3">
-                        <div
-                            v-for="row in tax_summary.source_breakdown || []"
-                            :key="`${row.source_type}-${row.direction}`"
-                            class="rounded-sm border border-stone-200 px-4 py-3 text-sm dark:border-neutral-700"
-                        >
-                            <div class="text-xs uppercase tracking-[0.14em] text-stone-500 dark:text-neutral-400">
-                                {{ sourceTypeLabel(row.source_type) }}
-                            </div>
-                            <div class="mt-2 font-semibold text-stone-900 dark:text-neutral-100">
-                                {{ formatMoney(row.amount) }}
-                            </div>
-                            <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t(`accounting.taxes.directions.${row.direction}`) }}
-                            </div>
-                        </div>
-                    </div>
+                    <KpiMetricGrid
+                        class="mt-4"
+                        :metrics="taxSourceCards"
+                        grid-class="sm:grid-cols-3"
+                        compact
+                        :aria-label="$t('accounting.taxes.subtitle')"
+                    />
 
                     <div
                         v-if="(tax_summary.review_required_sources || []).length"
@@ -1203,32 +1201,13 @@ function roleLimitLabel(value) {
                             {{ $t('accounting.review.subtitle') }}
                         </p>
                     </div>
-                    <div class="grid grid-cols-3 gap-2 text-right">
-                        <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-950">
-                            <div class="text-[11px] uppercase tracking-[0.14em] text-stone-500 dark:text-neutral-400">
-                                {{ $t('accounting.journal.review_statuses.unreviewed') }}
-                            </div>
-                            <div class="mt-1 text-lg font-semibold text-stone-900 dark:text-neutral-100">
-                                {{ review_workspace.entry_status_counts?.unreviewed ?? 0 }}
-                            </div>
-                        </div>
-                        <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-950">
-                            <div class="text-[11px] uppercase tracking-[0.14em] text-stone-500 dark:text-neutral-400">
-                                {{ $t('accounting.journal.review_statuses.reviewed') }}
-                            </div>
-                            <div class="mt-1 text-lg font-semibold text-stone-900 dark:text-neutral-100">
-                                {{ review_workspace.entry_status_counts?.reviewed ?? 0 }}
-                            </div>
-                        </div>
-                        <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 dark:border-neutral-700 dark:bg-neutral-950">
-                            <div class="text-[11px] uppercase tracking-[0.14em] text-stone-500 dark:text-neutral-400">
-                                {{ $t('accounting.journal.review_statuses.reconciled') }}
-                            </div>
-                            <div class="mt-1 text-lg font-semibold text-stone-900 dark:text-neutral-100">
-                                {{ review_workspace.entry_status_counts?.reconciled ?? 0 }}
-                            </div>
-                        </div>
-                    </div>
+                    <KpiMetricGrid
+                        class="w-full lg:max-w-2xl"
+                        :metrics="reviewStatusCards"
+                        grid-class="grid-cols-1 sm:grid-cols-3"
+                        compact
+                        :aria-label="$t('accounting.review.title')"
+                    />
                 </div>
 
                 <div
@@ -1335,20 +1314,12 @@ function roleLimitLabel(value) {
                         </p>
                     </div>
 
-                    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-                        <div
-                            v-for="card in summaryCards"
-                            :key="card.key"
-                            class="rounded-sm border border-stone-200 bg-stone-50 px-4 py-3 dark:border-neutral-700 dark:bg-neutral-950"
-                        >
-                            <div class="text-[11px] font-medium uppercase tracking-[0.16em] text-stone-500 dark:text-neutral-400">
-                                {{ card.label }}
-                            </div>
-                            <div class="mt-2 text-lg font-semibold text-stone-900 dark:text-neutral-100">
-                                {{ card.value }}
-                            </div>
-                        </div>
-                    </div>
+                    <KpiMetricGrid
+                        class="w-full xl:max-w-5xl"
+                        :metrics="summaryCards"
+                        grid-class="sm:grid-cols-2 xl:grid-cols-5"
+                        :aria-label="$t('accounting.journal.title')"
+                    />
                 </div>
 
                 <div class="mt-5 grid gap-3 rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-950 lg:grid-cols-[1.5fr,0.8fr,0.8fr,0.8fr,1fr,auto,auto]">

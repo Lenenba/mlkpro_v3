@@ -1,0 +1,1931 @@
+# Malikia Pulse — refonte globale Buffer-first
+
+Date de cadrage : 2026-08-26
+
+Révision : 78 — Étape 3 clôturée en local ; exécution pilote et cutover désactivée
+
+Baseline auditée : branche develop, commit a54169d3d096
+
+Branche de travail active : `feature/pulse-buffer-refonte`, créée depuis `develop@a54169d3d096`
+
+Branche distante : `origin/feature/pulse-buffer-refonte`, checkpoint fonctionnel courant publié `25f6fb4a` ; dernier checkpoint CI confirmé `42c2ef94` via quality #412 ; la validation distante du lot courant après publication est laissée à Jules
+
+Statut documentaire : complet — référence active
+
+Statut de livraison : **la recette locale Pulse reste ouverte et le connecteur Buffer local est maintenant opérationnel en lecture : clé personnelle conservée côté serveur, compte et organisations réels, liste des canaux, états importables, lien d’ajout dans Buffer, resynchronisation et import idempotent dans Pulse. Les canaux importés restent volontairement inactifs et aucun handler de livraison Buffer n’est lié. Le GO local de découverte ne vaut ni OAuth Buffer multi-utilisateur, ni pilote, ni production ; `NO_GO_BUFFER_PILOT` et `NO_GO_BUFFER_PRODUCTION` restent actifs.**
+
+Statut de décision : **PULSE_LOCAL_ACCEPTANCE_READY · GO_BUFFER_LOCAL_DISCOVERY · BUFFER_LOCAL_CATALOG_LIVE_GREEN · BUFFER_CHANNEL_IMPORT_LOCAL_GREEN · BUFFER_DELIVERY_DISABLED · MACRO_STEP_1_COMPLETE · MACRO_STEP_2_LOCAL_COMPLETE · MACRO_STEP_3_LOCAL_COMPLETE · MACRO_STEP_3_OPERATIONAL_NO_GO · PROVIDER_NEUTRAL_RECONCILIATION_LOCAL_GREEN · LOCAL_TRANSACTIONAL_OUTBOX_FOUNDATION_GREEN · DIRECT_DELIVERY_OUTBOX_BRIDGED · BUF_P0_03_CLOSED · P0_GATES_OPEN · NO_GO_BUFFER_PILOT · NO_GO_BUFFER_PRODUCTION**
+
+## 0. Journal d’évolution
+
+Ce journal est mis à jour à chaque étape de la refonte. Une étape n’est déclarée terminée que lorsque ses preuves techniques et ses limites sont enregistrées ici.
+
+| ID | Date | Étape | Évolution | Preuves | Statut |
+| --- | --- | --- | --- | --- | --- |
+| EV-PULSE-001 | 2026-08-26 | WP0 — stabilisation legacy | Verrous transactionnels d’approbation, dispatch après commit, retries explicites, invariant tenant, édition des publications en file verrouillée et erreurs par cible exposées dans l’interface | 100 tests Pulse / 1 322 assertions ; 7 tests Node ; build Vite ; budgets frontend ; PHPStan ; `composer qa:format` | Terminé |
+| EV-PULSE-002 | 2026-08-27 | WP1 — revalidation du contrat | Le graphe du dépôt, Nightwatch et la documentation Buffer officielle sont recontrôlés avant de choisir une tranche. Aucun incident Nightwatch ouvert. Les pages Buffer exposent désormais un contrat public plus détaillé, mais aucune preuve réelle liée au client OAuth Malikia n’est encore attachée aux BUF-P0-01 à 10. | Graphify BFS sur Buffer/OAuth/transport/outbox ; Nightwatch : 0 issue ouverte ; documentation officielle Buffer consultée ; navigateur intégré indisponible faute d’instance connectée | En cours |
+| EV-PULSE-003 | 2026-08-27 | WP0-S — sécurité OAuth et DTO | Le verifier PKCE X quitte `metadata` pour un champ chiffré dédié. Les DTO n’exposent plus la metadata brute : seuls `connection_flow` et `test_connection` sont autorisés. Tous les chemins terminaux OAuth, refresh, test et déconnexion effacent l’état, le verifier et son expiration. La lecture legacy est conservée uniquement pendant la fenêtre de migration. | Tests de chiffrement au repos, de migration aller/retour, de non-fuite Inertia et API, de fallback legacy et de nettoyage des secrets ; Graphify path service → publisher X | Validé localement |
+| EV-PULSE-004 | 2026-08-27 | WP0 — workflow, file et interface | Une publication déjà demandée ne peut plus repartir en approbation ; une approbation en attente ne peut être publiée ou programmée directement ; le worker refuse tout contenu encore en attente. Une publication déjà programmée ne peut plus redispatcher la même cible. Les contrôles UI couvrent les vrais handlers de mutation. Les contrats du job et l’isolation tenant avant dispatch sont figés par tests. | Tests approbation owner/approver, rollback et `afterCommit` ; double programmation sans mutation/dispatch ; contrats exacts tries/backoff/timeout/middleware ; tests Node des handlers et boutons | Terminé |
+| EV-PULSE-005 | 2026-08-27 | WP0-S — callback OAuth à usage unique | Le callback revendique atomiquement la connexion avant l’appel HTTP fournisseur, consomme le verifier, bloque les redémarrages concurrents et ne finalise que si le claim attendu est toujours propriétaire. La relance OAuth verrouille et relit la ligne en base : un modèle obsolète ne peut pas écraser le claim. Après expiration du lease, l’interface autorise la récupération. Une réponse ancienne ne peut plus écraser une nouvelle autorisation. Les appels OAuth portent des timeouts explicites et aucun retry automatique. | Tests de double callback réentrant, modèle obsolète, claim actif/expiré, réponse obsolète, refus fournisseur, timeout et unicité de l’appel HTTP | Validé localement |
+| EV-PULSE-006 | 2026-08-27 | WP0-S — stratégie de déploiement | Le schéma et le nouveau writer ne sont pas compatibles avec un déploiement rolling bidirectionnel : un ancien callback ne relit pas le nouveau champ dédié. Le lot courant exige donc un déploiement atomique sous maintenance ; un rolling nécessiterait un pont temporaire en trois phases. Le rollback de la migration métier ne doit être utilisé qu’avec le retour coordonné vers l’ancien code. | Revue de migration, test SQLite isolé `up → down → up`, audit des readers/writers et fenêtre OAuth de 15 minutes | Gate production ouvert |
+| EV-PULSE-007 | 2026-08-27 | Validation intégrée WP0/WP0-S | Le lot PHP, les contrats frontend et la compilation sont verts après les corrections de revue. PHPStan a été relancé hors sandbox après le blocage attendu de son port local éphémère et ne relève aucune erreur. Les deux migrations passent un cycle réel `fresh → rollback --step=2 → migrate` sur une base SQLite isolée. | 127 tests Pulse / 1 546 assertions ; 197 tests Node ; Pint sur 22 fichiers ; build Vite ; budgets frontend ; PHPStan 901/901 sans erreur ; migrations `up → down → up` | Contrôles intégrés verts |
+| EV-PULSE-008 | 2026-08-27 | Validation croisée MCP et graphe | Le graphe est reconstruit après les changements et relie le claim OAuth, le service de connexion, le publisher X, la migration et le gate documentaire. Nightwatch reste sans issue ouverte. GitHub confirme le dépôt distant et l’existence de `develop` ; aucune action distante n’est exécutée. Le navigateur intégré a été diagnostiqué mais aucune instance n’est connectée. Laravel Boost, Context7 et un MCP Buffer ne sont pas exposés dans cette session : la documentation officielle revalidée et datée reste le fallback consigné. Aucun credential ni client OAuth Buffer réel n’est disponible pour fermer WP1. | Graphify : 31 924 nœuds / 66 037 arêtes / 1 753 communautés puis requête BFS ciblée ; Nightwatch : 0 issue ouverte ; GitHub MCP : dépôt `Lenenba/mlkpro_v3`, branche `develop` ; Browser : liste vide | Terminé avec limites explicites |
+| EV-PULSE-009 | 2026-08-27 | Revue finale contradictoire | Trois relectures indépendantes identifient un écrasement possible du claim OAuth par un modèle obsolète, la récupération UI impossible après expiration du claim, un redispatch de programmation, deux handlers UI incohérents et des formulations documentaires trop absolues. Les corrections utilisent un verrou DB frais pour relancer OAuth, exposent l’activité réelle du claim, bloquent la double programmation et alignent tous les handlers concernés. | Revue backend, frontend et documentaire multi-agent ; 32 tests backend ciblés / 247 assertions ; 5 tests Node ciblés ; suite intégrée EV-PULSE-007 | Corrections et validation intégrée terminées |
+| EV-PULSE-010 | 2026-08-27 | Gate PHP obligatoire | Tous les fichiers PHP du lot, y compris les ajouts et migrations, sont complètement indexés avant le contrôle de format. Le garde-fou du dépôt sélectionne 22 fichiers depuis le merge-base `origin/develop` et Pint ne produit aucune correction. | `composer qa:format` : PASS, 22/22 fichiers ; aucun fichier PHP partiellement indexé | Terminé |
+| EV-PULSE-011 | 2026-08-27 | Isolation de la refonte | Le lot WP0/WP0-S validé est déplacé sans perte depuis `develop` vers une branche dédiée afin de poursuivre les essais et la refonte sans exposer la branche d’intégration aux travaux intermédiaires. Les 31 fichiers restent complètement indexés et le présent lot constitue le checkpoint initial de la branche. Aucune branche distante n’est créée à cette étape. | Branche locale `feature/pulse-buffer-refonte` créée depuis `develop@a54169d3d096` ; index Git conservé ; absence de fichier non indexé | Terminé |
+| EV-PULSE-012 | 2026-08-27 | Régression complète de branche | La suite PHP complète confirme l’absence de régression Pulse. Deux échecs déterministes hors périmètre subsistent depuis la baseline : `ProductSalesKpiTest` appelle la route inexistante `service.show` et `SavedSegmentUiPhaseThreeTest` attend 200 mais reçoit 403. Les tests et les routes/contrôleurs concernés sont inchangés entre `develop` et le checkpoint Pulse ; ils ne sont pas corrigés dans cette branche sans élargissement explicite du scope. | Suite complète : 1 613 tests verts / 19 323 assertions, 2 échecs ; relance isolée : 11 tests verts / 78 assertions, mêmes 2 échecs ; `git diff develop...HEAD` limité aux 31 fichiers Pulse | Pulse vert ; gate global bloqué par 2 défauts baseline hors scope |
+| EV-PULSE-013 | 2026-08-27 | WP1-A — harness probatoire read-only | Un spike Node isolé prépare la collecte de preuves authentifiées sans démarrer le client de production WP2. Il ne contient que les requêtes publiques `account` et `channels`, exige un environnement explicitement local, lit le token uniquement depuis l’environnement, interdit tout document de mutation, ne persiste rien et n’effectue aucun retry. Les messages distants sont hashés après masquage et toute occurrence exacte du token est masquée dans l’enveloppe. Les trois politiques de quota sont parsées, appariées par label et validées sur les périodes 900/86 400/2 592 000 secondes sans figer les quotas du plan. Aucun appel Buffer réel n’est exécuté dans cette étape. | 20 tests Node ciblés : contrats publics et nullabilité, payloads et `errors` fail-closed, quotas manquants/dupliqués/désalignés/malformés et plan-dépendants, HTTP 200/401/429, timeout réellement aborté, flux > 1 Mio, environnements, arguments et masquage global ; suite Node complète : 217/217 | Harness validé localement ; aucun BUF-P0 fermé |
+| EV-PULSE-014 | 2026-08-27 | Validation intégrée WP1-A | Trois relectures indépendantes couvrent le contrat Buffer public, la sécurité de la sonde et la valeur des tests. Les constats reproduits ont été fermés : aucune valeur distante ne peut réémettre exactement le token, une clé GraphQL `errors` présente doit être une liste non vide valide, les nullabilités suivent le schéma public, le corps est borné en flux et les trois quotas cohérents sont obligatoires. Le graphe du dépôt inclut désormais le harness et ses relations sans démarrer WP2. | Revue finale contractuelle sans blocant ; revue sécurité sans blocant, puis deux durcissements complémentaires couverts par tests ; 20/20 ciblés, 217/217 Node, build Vite vert, budgets frontend verts, index docs vert ; Graphify : 31 979 nœuds / 66 156 arêtes / 1 769 communautés | Prêt pour le gate Git/PHP et le checkpoint de branche |
+| EV-PULSE-015 | 2026-08-27 | Gate final du checkpoint WP1-A | Les six fichiers du lot WP1-A sont complètement indexés sans inclure de credential ni de sortie Buffer. Le contrôle PHP obligatoire réinspecte également les 22 fichiers PHP déjà commités sur la branche depuis `origin/develop`; aucun fichier PHP sale, partiellement indexé ou supprimé hors index n’est présent. | `composer qa:format` : PASS 22/22 ; `vendor/bin/pint --dirty` : PASS 0 fichier sale ; `git diff --check` et `git diff --cached --check` : PASS | Prêt à commiter et pousser uniquement `feature/pulse-buffer-refonte` |
+| EV-PULSE-016 | 2026-08-27 | Publication de la branche et gate d’accès WP1 | Les deux checkpoints sont publiés sur la branche distante dédiée sans modifier `develop` ni `main`. GitHub confirme la branche et le SHA de tête ; le suivi local/distant est strictement synchronisé. Nightwatch ne signale aucun incident ouvert sur `Malikia pro dev`. La vérification locale, limitée à des booléens sans afficher de secret, confirme que la sonde est désactivée et qu’aucun token WP1 n’est configuré ; aucun appel Buffer réel n’est donc tenté. | GitHub : branche `feature/pulse-buffer-refonte`, tête `2514561f81a89130fe0e6a796cc11ed841a02643` ; Git `0/0` ; Nightwatch : 0 incident ouvert ; `BUFFER_WP1_PROBE_ENABLED=false`, token absent | Branche publiée ; collecte authentifiée et tous les BUF-P0 toujours en attente |
+| EV-PULSE-017 | 2026-08-27 | Premières preuves authentifiées Buffer | Deux exécutions séparées du harness interrogent réellement `account`, puis `channels` pour l’unique organisation visible. Les deux réponses sont HTTP 200 sans erreur GraphQL. Le compte expose une organisation, aucun client connecté observable et trois canaux sains : Instagram business, LinkedIn page et Facebook page. Les permissions visibles couvrent la publication sur les trois réseaux, mais elles ne prouvent aucune mutation Buffer. Les trois fenêtres de quota décrémentent d’une unité entre les deux appels sous la même partition opaque. Aucun identifiant, nom de canal, request ID, partition key, token ou corps brut n’est conservé dans le dépôt. | `account` : succès, ~559 ms ; `channels` : succès, ~255 ms ; quotas observés : 100/15 min, 250/jour, 3 000/30 jours ; compteurs 99→98, 249→248, 2 999→2 998 ; 1 organisation / 3 canaux | Preuve partielle BUF-P0-01 et BUF-P0-02 ; tous les gates restent ouverts |
+| EV-PULSE-018 | 2026-08-27 | WP1-B — contrat GraphQL authentifié | Une introspection fixe et strictement read-only confirme le schéma réellement exposé au credential : signatures exactes de `post`, `posts`, `createPost`, `editPost`, `deletePost` et `movePostInQueue`, types, nullabilités et valeurs par défaut des 14 champs Create/Edit, unions d’erreur et enums de programmation. Le normalizer refuse les suppressions, dépréciations, doublons, noms/kinds/wrappers incohérents, changements de type/défaut et nouveaux champs/arguments obligatoires sans défaut, tout en tolérant les ajouts GraphQL compatibles. Buffer ne renvoie aucun header de quota sur l’introspection ; cette exception est limitée à l’opération `schema`, tandis que `account` et `channels` exigent toujours les trois fenêtres. Aucun document de mutation n’est envoyé. | Appel réel : HTTP 200, 0 erreur GraphQL, contrat classé `success`, 0 fenêtre de quota sur l’introspection ; 59/59 tests ciblés ; contre-revues contrat, sécurité et couverture | Preuve contractuelle read-only acquise ; BUF-P0-05/06/07 toujours ouverts faute de comportement de mutation réel |
+| EV-PULSE-019 | 2026-08-27 | Validation intégrée WP1-B | Trois revues indépendantes concluent sans finding reproductible après correction de tous les cas adversariaux : dérives de signature/type/nullabilité/défaut, dépréciations, doublons, kinds contextuels, wrappers impossibles, noms GraphQL invalides, ajout obligatoire incompatible, arguments CLI dupliqués et collision du marqueur de redaction. Le probe authentifié final reste vert et le graphe partagé est reconstruit. | 59/59 ciblés ; 256/256 Node complets ; build Vite, budgets frontend et index de 231 documents verts ; Graphify : 32 013 nœuds / 66 241 arêtes / 1 769 communautés ; revues contrat, sécurité et tests : VERT | Prêt pour gate Git/PHP et checkpoint WP1-B ; aucun BUF-P0 fermé |
+| EV-PULSE-020 | 2026-08-27 | Gate final du checkpoint WP1-B | Le lot WP1-B est limité au harness read-only, à son test Node et au journal central. Les trois fichiers sont complètement indexés ; aucun `.env`, token, identifiant distant, request ID, partition key ou corps Buffer brut n’entre dans le commit. Le gate PHP obligatoire réinspecte les 22 fichiers PHP déjà commités depuis `origin/develop` sans correction. | `composer qa:format` : PASS 22/22 ; `git diff --check` et `git diff --cached --check` : PASS ; 3 fichiers indexés | Prêt à committer et pousser uniquement `feature/pulse-buffer-refonte` |
+| EV-PULSE-021 | 2026-08-27 | Publication et vérification distante WP1-B | Le checkpoint fonctionnel WP1-B est publié uniquement sur la branche dédiée. GitHub confirme le SHA complet, un commit d’avance sur le checkpoint authentifié précédent et exactement les trois fichiers attendus. Le suivi local/distant est synchronisé. Nightwatch ne signale aucun incident ouvert sur `Malikia pro dev`. `develop` et `main` ne sont ni modifiés ni ciblés. | GitHub : `55840503e97501fa81562d8a545f9abbad336883`, comparaison `ahead 1 / behind 0`, 3 fichiers ; Git `0/0` ; Nightwatch : 0 incident ouvert | Checkpoint WP1-B publié ; tous les BUF-P0 restent ouverts |
+| EV-PULSE-022 | 2026-08-27 | WP1-C — harness de cycle draft Facebook | Un harness Node séparé prépare un seul cycle contrôlé `create draft → edit draft → move bottom → delete → vérification NOT_FOUND` sur l’unique page Facebook saine et autorisée. Il exige deux gates locaux, une confirmation CLI exacte, une empreinte opaque de cible acquise lors d'un préflight sans mutation, huit unités de quota disponibles dans chaque fenêtre et un journal privé armé avant création. Les variables sont figées sur `saveToDraft=true`, `mode=addToQueue`, `schedulingType=notification`, sans média, approbation, planification personnalisée, partage immédiat ni retry. Le cycle et le mode `cleanup-only` partagent un verrou local exclusif avec propriétaire et PID ; seul un verrou dont le processus n'existe plus peut être remplacé. Le mode de reprise relit le journal, le fingerprint et tous les invariants du brouillon avant une suppression unique. SIGINT/SIGTERM interrompent les étapes optionnelles mais laissent finir le nettoyage. Toute ambiguïté conserve le journal et impose une réconciliation manuelle ; une nouvelle création est interdite tant qu'il reste actif. Un arrêt brutal entre l'acceptation distante et la réception de l'identifiant reste récupérable seulement par recherche manuelle du marqueur unique. Aucune mutation réelle n'est encore exécutée à cette étape. | 39/39 tests WP1-C ; 98/98 tests WP1-A/B/C ; concurrence cycle/reprise, PID vivant/mort, signaux, quotas, redaction et suppression stricte couverts ; `node --check` et `git diff --check` verts | Harness local prêt ; exécution distante encore soumise au GO final ; aucun BUF-P0 fermé |
+| EV-PULSE-023 | 2026-08-27 | WP1-C — préflight et premier essai Facebook | Le préflight authentifié confirme une organisation, une seule page Facebook éligible, le schéma attendu, l'empreinte de cible exacte et une réserve suffisante dans les trois fenêtres. Le premier `createPost` utilise le profil de sécurité `saveToDraft=true`, `addToQueue`, `notification`, sans média ni approbation. Buffer répond HTTP 200 avec `InvalidInputError` et aucun identifiant de post. Ce rejet est définitif : aucun retry, brouillon, edit, move ou delete n'est produit ; le journal armé est effacé et le verrou libéré. La requête diffère de l'exemple officiel de création d'un brouillon par `schedulingType=notification` ; la prochaine tranche isolera uniquement ce paramètre avec `automatic`, tout en conservant `saveToDraft=true` et tous les invariants de non-publication. | Préflight : schéma/compte/canaux `success`, 1 cible, quota suffisant ; create : HTTP 200, `InvalidInputError`, ~119 ms ; journal et verrou absents après l'arrêt ; message distant conservé uniquement sous forme de hash | Refus propre acquis ; aucun objet distant à réconcilier ; BUF-P0-06/07 restent ouverts |
+| EV-PULSE-024 | 2026-08-27 | WP1-C — adaptation contractuelle minimale | Le seul paramètre modifié après le refus est `schedulingType`, de `notification` vers `automatic`, valeur utilisée par l'exemple officiel Buffer « Create Draft Post ». Les valeurs explicites `assets=[]` et `needsApproval=false` sont conservées afin d'isoler ce facteur. La sûreté ne dépend pas du mode de livraison : `saveToDraft=true`, `status=draft`, `dueAt=null`, `sentAt=null`, `sharedNow=false`, `shareMode=addToQueue`, le texte exact et l'identité du canal sont tous contrôlés après create, edit et move. Le mode reprise exige les mêmes invariants avant de supprimer. | 39/39 tests WP1-C après l'adaptation ; syntaxe Node et `git diff --check` verts ; documentation officielle « Create Draft Post » revalidée le 2026-08-27 | Second essai en attente des revues ciblées ; aucun objet distant actif |
+| EV-PULSE-025 | 2026-08-27 | WP1-C — second essai Facebook | Le second `createPost` conserve tous les garde-fous et ne remplace que `schedulingType=notification` par `automatic`. Buffer répond de nouveau HTTP 200 avec `InvalidInputError`, mais la signature assainie du message diffère de celle du premier refus. Aucun identifiant n'est retourné : aucun brouillon, edit, move ou delete n'est donc produit. Le journal privé armé avant l'appel est effacé et le verrou exclusif est libé. Aucun troisième essai de création n'est autorisé dans cette tranche. La suite doit d'abord introspecter en lecture seule le contrat des métadonnées Facebook et comparer l'input minimal exact ; ces pistes ne sont pas encore prouvées comme cause. | Create : HTTP 200, `InvalidInputError`, aucune identité de post ; signature assainie distincte du premier refus ; journal et verrou absents après l'arrêt ; aucune donnée distante sensible conservée | Refus propre acquis ; aucun objet distant à réconcilier ; BUF-P0-06/07 restent ouverts |
+| EV-PULSE-026 | 2026-08-27 | WP1-D — introspection Facebook durcie | La requête fixe read-only couvre désormais `PostInputMetaData`, `FacebookPostMetadataInput` et `PostTypeFacebook`. Le normalizer verrouille les onze entrées metadata connues, les quatre champs Facebook, leurs kinds, wrappers, valeurs par défaut et l'enum actif `post/reel/story`, tout en tolérant les ajouts optionnels ou munis d'un défaut. Une contre-revue a reproduit un cas où l'ancien marqueur de redaction pouvait recomposer un token court ; les deux harness utilisent maintenant un marqueur non collisionnel et recontrôlent le résultat. Le contrat expose deux capacités structurées : `facebook_create_metadata` pour le preflight de création et un profil minimal `post_delete_cleanup`, afin qu'une dérive metadata n'empêche jamais le nettoyage d'un brouillon journalisé. Un faux succès, une mauvaise opération, un profil incorrect ou une capacité vide sont refusés avant journal et HTTP. | 86/86 tests du probe read-only ; 44/44 tests du lifecycle ; 130/130 combinés ; reproduction `RE`/`RREE`, aliases absents, kinds falsifiés, wrappers, dépréciations, contrat vide et indépendance du cleanup couverts ; contre-revue sécurité GO lecture seule | Prêt pour une introspection authentifiée unique ; mutation NO-GO |
+| EV-PULSE-027 | 2026-08-27 | WP1-D — preuve Facebook authentifiée | Une unique introspection authentifiée, sans variable métier ni document `mutation`, confirme HTTP 200 et le contrat complet. `CreatePostInput.metadata` reste nullable ; `PostInputMetaData.facebook` reste nullable ; si l'objet Facebook est fourni, son champ `type: PostTypeFacebook!` est obligatoire et accepte `post`, `reel` ou `story`. Pour un futur brouillon texte, `{facebook: {type: post}}` constitue donc un candidat minimal bien formé, mais pas la cause démontrée des deux `InvalidInputError`. Le premier lancement confiné n'a pas atteint Buffer (`transport_error`) ; le lancement réseau explicitement autorisé a réussi. Aucun create, edit, move, delete, publication ou objet distant n'est produit. | Introspection réelle : HTTP 200, `success`, ~284 ms, aucune erreur GraphQL et aucun header quota ; aucun identifiant distant, request ID, token ou corps brut conservé dans Git | Contrat Facebook acquis ; hypothèse d'input à préparer séparément ; BUF-P0-06/07 restent ouverts et aucun troisième essai n'est autorisé |
+| EV-PULSE-028 | 2026-08-27 | Validation et publication WP1-C/WP1-D | Le harness de cycle Facebook, l'introspection metadata, les protections de redaction, les profils de capacité et leurs tests sont publiés uniquement sur la branche feature. GitHub confirme le commit, exactement sept fichiers et un écart `ahead 1 / behind 0` depuis le checkpoint WP1-B. Nightwatch ne signale aucun incident ouvert sur `Malikia pro dev`. La régression complète couvre 327 tests Node ; le build Vite, les budgets frontend, l'index documentaire et Graphify sont verts. Tous les fichiers du lot sont indexés avant le gate PHP, qui réinspecte les 22 fichiers PHP de la branche sans correction. | GitHub : `9cdaa02cf139877252f4423be229e38ca4bcba61`, 7 fichiers, `ahead 1 / behind 0` ; Nightwatch : 0 incident ouvert ; Node 327/327 ; build/budgets/docs verts ; Graphify : 32 116 nœuds / 66 502 arêtes / 1 791 communautés ; `composer qa:format` PASS 22/22 ; diff Git vert | Checkpoint fonctionnel et journal publiés ; `develop` et `main` inchangées |
+| EV-PULSE-029 | 2026-08-27 | WP1-E — contrat Facebook post préparé | Le futur input create est fermé sur l'unique ajout `metadata.facebook.type=post`, sans annotation, premier commentaire, lien ni média. Les retours create/edit/move et l'inspection cleanup sélectionnent la même branche typée `FacebookPostMetadata` et exigent exactement `__typename=FacebookPostMetadata` et `type=post`, en plus de tous les invariants draft existants. Le preflight read-only verrouille maintenant la chaîne de sortie `Post.metadata → PostMetadata → FacebookPostMetadata.type → PostType.post` dans les profils `full` et `cleanup`; le profil cleanup reste indépendant de `CreatePostInput`, `PostInputMetaData`, `FacebookPostMetadataInput` et `PostTypeFacebook`. Les réponses nulles, incomplètes, élargies, d'un autre réseau ou d'un autre type échouent fermées; après un ID créé, elles conservent la suppression unique et sa vérification, tandis qu'une inspection non exacte préserve le journal sans supprimer. Cette tranche n'exécute aucun appel authentifié ni document de mutation. | Documentation Buffer officielle revalidée ; trois contre-revues GO ; probe read-only 96/96, lifecycle 47/47, combinés 143/143 ; Node complet 340/340 ; build, budgets frontend et index de 231 documents verts ; Graphify 32 121 nœuds | Préparé localement, non exécuté ; hypothèse causale toujours ouverte et troisième create toujours non autorisé |
+| EV-PULSE-030 | 2026-08-27 | Validation et publication WP1-E | Le contrat d'input/output Facebook, l'introspection de sortie, les invariants de cycle, la récupération fail-closed et leurs tests sont publiés uniquement sur la branche feature. GitHub confirme le SHA fonctionnel, exactement cinq fichiers et un écart d'un commit depuis le checkpoint WP1-C/WP1-D. Nightwatch reste sans incident ouvert sur `Malikia pro dev`. Le gate PHP réinspecte les 22 fichiers PHP déjà présents sur la branche sans correction; aucun fichier PHP n'est modifié par WP1-E. Aucun script de mutation Buffer n'est exécuté pendant la validation ou la publication. | GitHub : `d08ee404cb0a66f90d3d38f48f76d8b2842b1753`, 5 fichiers, `ahead 1 / behind 0` ; Nightwatch : 0 incident ouvert ; Node 340/340 ; ciblés 143/143 ; build, budgets frontend, docs et Graphify verts ; `composer qa:format` PASS 22/22 ; diff Git vert | Checkpoint fonctionnel WP1-E publié ; `develop` et `main` inchangées ; troisième create toujours non autorisé |
+| EV-PULSE-031 | 2026-08-27 | WP1-F — preuve distante Facebook | Le préflight authentifié confirme le contrat, une organisation, une seule page Facebook admissible et un quota suffisant. L'unique `createPost` autorisé retourne un brouillon Facebook standard conforme avec `metadata.facebook.type=post`. L'édition sans metadata est ensuite refusée par `InvalidInputError`; le déplacement n'est pas tenté. Le harnais exécute une seule suppression, confirme ensuite `NOT_FOUND`, efface son journal privé et libère son verrou. | Réponses HTTP 200 typées ; create `PostActionSuccess`, edit `InvalidInputError`, delete `DeletePostSuccess`, vérification `NOT_FOUND` ; aucun retry, aucun identifiant conservé, aucun objet résiduel et aucun besoin de réconciliation | Preuve create/delete acquise ; edit et move restent ouverts ; tous les BUF-P0 restent ouverts |
+| EV-PULSE-032 | 2026-08-27 | WP1-G — préparation locale edit Facebook | L'input edit est fermé sur l'ajout minimal `metadata.facebook.type=post`, sans modifier les autres variables ni les invariants draft. Les mutations dont l'issue peut être ambiguë — timeout, transport, réponse 5xx, JSON invalide, flux absent ou réponse surdimensionnée — sont classées inconnues sans retry. La reprise couvre le brouillon avant sa première édition ; create avec identifiant récupérable n'utilise cet identifiant que pour le cleanup ; inspect, delete et verify restent fail-closed. | Lifecycle 72/72, probe 96/96, combinés 168/168 ; Node complet 365/365 ; `node --check` ; Graphify incrémental ; aucune requête réseau | Préparé localement ; hypothèse edit non prouvée ; aucun nouvel essai distant autorisé |
+| EV-PULSE-033 | 2026-08-27 | Hygiène — retrait de code mort | L'audit des imports, appels directs, callables, usages réflexifs, routes, payloads, tests, documentation et relations Graphify ne démontre aucun élément mort dans les deux harnais Buffer. Une seule méthode historique du modèle social n'a jamais eu de consommateur : `SocialAccountConnection::allowedAuthMethods()`. Elle est retirée sans supprimer les constantes d'authentification toujours actives. Les providers, routes et configurations sociales directes restent nécessaires jusqu'à la bascule WP7. | Recherche dépôt et historique Git ; Graphify ; test de surface du modèle ; 37 tests sociaux / 340 assertions | Un seul élément inutile supprimé ; aucune suppression spéculative ; audit à répéter à chaque tranche |
+| EV-PULSE-034 | 2026-08-27 | Validation intégrée WP1-F/WP1-G | Le lot local, le retrait de code mort et les deux documents d'avancement passent les gates du dépôt. PHPStan nécessite uniquement son port local éphémère hors sandbox et termine sans erreur. Le graphe partagé est reconstruit après les changements. | Node 365/365 ; 37 tests PHP / 340 assertions ; PHPStan 901/901 ; `composer qa:format` 22/22 ; Pint 2/2 ; build Vite, budgets frontend et index de 232 documents verts ; Graphify 32 130 nœuds / 66 529 arêtes / 1 790 communautés | Prêt à indexer, committer et pousser uniquement sur la branche feature |
+| EV-PULSE-035 | 2026-08-27 | Publication et vérification distante WP1-F/WP1-G | Le checkpoint fonctionnel est publié uniquement sur la branche feature. GitHub confirme le SHA complet, les huit fichiers attendus et un écart d'un commit depuis le checkpoint WP1-E. Nightwatch ne signale aucun incident ouvert sur `Malikia pro dev`. `develop` et `main` restent inchangées. | GitHub : `a0cbad7aa51dd679b3813d3ae92cd5773c64bc33`, comparaison `ahead 1 / behind 0`, 8 fichiers ; Nightwatch : 0 incident ouvert | Checkpoint fonctionnel publié ; edit distant et move restent à prouver dans une future tranche autorisée |
+| EV-PULSE-036 | 2026-08-27 | WP1-H — preuve distante edit et move Facebook | Un préflight sans empreinte s'arrête avant journal et mutation après avoir confirmé le schéma, un compte, une organisation, une seule Page Facebook éligible et la capacité requise. L'unique cycle ensuite autorisé crée un brouillon Facebook `post`, l'édite avec la même metadata minimale et conserve tous les invariants de non-publication. `movePostInQueue`, documenté expérimental par Buffer, refuse ensuite le brouillon avec un `VoidMutationError` typé ; ce refus est définitif, non ambigu et non rejoué. Le `finally` effectue une seule suppression, la lecture suivante confirme `NOT_FOUND`, puis le journal privé et le verrou disparaissent. | HTTP 200 à chaque étape ; create/edit `PostActionSuccess`, move `VoidMutationError` classé `draft_move_rejected`, delete `DeletePostSuccess`, vérification `NOT_FOUND` ; aucun retry, identifiant conservé, objet résiduel ni besoin de réconciliation | Preuve réelle create/edit/delete acquise ; move sur brouillon explicitement refusé ; preuves partielles BUF-P0-06/07, tous les gates restent ouverts |
+| EV-PULSE-037 | 2026-08-27 | Validation et hygiène WP1-H | Deux audits indépendants confirment les gates, l'absence de retry distant, la suppression unique, la redaction des sorties et la valeur de la couverture. L'audit de code mort ne démontre aucun nouvel élément supprimable dans les harnais ou leurs tests ; la branche `VoidMutationError` est au contraire prouvée vivante par l'essai réel. La documentation Buffer officielle est revalidée et Nightwatch ne signale aucun incident ouvert. Aucun fichier PHP n'est modifié dans cette tranche documentaire. | Lifecycle 72/72, probe 96/96, combinés 168/168 ; Node complet 365/365 ; `node --check`, JSON, index de 232 documents et `git diff --check` verts ; Graphify 32 130 nœuds ; Nightwatch : 0 incident ouvert | Zéro suppression spéculative ; preuve et documents prêts à committer sur la branche feature |
+| EV-PULSE-038 | 2026-08-27 | Publication et vérification distante WP1-H | La preuve distante, la vue visuelle, le statut documentaire et l'index sont publiés uniquement sur la branche feature. GitHub confirme le commit probatoire complet, exactement quatre fichiers et un écart d'un commit depuis le checkpoint WP1-F/WP1-G. Nightwatch ne signale aucun incident ouvert ; `develop` et `main` restent inchangées. | GitHub : `5ffcc685cb3e6dcfe29c97231894b3ae9a0d78fe`, comparaison `ahead 1 / behind 0`, 4 fichiers ; Nightwatch : 0 incident ouvert | Checkpoint WP1-H publié ; branche feature prête pour la prochaine tranche P0 |
+| EV-PULSE-039 | 2026-08-27 | WP1-I — qualification de `move@draft` | La documentation officielle distingue le brouillon, non programmé tant qu'il n'est pas explicitement planifié, du post réellement présent dans une file. `movePostInQueue` est une opération expérimentale, limitée par son contrat aux posts en file. Croisée avec l'unique réponse réelle HTTP 200 `VoidMutationError`, cette distinction qualifie le refus comme frontière de capacité négative provisoire pour le seul tuple observé : Page Facebook sélectionnée, statut `draft`, position `bottom`. Le harnais conserve donc `draft_move_rejected`, `ok=false`, zéro retry et zéro fallback ; il ne généralise pas le refus au canal, aux autres statuts, à `top` ou à Buffer entier. | Documentation Buffer officielle `Create Draft Post`, `EditPostInput` et référence `movePostInQueue` revalidée ; Graphify relie mutation, normalizer, test et gates ; deux audits indépendants convergents | Décision locale acquise ; preuves partielles BUF-P0-06/07 ; tous les gates restent ouverts et WP2 bloqué |
+| EV-PULSE-040 | 2026-08-27 | Validation et hygiène WP1-I | Le contrat existant reste inchangé et toutes ses branches de move sont conservées : le refus `VoidMutationError` est vivant en réel, tandis que le succès, les réponses ambiguës et les autres erreurs typées restent couverts pour détecter une dérive future. Deux audits indépendants ne démontrent aucun nouvel import, symbole, test ou chemin supprimable ; aucune suppression spéculative n'est effectuée. La tranche ne modifie aucun fichier PHP et n'exécute aucune mutation Buffer. | Buffer ciblé 168/168 ; Node complet 365/365 ; `node --check`, JSON, index de 232 documents et `git diff --check` verts ; Graphify actualisé ; Nightwatch : 0 incident ouvert | Décision et documentation prêtes à committer uniquement sur la branche feature ; zéro nouveau code mort démontré |
+| EV-PULSE-041 | 2026-08-27 | Publication et vérification distante WP1-I | La décision de capacité, la matrice P0, l'ADR, la vue visuelle, le statut documentaire et l'index sont publiés uniquement sur la branche feature. GitHub confirme le checkpoint complet, exactement quatre fichiers et un écart d'un commit depuis WP1-H. Nightwatch ne signale aucun incident ouvert ; `develop` et `main` restent inchangées. | GitHub : `c2d071a0948ef93818a93cdbd9f1425d2507abbe`, comparaison `ahead 1 / behind 0`, 4 fichiers ; Nightwatch : 0 incident ouvert | Checkpoint WP1-I publié ; branche feature prête pour la préparation sûre d'un essai sur post réellement en file |
+| EV-PULSE-042 | 2026-08-27 | Découplage du gate de construction WP2-A | L'instruction exacte de Jules — « si tu na pas besoin de moi pour le passer je te donne le go pour continuer » — autorise la poursuite dans le périmètre borné de la section 18.1. Seuls le port métier provider-neutral, ses DTO/résultats minimaux et un fake déterministe peuvent être développés et testés sur la branche feature. WP2-A ne lit, n'accepte et ne transmet aucun credential ; il n'ajoute aucun appel Buffer réel, schéma, route, job, binding runtime, pilote, cutover ou production. Les dix BUF-P0 restent ouverts et ne sont pas présentés comme fermés. | GO utilisateur borné par la section 18.1 ; Graphify sur les gates et la fondation ; deux audits indépendants | `GO_WP2A_CONTRACT_FAKE_LOCAL_ONLY` accepté ; runtime Buffer, pilote et production toujours NO-GO |
+| EV-PULSE-043 | 2026-08-27 | WP2-A — contrat/fake local | Un port de création social provider-neutral relie un DTO text-only à un résultat strictement `submitted` ou `unknown`. Les factories imposent tenant et connexion locale positifs, routage organisation/canal, texte et clé d'idempotence non vides, mode immédiat ou programmé et instants UTC immuables. Le fake reste dans le test, consomme ses résultats en FIFO, enregistre les appels exacts et échoue fermé. La contre-revue a supprimé le statut `rejected` sans taxonomie, remplacé la blacklist de secrets par une allowlist exacte et neutralisé le nom de connexion afin de ne pas anticiper WP2-B. Aucun client/appel HTTP, accès DB, config, route, job, événement ou binding runtime n'est ajouté. | 9 tests WP2-A / 57 assertions ; 26 tests sociaux ciblés / 187 assertions ; Pint sur 4 fichiers ; PHPStan 904/904 sans erreur ; Graphify 32 165 nœuds / 66 584 arêtes / 1 805 communautés et sous-graphe WP2-A de 25 nœuds / 44 arêtes ; deux contre-revues sans blocant résiduel | WP2-A validé localement ; aucun BUF-P0 fermé, WP2-C/runtime Buffer toujours NO-GO |
+| EV-PULSE-044 | 2026-08-27 | Publication et vérification distante WP2-A | Les checkpoints de décision et d'implémentation WP2-A sont publiés uniquement sur la branche feature. GitHub confirme le commit fonctionnel complet et une tête distante strictement identique ; le suivi Git local/distant est synchronisé. Nightwatch ne signale aucun incident ouvert sur `Malikia pro dev`. `develop` et `main` restent inchangées et non ciblées. | GitHub : `7725e16ef5e6abcc41bca6be7404b97e699a3c10`, comparaison branche `ahead 0 / behind 0` ; Git `0/0` ; Nightwatch : 0 incident ouvert | Checkpoint WP2-A publié ; prochaine construction Buffer toujours soumise aux gates WP2-B/WP2-C |
+| EV-PULSE-045 | 2026-08-27 | Hypothèse propriétaire/payeur du compte Buffer | Le GO général de poursuite permet d'avancer sur l'inventaire avec l'option recommandée comme hypothèse de cadrage : chaque client détiendrait et paierait son propre compte Buffer. Jules n'a pas encore formulé ce choix de manière explicite ; il ne s'agit donc pas d'une validation produit. `BUF-P0-10` reste ouvert sur le propriétaire/payeur, le prix, le plan, la capacité, les prérequis et le parcours. | GO utilisateur du 27 août 2026 ; hypothèse annoncée avant la tranche ; ADR-PULSE-006 | Hypothèse de travail seulement ; confirmation produit et preuves commerciales toujours ouvertes |
+| EV-PULSE-046 | 2026-08-27 | Pré-WP2-B — outil et inventaire legacy local | La commande opérateur `pulse:buffer:inventory-legacy` produit un relevé agrégé et borné des connexions, cibles, références connues d'automations/modèles et jobs exacts `PublishSocialPostTargetJob` de la queue configurée `social-publish`. Le domaine est lu dans une transaction, les références sont traitées par lots de 500, les réservations expirées sont distinguées et tout candidat de queue préfiltré mais illisible est signalé. La queue est capturée séparément en un passage et n'est pas prétendue atomique avec le domaine lorsqu'elle utilise une autre connexion. Aucune valeur de ligne, credential ou identifiant distant n'est exposée : la sortie contient seulement des agrégats, des libellés plateforme/statut et des métadonnées techniques de capture/queue. Chaque exécution exige la confirmation opérateur `--confirm-read-only-scan`, indépendamment de `APP_ENV` ou de l'option globale `--env`, et reste réservée à une base locale, un clone ou un environnement approuvé. L'exécution read-only sur la base MySQL locale courante relève 1 connexion Instagram déconnectée/inactive, 18 cibles dont 5 futures, 0 orpheline, 0 écart tenant, 0 référence legacy active ou malformée et 0 job de publication en queue. Cette base locale ne remplace pas un clone représentatif. | 6 tests SQLite / 98 assertions ; PHPStan ciblé sans erreur ; Pint 3/3 ; commande MySQL locale read-only ; deux contre-revues | Outil et base locale courante inventoriés ; test automatisé/clone MySQL représentatif et WP2-B schéma restent à faire ; aucun BUF-P0 fermé |
+| EV-PULSE-047 | 2026-08-27 | Publication et vérification distante pré-WP2-B | Le service d'inventaire, sa commande à confirmation opérateur, ses tests et les documents d'avancement sont publiés uniquement sur la branche feature. GitHub confirme que la branche distante est strictement identique au commit fonctionnel et que les sept fichiers attendus composent le checkpoint. Le suivi Git local/distant est synchronisé ; Nightwatch ne signale aucun incident ouvert sur `Malikia pro dev`. Aucun statut CI GitHub n'est encore rapporté pour ce commit. `develop` et `main` restent inchangées et non ciblées. | GitHub : `84fab9fafc3992fdba338b498ac9033b0b48af02` ; depuis le checkpoint précédent : `ahead 1 / behind 0`, 7 fichiers ; tête de branche : `ahead 0 / behind 0` ; Git `0/0` ; 61 tests sociaux / 437 assertions ; PHPStan 905/905 ; `composer qa:format` 29/29 ; Nightwatch : 0 incident ouvert | Checkpoint pré-WP2-B publié ; confirmation produit, clone représentatif et gate schéma WP2-B toujours en attente |
+| EV-PULSE-048 | 2026-08-27 | Décision produit propriétaire/payeur | Jules confirme explicitement que chaque client possède et paie son propre compte Buffer et retient cette option comme meilleure solution pour le MVP. La partie propriétaire/payeur de `BUF-P0-10` est acquise et ADR-PULSE-006 devient acceptée pour le MVP. Le prix, le plan requis, la capacité, les prérequis et le parcours client restent ouverts pour le runtime distant, le pilote, la production et la généralisation. Cette décision seule ne vaut ni `GO_WP2B_SCHEMA_LOCAL_ONLY`, ni autorisation d'appel Buffer. | Confirmation utilisateur explicite du 27 août 2026 ; ADR-PULSE-006 ; BUF-P0-10 | Propriétaire/payeur confirmé ; clone représentatif, preuve MySQL et gate schéma toujours en attente |
+| EV-PULSE-049 | 2026-08-27 | Compatibilité MySQL réelle et revue WP2-B | La CI dite MySQL était en réalité forcée sur SQLite par `phpunit.xml`. Les valeurs SQLite restent les valeurs sûres par défaut, mais une exécution explicitement configurée peut désormais utiliser MySQL. Un garde pré-migration refuse tout environnement autre que `testing` et toute base sans marqueur `test`, `testing` ou `ci`; un second garde compare le driver résolu au driver attendu. Le runner MySQL Windows porte le même invariant et la CI appelle Pest directement avec 512 Mo. L’inventaire Pulse rejoint la matrice MySQL. Le rejeu isolé local sur `mlkpro_v3_wp2b_test` confirme 171 tests et 1 618 assertions sur le driver `mysql`; la base temporaire est ensuite supprimée et son absence vérifiée. La matrice ciblée SQLite confirme 21 tests et 114 assertions. Deux revues indépendantes bornent la future migration à trois champs de transport nullable sans défaut sur connexions et cibles, avec backfill fail-closed; aucun index n'est ajouté sans inventaire représentatif et `EXPLAIN`. Une branche `provider_label` strictement identique a été retirée et 22 tests sociaux / 236 assertions confirment le contrat. Le rejeu SQLite global termine avec 1 644 tests verts et reproduit deux échecs historiques hors Pulse et hors fichiers modifiés : le test `ProductSalesKpiTest` appelle la route absente `service.show`, et `SavedSegmentUiPhaseThreeTest` attend un accès membre désormais refusé par le résolveur de répertoire client. Aucun appel Buffer, migration ou backfill n’est introduit. | Vraie matrice MySQL locale ; garde-fous positifs/négatifs ; revues consommateurs et migration/backfill ; tests sociaux ciblés ; replay global diagnostiqué | Gate d’exécution MySQL acquis ; clone représentatif et queues externes/anciennes toujours requis avant le GO schéma |
+| EV-PULSE-050 | 2026-08-27 | Publication et vérification distante décision/MySQL | La décision propriétaire/payeur, le vrai runner MySQL, ses garde-fous, la couverture d’inventaire et le nettoyage de la branche morte Pulse sont publiés uniquement sur la branche feature. GitHub confirme le SHA fonctionnel exact et les onze fichiers attendus, avec un seul commit d’avance sur le checkpoint pré-WP2-B. Le suivi Git local/distant est synchronisé. Aucun statut ni workflow GitHub n’est rapporté pour ce push de branche feature ; Nightwatch ne signale aucun incident ouvert sur `Malikia pro dev`. `develop` et `main` restent inchangées et non ciblées. | GitHub : `4296d46774fadec44761b80d18573d74fdc90ebb`, comparaison depuis `d7e55f6e2915ec43e9a1b6eadc344008a5452e11` : `ahead 1 / behind 0`, 11 fichiers ; Git `0/0` ; MySQL 171 tests / 1 618 assertions ; SQLite ciblé 21/114 ; social ciblé 22/236 ; PHPStan 905/905 ; `composer qa:format` 32/32 ; Nightwatch : 0 incident ouvert | Checkpoint fonctionnel publié ; clone représentatif et queues externes/anciennes restent requis avant le GO schéma |
+| EV-PULSE-051 | 2026-08-28 | Pré-WP2-B — ciblage explicite des queues legacy | La commande d’inventaire accepte désormais une connexion configurée et un nom de queue explicites via `--queue-connection` et `--queue`, tout en conservant la queue sociale courante par défaut. Une queue `database` renommée est inspectée avec les mêmes agrégats bornés ; une queue externe est déclarée non mesurable sans instancier son driver ni ouvrir de connexion. Les connexions inconnues, sans driver ou aux noms invalides et les noms de queue contenant des caractères de contrôle sont refusés avant le scan du domaine. La sortie humaine identifie le couple inspecté et la sortie JSON n’expose aucune option sensible de la connexion. Aucun nom de queue n’est découvert automatiquement : l’opérateur doit encore fournir la liste exhaustive issue du clone et des environnements concernés. Aucun appel Buffer, migration ou backfill n’est ajouté. | 12 tests / 139 assertions sur SQLite puis sur MySQL réel isolé ; base `mlkpro_v3_wp2b_test` supprimée et absence vérifiée ; PHPStan 905/905 ; Pint 3/3 ; documentation Laravel 12 des options Artisan revalidée | Outil de ciblage unitaire validé localement ; clone représentatif et preuves effectives des queues externes/anciennes toujours requis avant le GO schéma |
+| EV-PULSE-052 | 2026-08-28 | Publication et vérification distante du ciblage de queues | Le ciblage explicite de queues legacy, ses refus fail-closed, ses tests MySQL/SQLite et les documents d’avancement sont publiés uniquement sur la branche feature. GitHub confirme le SHA fonctionnel exact, les sept fichiers attendus et un seul commit d’avance sur le checkpoint documentaire précédent. Le suivi Git local/distant est synchronisé. Aucun statut ni workflow GitHub n’est rapporté pour ce push de branche feature ; Nightwatch ne signale aucun incident ouvert sur `Malikia pro dev`. `develop` et `main` restent inchangées et non ciblées. | GitHub : `f12f64ff9997abc12943a1f64a5da9bb39a4727f`, comparaison depuis `483fd63f022fc4274a67fa917ba64ae6dac8fbaa` : `ahead 1 / behind 0`, 7 fichiers ; Git `0/0` ; SQLite et MySQL ciblés 12 tests / 139 assertions chacun ; Pulse/social 43/432 ; PHPStan 905/905 ; `composer qa:format` 32/32 ; Nightwatch : 0 incident ouvert | Checkpoint fonctionnel publié ; inventaire effectif du clone et des queues réelles toujours requis avant le GO schéma |
+| EV-PULSE-053 | 2026-08-28 | BUF-P0-10 — référence commerciale et parcours Facebook-only | Les pages officielles Buffer confirment une facturation par canal, l’accès API sur tous les plans, les files et quotas publiés, ainsi que le parcours OAuth tiers. Pour une Page Facebook, `Essentials` devient le minimum **recommandé** côté client en production : 6 USD/mois en facturation mensuelle ou 60 USD/an pour un canal et 5 000 publications planifiées par canal. `Free` reste admissible seulement pour un pilote borné à une Page, dix publications planifiées en file et une charge API mesurée. `Team` n’est pas le choix client par défaut tant que Pulse reste l’autorité d’approbation, mais peut rester nécessaire pour la collaboration Buffer ou, côté organisation qui enregistre l’app Malikia, pour davantage d’app clients et de quota. Le client doit disposer d’un compte Buffer actif, connecter une Page Facebook au moyen d’un profil Meta ayant le contrôle total et accepter les permissions demandées. Malikia doit enregistrer son propre app client OAuth, publier sa politique de confidentialité, déclarer ses redirect URI et utiliser Authorization Code + PKCE avec scopes minimaux et refresh token rotatif à usage unique. L’aide Buffer indique que le quota de chaque app client dépend du plan de l’organisation où il a été créé ; elle ne précise pas publiquement si plusieurs grants OAuth de cet app partagent exactement le même bucket. Le paiement du compte de chaque client ne prouve donc pas la capacité agrégée de l’app Malikia. Une page marketing isolée affiche encore 100 requêtes/jour pour `Free`, alors que la référence développeur, la page tarifaire, l’aide opérationnelle et les headers authentifiés d’EV-PULSE-017 convergent vers 250 ; les headers runtime restent l’autorité. Aucun code produit n’est ajouté ou modifié et aucune suppression spéculative de code mort n’est effectuée. | Sources officielles consultées le 28 août 2026 : [tarifs](https://buffer.com/pricing), [plans et fonctionnalités](https://support.buffer.com/en-us/articles/buffer-pricing-and-features-6pJrOPuzIt), [facturation USD et taxes](https://support.buffer.com/en-us/articles/why-was-i-charged-that-your-bill-taxes-and-vat-explained-YMilE1mo8m), [limites API](https://developers.buffer.com/guides/api-limits.html), [aide quotas par client](https://support.buffer.com/en-us/articles/troubleshooting-buffers-api-VgBuQXUCDI), [OAuth](https://developers.buffer.com/guides/authentication.html), [création de l'app client](https://support.buffer.com/en-us/articles/how-to-create-your-buffer-api-key-ShIgYVwM6j), [connexion Facebook](https://support.buffer.com/en-us/articles/connecting-your-facebook-page-to-buffer-8ORoqKxtzm), [limites de file](https://support.buffer.com/en-us/articles/how-many-posts-can-i-schedule-in-advance-Kmy2IEecqm) et [limites quotidiennes](https://support.buffer.com/en-us/articles/daily-posting-limits-kJ0JtpsdvD) ; Graphify ciblé ; Context7 et MCP Buffer non exposés dans cette session | Référence décisionnelle datée ; recommandation partageable avec réserves ; capacité OAuth multi-client, charge réelle et parcours pilote encore à valider |
+| EV-PULSE-054 | 2026-08-28 | Publication et vérification distante de la base commerciale | La référence de prix/plans, la séparation plan client/plan fournisseur, le parcours Facebook-only, la sensibilité de quota et les documents d’avancement sont publiés uniquement sur la branche feature. GitHub confirme le SHA exact, un seul commit d’avance sur le checkpoint précédent et exactement les quatre fichiers documentaires attendus. Aucun statut ni workflow GitHub n’est attaché à ce commit. Nightwatch ne signale aucun incident ouvert sur `Malikia pro dev`. Deux relectures indépendantes confirment les chiffres, les calculs, la traçabilité des sources, les statuts et le diagramme. Le lot ne touche aucun fichier PHP ou source : le gate PHP n’est pas applicable et aucune suppression de code mort n’est revendiquée. `develop` et `main` restent inchangées et non ciblées. | GitHub : `63fbb4ca94cf52f68e33bbdda167387523281f84`, comparaison depuis `075348282bbeac07387bfac146ad5877732f0fe4` : `ahead 1 / behind 0`, 4 fichiers ; Git `0/0` ; statuts 0 ; workflows 0 ; Nightwatch : 0 incident ouvert ; index documentaire 232 fichiers ; JSON et diff Git verts ; Graphify : 32 214 nœuds / 66 658 arêtes / 1 763 communautés | Base commerciale publiée ; `BUF-P0-10` reste partiel sur plan fournisseur, bucket OAuth multi-client, charge réelle, parcours pilote et acceptation produit |
+| EV-PULSE-055 | 2026-08-28 | BUF-P0-10 — instrumentation du budget logique | Le résultat du harnais Facebook expose désormais `api_request_evidence`, calculé uniquement à partir des états normalisés déjà produits et sans recopier token, identifiant distant, partition de quota ou payload. Il distingue préflight, cycle, nettoyage et réconciliation et compte les opérations GraphQL logiques tentées : 8 pour le cycle probatoire complet, 6 pour un `cleanup-only` complet, 4 lorsque la création reçoit un rejet typé et 3 lorsqu'un préflight complet s'arrête avant mutation. Indépendamment de ce compteur, la réserve conservatrice `REQUIRED_MUTATION_CAPACITY=8`, contrôlée après les trois probes, accepte exactement 8 et refuse chaque valeur de 0 à 7 ; ces deux valeurs égales n'ont pas la même sémantique. Une erreur de libération du verrou conserve désormais l'opération et le compteur déjà acquis au lieu de les remplacer par un faux zéro, et les enveloppes CLI d'erreur appliquent la même redaction que le résultat normal, y compris lorsqu'un token coïncide avec une valeur structurelle. Le mode `cleanup-only` conserve aussi son identité dans les erreurs antérieures au premier appel. Les matrices d'ambiguïté prouvent les totaux 4/5/6 pour inspect/delete/verify et 4/7/8 pour create/edit/move. Le compteur ne mesure ni les requêtes effectivement débitées par Buffer, ni le futur runtime de livraison/réconciliation, ni une capacité par client ; ces preuves restent ouvertes. La voie de contact officielle `developersupport@buffer.com` et les questions exactes sur le partage du bucket multi-grant et l'augmentation de limites sont préparées en section 5.10. Aucun appel distant, secret, migration, PHP ou transport Buffer n'est ajouté. | Lifecycle ciblé : 77/77 ; lifecycle + probe : 173/173 ; suite Node complète : 370/370 ; syntaxe Node, index documentaire, JSON et diff Git verts ; contre-revues indépendantes sur la sémantique du compteur, la sécurité des erreurs et la valeur des tests ; documentation Buffer officielle revalidée | Instrumentation locale acquise et durcie ; aucune action de Jules requise pour poursuivre localement ; consommation fournisseur, bucket OAuth, parcours pilote et acceptation finale restent ouverts |
+| EV-PULSE-056 | 2026-08-28 | Publication et vérification distante de l'instrumentation logique | L'instrumentation, ses durcissements de redaction/verrou, les tests d'ambiguïté et les documents d'avancement sont publiés uniquement sur `feature/pulse-buffer-refonte`. GitHub confirme le SHA, un commit d'avance sur le checkpoint précédent et exactement les six fichiers attendus. Le suivi Git local/distant est synchronisé ; aucun statut ni workflow GitHub n'est attaché au commit. Nightwatch ne signale aucun incident ouvert sur `Malikia pro dev`. L'audit ciblé ne trouve aucun helper inutilisé ni branche morte dans le lot ; aucune suppression spéculative n'est effectuée. Aucun fichier PHP n'est touché, donc le gate PHP n'est pas applicable. `develop` et `main` restent inchangées et non ciblées. | GitHub : `879d4a130b52553b2956efcf229465f1c2885fb8`, comparaison depuis `ec7f084a368b4145a380b10df8f85438cef890db` : `ahead 1 / behind 0`, 6 fichiers ; Git `0/0` ; statuts 0 ; workflows 0 ; Nightwatch : 0 incident ouvert ; 77/77, 173/173 et 370/370 tests Node ; index documentaire 232 fichiers / 0 bloqué ; JSON, syntaxe et diff Git verts ; Graphify à jour sans changement topologique résiduel | Checkpoint publié ; `BUF-P0-10` reste partiel sur consommation fournisseur, bucket OAuth multi-client, pilote et acceptation finale |
+| EV-PULSE-057 | 2026-08-28 | Clôture CI de la PR #140 | Le checkpoint `b11a9f35` de la branche feature passe réellement tous les jobs distants applicables. La PR reste ouverte et fusionnable vers `develop` ; aucune fusion dans `develop` ou `main` n'est revendiquée. | GitHub Actions quality #408 / run 33193371359 : `laravel-quality` vert avec 1 705 tests PHP / 19 793 assertions, 372 tests Node, PHPStan sans erreur, audit npm à 0 vulnérabilité et budgets verts ; `laravel-quality-mysql` vert avec 206 tests / 1 848 assertions ; `browser-smoke` vert avec 26 scénarios | `PR140_CI_VALIDATED` acquis pour `b11a9f35` |
+| EV-PULSE-058 | 2026-08-28 | Pré-WP2-B — manifeste multi-scopes v2 | Le contrat `pulse_legacy_inventory_v2` remplace les sélecteurs unitaires par `--queue-scope=*`. Une attestation de liste complète exige des scopes explicites ; l'ordre est canonique, le nombre borné, les doublons et alias database refusés, y compris lorsqu'ils ne diffèrent que par la casse sous une collation MySQL insensible à la casse. Le manifeste sépare source déclarée, fenêtre de capture, mesures séquentielles non atomiques et scopes externes non mesurables sans ouvrir leur driver. Les noms potentiellement sensibles sont remplacés par une empreinte SHA-256. Le stockage `failed_jobs` est aussi inventorié pour détecter tout ancien `PublishSocialPostTargetJob` rejouable. La base locale reste exploratoire : 1 scope database mesurable, 0 job en queue, 0 job social échoué, 0 anomalie de référence ou tenant ; aucune liste exhaustive ni représentativité n'est attestée. Aucun HTTP, binding, migration, backfill, transport Buffer ou changement du chemin de publication n'est ajouté. | 23 tests / 246 assertions ; PHPStan 913/913 ; syntaxe PHP et diff Git verts ; exécution MySQL locale read-only v2 ; documentation Laravel 12 des options répétables ; trois contre-revues architecture, sécurité et tests | `PRE_WP2B_MULTI_SCOPE_MANIFEST_LOCAL_VALIDATED` ; clone, preuves externes, qualification des failed jobs/anomalies et gate schéma toujours ouverts |
+| EV-PULSE-059 | 2026-08-28 | Réordonnancement du gate Facebook Data Deletion | L'audit confirme que `FacebookDataDeletionService` supprime actuellement toutes les connexions sociales `platform=facebook` du tenant lorsqu'une demande Meta vise la liaison Facebook Login. Une future ligne de canal Buffer Facebook serait donc vulnérable à une suppression hors contexte. Le découplage de l'identité Facebook Login, du transport direct et du futur canal Buffer est avancé avant WP3 et avant toute création de canal Buffer, avec test de non-régression obligatoire. La suppression complète d'un compte reste autorisée à supprimer toutes ses données. | Lecture du service, chemin de suppression et revue WP2C multi-agent ; aucun code modifié dans cette décision | Gate de séquence ajouté avant WP3 ; WP2-B legacy-only peut rester antérieur |
+| EV-PULSE-060 | 2026-08-28 | Validation intégrée locale du manifeste v2 | Le manifeste multi-scopes et son interface Artisan passent les matrices réellement utilisées par la CI, y compris MySQL, sans mutation de la base métier. L'exécution de contrôle sur la base locale reste strictement en lecture seule. La base MySQL temporaire créée uniquement pour reproduire la matrice GitHub a été supprimée et son absence vérifiée. Le scan n'ouvre aucun driver de queue externe, n'émet aucun appel Buffer et n'ajoute ni migration, ni binding, ni transport. L'audit de code mort ne trouve aucun élément de production supprimable avec preuve dans ce lot ; les anciens jobs et chemins restent conservés tant que les queues externes, `failed_jobs` et le clone représentatif n'ont pas démontré qu'ils sont vides. | Suite PHP SQLite : 1 716 tests / 19 900 assertions ; matrice PHP MySQL : 217 / 1 955 ; manifeste seul : 23 / 246 sur SQLite et MySQL ; Node : 372/372 ; navigateur : 26/26 ; PHPStan : 913/913 ; build Vite, budgets frontend, index documentaire et diff Git verts | `PRE_WP2B_MULTI_SCOPE_MATRIX_VALIDATED` ; audit npm réseau et trois jobs GitHub à confirmer sur le SHA publié |
+| EV-PULSE-061 | 2026-08-28 | Publication et validation distante du manifeste v2 | Le checkpoint fonctionnel est publié uniquement sur `feature/pulse-buffer-refonte`. GitHub valide le SHA exact sur les trois jobs applicables à la PR #140 : matrice principale SQLite, compatibilité MySQL et navigateur. Le contrôle distant confirme aussi le format PHP, l'audit npm réseau sans vulnérabilité, les tests Node, PHPStan, le build Vite et les budgets frontend. `develop` et `main` ne sont ni modifiées ni ciblées par ce push. | Checkpoint `652e61f1a7be8b4bef148317d7b884cb65865a80` ; quality #409 / run 33197355131 : 1 716 tests PHP / 19 900 assertions, 217 tests MySQL / 1 955 assertions, 372 tests Node, 26 scénarios navigateur, audit npm à 0 vulnérabilité, PHPStan, build et budgets verts | `PR140_CI_VALIDATED` acquis pour le manifeste v2 ; WP2-B schéma reste fermé jusqu'aux preuves représentatives |
+| EV-PULSE-062 | 2026-08-28 | Stabilisation transverse du gate PHP global | Les diagnostics techniques de synchronisation et de provisioning Stripe utilisent désormais un séparateur décimal canonique indépendant de `LC_NUMERIC`. Les tests reproduisent une locale numérique à virgule, exigent toujours `24.00` et restaurent la locale après exécution. Cette correction ferme l’unique régression globale observée sans modifier le domaine Pulse, le contrat Buffer, les migrations ou le transport. | 14 tests Stripe / 120 assertions ; suite PHP globale : 1 717 tests / 19 904 assertions ; PHPStan : 913/913 ; Pint et diff Git verts | Validation locale complète ; validation distante du nouveau checkpoint à confirmer |
+| EV-PULSE-063 | 2026-08-28 | Validation distante du gate PHP stabilisé | Le checkpoint `fdc4c146` passe les trois jobs applicables de la PR #140. La PR reste ouverte, fusionnable vers `develop` et non fusionnée ; `main` n'est ni ciblée ni modifiée. Cette clôture confirme la correction transverse sans ajouter de comportement Pulse ou Buffer. | GitHub Actions `quality` #411 / run 33200292384 : `laravel-quality`, `laravel-quality-mysql` et `browser-smoke` réussis ; SHA complet `fdc4c1468777bbbe046c259ab76a6d88e7dec070` | `PR140_CI_VALIDATED` confirmé sur le checkpoint courant |
+| EV-PULSE-064 | 2026-08-28 | Gouvernance — recommandations validées et pilotage en trois étapes | Jules valide explicitement la validation proportionnée au risque, l'usage d'un clone récent pseudonymisé de production plutôt qu'un scan direct de production, le recoupement de la liste des queues avec les sources d'exploitation et l'envoi du message préparé à Buffer sans token, secret, identifiant distant, valeur `pk` ni `client_id`. Le pilotage actif comporte désormais exactement trois macro-étapes ; l'Étape 1 démarre sur les preuves du pré-gate WP2-B. Les WP0 à WP7, EV-PULSE et BUF-P0 restent la traçabilité technique et les gates de référence, sans devenir des étapes supplémentaires. | Confirmation explicite de Jules ; GitHub MCP sur PR #140 et quality #411 ; relevé MySQL local historique à 18:59:53 UTC limité à la queue de publication : 1 scope database mesurable et vide, sans anomalie de référence ou tenant ; aucune migration, aucun backfill et aucun appel Buffer | Recommandations acceptées ; `MACRO_STEP_1_IN_PROGRESS` ; `WP2B_SCHEMA_GATE_PENDING` |
+| EV-PULSE-065 | 2026-08-28 | Étape 1 — inventaire local complet des workloads Pulse connus | Le manifeste v2 est étendu sans casser ses champs historiques : il classe séparément `PublishSocialPostTargetJob` et `GenerateSocialPostCandidateJob`, inspecte par défaut les queues courantes `social-publish` et `social-automation`, déduplique une queue physique partagée et refuse une attestation qui omet l'un des deux workloads. `failed_pulse_jobs` agrège les deux familles tandis que `failed_publications` reste la projection compatible. La classification repose sur le `displayName` Laravel exact ; les occurrences dans les données sérialisées ne sont pas comptées. Toute observation positive impose une politique ; sans candidat, seule une liste attestée dont tous les scopes sont mesurables ferme cette exigence, sinon le verdict reste indéterminé. Le contrat `logical_destination_key` est figé avec un vecteur reproductible. | 29 tests ciblés / 360 assertions sur SQLite et MySQL ; PHPStan 913/913 ; scan MySQL local read-only à 19:22:47 UTC : 2 scopes database mesurables, 0 job Pulse exact ou illisible en queue, 0 job Pulse exact ou illisible dans `failed_jobs`, 0 anomalie de référence/tenant, politique de queue indéterminée car liste non attestée ; base MySQL isolée de test supprimée et absence vérifiée ; payloads, credentials et identifiants distants exclus | `PRE_WP2B_PULSE_JOB_INVENTORY_LOCAL_VALIDATED` et `LOGICAL_DESTINATION_KEY_CONTRACT_FROZEN` acquis localement ; clone, topologie déployée et politiques externes toujours requis ; aucun GO WP2-B |
+| EV-PULSE-066 | 2026-08-28 | BUF-P0-02/10 — question fournisseur envoyée | Le message autorisé par EV-PULSE-064 est envoyé depuis le compte Gmail connecté à `developersupport@buffer.com`. Il décrit l'intégration SaaS multi-tenant et demande la partition des trois fenêtres de quota entre grants, la signification conceptuelle de `pk`, la voie d'augmentation des limites et l'effet d'un changement de plan sur les grants existants. Aucun token, secret, `client_id`, identifiant de compte/organisation/canal, request ID ni valeur `pk` n'est transmis. | Envoi Gmail confirmé avec label `SENT` le 28 août 2026 à 19:26 UTC ; aucun identifiant de message n'est persisté dans le dépôt | `BUFFER_SUPPORT_CONTACT_SENT` ; réponse écrite et décision de capacité toujours attendues ; aucun gate runtime ou pilote accordé |
+| EV-PULSE-067 | 2026-08-28 | Étape 1 — validation intégrée du checkpoint local | Le lot reste strictement limité à l'inventaire read-only et à sa documentation : aucune migration, aucun backfill, aucun binding Buffer, aucun changement de transport et aucune suppression de code legacy. Les formes v2 additives, le tri-state, les deux workloads, la confidentialité, la collation MySQL, la syntaxe, l'analyse statique, le format et l'index documentaire sont validés avant publication. | Suite PHP globale : 1 723 tests / 20 018 assertions ; inventaire ciblé : 29 / 360 sur SQLite et MySQL ; PHPStan : 913/913 ; `composer qa:format` sur 76 fichiers depuis `origin/develop` ; Pint dirty, syntaxe PHP, `git diff --check`, `git diff --cached --check`, JSON et index de 232 documents verts | Checkpoint local prêt à publier sur `feature/pulse-buffer-refonte` ; validation GitHub requise sur le nouveau SHA ; Étape 1 toujours en cours, aucun GO WP2-B |
+| EV-PULSE-068 | 2026-08-28 | Étape 1 — canonicaliseur et préflight d'identité logique | Le contrat figé de `logical_destination_key` devient un service Pulse unique, sans interface ni binding, et le manifeste v2 le consomme réellement pour chaque connexion legacy. Le scan SQL procède par lots de 500, mais la déduplication exacte conserve une empreinte par destination dérivable sur toute l'exécution : sa mémoire est donc O(N), fait désormais explicite à qualifier sur le clone avant le passage représentatif. Sa sortie ajoute uniquement `evaluated`, `derivable`, `derivation_failures` et `duplicate_or_collision_groups`. Une clé répétée deux fois ou davantage forme un seul groupe bloquant, y compris au-delà d'une frontière de chunk, sans tenter de distinguer doublon et collision puisque les deux interdisent le futur backfill. Aucune clé, préimage, valeur distante, metadata ou credential n'est émise. La même destination native dans deux tenants produit deux identités distinctes. Les contrôles sont interprétés comme la catégorie Unicode `Cc` après `trim()` et la limite de 191 comme des caractères Unicode après ce trim. | Canonicaliseur unitaire : 27 tests / 53 assertions ; inventaire SQLite : 32 / 381 ; matrice ciblée SQLite et MySQL : 59 / 434 ; PHPStan global : 914/914, 0 erreur ; le test d'inventaire couvre 502 connexions, un groupe répété trois fois à travers deux chunks, deux groupes distincts, un cas inter-tenant autonome et l'absence de mutation des colonnes d'identité ; scan MySQL local read-only : 1 connexion évaluée et dérivable, 0 échec, 0 groupe doublon/collision ; base MySQL isolée supprimée et absence vérifiée | `LOGICAL_DESTINATION_KEY_CANONICALIZER_LOCAL_VALIDATED` et `PRE_WP2B_IDENTITY_READINESS_LOCAL_VALIDATED` acquis ; le clone doit attester cardinalité et budget mémoire ou imposer une déduplication externe avant un volume incompatible ; preuve locale seulement, Étape 1 toujours en cours, aucun H1, aucune migration, aucun backfill et aucun trafic Buffer |
+| EV-PULSE-069 | 2026-08-28 | Validation distante du checkpoint d'inventaire précédent | Le checkpoint `42c2ef94` publié sur la branche feature passe les trois jobs applicables de la PR #140. La PR reste ouverte et fusionnable vers `develop` ; aucune fusion dans `develop` ou `main` n'est revendiquée. Cette preuve distante ferme la validation demandée par EV-PULSE-067 pour ce SHA uniquement ; elle ne couvre pas le lot local courant et n'accorde pas H1. | GitHub Actions `quality` #412 / run 33204336115 : `laravel-quality`, `laravel-quality-mysql` et `browser-smoke` réussis ; SHA complet `42c2ef94b4c924f8d9f5e5d039626bf6811ac4e4` | `PR140_CI_VALIDATED` confirmé sur `42c2ef94` ; validation distante du prochain SHA laissée à Jules ; aucun GO WP2-B |
+| EV-PULSE-070 | 2026-08-28 | Étape 1 — topologie Pulse configurée et historique local des queues | Le manifeste v2 projette désormais les deux workloads Pulse depuis la configuration Laravel effective. Il compte uniquement les profils de workers production déclarés, empreinte systématiquement les noms de queues, n'expose aucun nom de profil et porte en permanence `deployed_runtime_proven=false` et `requires_external_attestation=true`. Les compteurs ne sont jamais présentés comme un verdict de déploiement. L'historique Git suivi confirme que `PublishSocialPostTargetJob` utilise `social_publish` / `social-publish` depuis son introduction le 22 avril, que `GenerateSocialPostCandidateJob` utilise `social_automation` / `social-automation` depuis le 26 avril et que la centralisation du 27 juillet a conservé ces valeurs ; aucun renommage suivi de classe ou de queue Pulse n'est trouvé. Aucun manifeste de process manager n'est versionné : les overrides d'environnement historiques et les processus réellement déployés restent donc à attester par l'exploitation. | `queue:workload-audit --json` local : 2 workloads Pulse, un profil production `social`, aucune erreur de configuration ; inventaire SQLite : 33 tests / 402 assertions ; matrice canonicaliseur + inventaire SQLite/MySQL : 60 / 455 ; PHPStan 914/914 ; tests 0/1/2 profils, empreinte connue et absence du nom sensible en sortie ; historique local `e89e7d64`, `57b172c5`, `45015e7e` ; aucun fichier de déploiement/process manager suivi | `PULSE_CONFIGURED_TOPOLOGY_LOCAL_VALIDATED` acquis ; la topologie déployée, les overrides passés et les queues externes restent une preuve externe obligatoire ; aucun H1, aucune migration et aucun trafic Buffer |
+| EV-PULSE-071 | 2026-08-28 | Étape 1 — revalidation locale et frontière H1 confirmée | L'inventaire v2 est rejoué en lecture seule après le checkpoint de topologie. La provenance reste explicitement `local` et la liste des queues n'est pas attestée complète : ce relevé ne peut donc pas être promu en preuve représentative. Trois contre-revues indépendantes confirment qu'il ne reste aucun work item local réel avant H1 ; migrations, backfill et cycles de rollback dépendent volontairement du dossier représentatif et restent interdits avant le GO humain. L'audit local ne trouve aucun manifeste de process manager ni override déployé, et le worker de développement suivi n'a couvert `social-publish` qu'à partir du 27 juillet : son historique ne prouve donc pas la production et impose d'exclure explicitement tout backlog antérieur. Une recherche Gmail en lecture seule ne trouve encore aucune réponse de Buffer dans la fenêtre des sept derniers jours. Aucun accès GitHub n'est effectué. | Capture à 20:19:09 UTC : 1 connexion Instagram déconnectée/inactive et dérivable, 18 cibles sans anomalie tenant, 2 scopes database mesurables et vides, 0 job Pulse en queue ou dans `failed_jobs`, `operator_attested_complete_scope_list=false`, `deployed_runtime_proven=false` ; canari local `ready_with_requirements`, `evidence_eligible=false` ; commande terminée avec succès | Préparatifs locaux pré-H1 épuisés ; prochaine preuve légitime = clone représentatif et attestation d'exploitation ; aucun H1, aucune migration, aucun backfill et aucun trafic Buffer |
+| EV-PULSE-072 | 2026-08-28 | Étape 1 — décision H1 préproduction | Jules confirme explicitement que Pulse n’est pas encore utilisé en production et autorise la poursuite avec les données locales actuelles. Le clone de production, la topologie réellement déployée et les anciennes queues cessent donc d’être des préconditions de cette fondation locale : il n’existe ni trafic, ni backlog, ni données Pulse de production à préserver. Cette dérogation est bornée à la préproduction ; toute introduction ultérieure de données ou workers de production rouvrira le gate d’inventaire avant pilote ou cutover. | Confirmation explicite de Jules ; dernier inventaire local : 1 connexion dérivable, 18 cibles, 2 queues connues vides, 0 `failed_job`, 0 anomalie tenant | `GO_WP2B_SCHEMA_LOCAL_ONLY` accordé ; migrations/backfill locaux autorisés ; runtime Buffer, pilote et production toujours NO-GO |
+| EV-PULSE-073 | 2026-08-28 | Étape 1 — fondation WP2-B additive | Une migration additive unique ajoute `delivery_provider`, `transport_generation` et `logical_destination_key` comme colonnes nullable sans défaut sur connexions et cibles, sans index, trigger, canal ou credential. Un service et une commande séparés exécutent préflight, apply et rollback sous verrou global et transaction unique, avec CAS et rapport agrégé. Tous les writers directs audités écrivent ou copient l’identité ; la démo couvre explicitement son chemin `withoutEvents`; le worker direct refuse un snapshot absent ou divergent. Les modèles rendent le triplet complet et immuable après attribution, tout en laissant credentials et statuts mutables. Le scan local ne relève aucune anomalie ; 1 connexion et 18 cibles sont backfillées, puis le rejeu écrit 0 ligne. | SQLite : 45 tests WP2-B / 238 assertions puis 213 tests Pulse / 2 264 assertions ; MySQL isolé : 45 / 249 avec cycle DDL `up → down → up`, replay et rollback ; social login intact : 16 / 136 ; PHPStan 915/915 ; base MySQL isolée supprimée ; aucun job ni appel Buffer | `WP2B_SCHEMA_LOCAL_GREEN=true` ; `MACRO_STEP_1_COMPLETE` ; Étape 2 prête, sans activation distante |
+| EV-PULSE-074 | 2026-08-28 | Étape 1 — rectification de frontière | La revue de la spécification canonique constate que EV-PULSE-073 ferme correctement l’identité de transport, mais pas encore les points 5, 6 et 8 de la séquence technique : révisions éditoriales immuables, axes séparés, liens d’approbation et publication depuis un snapshot approuvé. L’Étape 1 est donc rouverte sans invalider les preuves d’identité déjà acquises. Le périmètre reste exclusivement local puisque Pulse n’est pas utilisé en production ; aucun clone, secret, export de topologie ou trafic Buffer n’est requis. | Migration additive et services de révision en construction ; test initial des invariants de révision : 3 tests / 17 assertions ; validation intégrée encore à exécuter | `MACRO_STEP_1_IN_PROGRESS` ; `EDITORIAL_FOUNDATION_IN_PROGRESS` ; Étape 2 en attente |
+| EV-PULSE-075 | 2026-08-28 | Étape 1 — fermeture de la fondation locale | La fondation éditoriale complète le triplet de transport sans réécrire une migration appliquée : révisions immuables, statuts éditorial/livraison/synchronisation séparés, pointeurs d’approbation et de cible, snapshot soumis approuvé obligatoire pour le worker, issues HTTP/réseau ambiguës en `unknown`, politique Autopilot capturée avant génération et revérifiée sous verrou. Une claim DB expirante avec fencing interdit à un ancien runner de committer. Les deux backfills écrivent leur provenance dans un ledger transactionnel, LIFO et fail-closed ; aucune donnée canonique sans ledger n’est supprimée et toute dérive ou nouveau consommateur bloque le rollback complet. Le schéma reste additif et conserve les colonnes appliquées `origin` et `approval_provenance`. La base locale est le périmètre accepté puisque Pulse n’est pas utilisé en production. | Backfill local : 18 posts, 18 révisions et 18 cibles écrits dans le batch 1, 0 anomalie ; rejeu : 18 canoniques et 0 écriture ; worker/scheduler suspendus puis repris. SQLite Pulse/social : 281 tests / 2 870 assertions ; démo concernée : 1 / 48 ; MySQL : matrice intégrée 148 / 1 336 puis sous-ensemble final affecté 84 / 910 ; PHPStan : 921/921 ; deux bases MySQL isolées supprimées et absence vérifiée ; aucun appel Buffer | `MACRO_STEP_1_COMPLETE` ; `EDITORIAL_FOUNDATION_LOCAL_GREEN=true` ; `MACRO_STEP_2_READY` ; runtime, pilote et production toujours NO-GO |
+| EV-PULSE-076 | 2026-08-28 | Étape 2 — découplage Facebook Data Deletion | Une demande Meta signée visant l’identité Facebook Login supprime désormais uniquement le `UserSocialAccount` Facebook correspondant. Elle ne supprime plus aucune `SocialAccountConnection`, qu’elle utilise le transport direct ou la future génération Buffer. L’option explicitement configurée de suppression complète du compte conserve son comportement global et efface bien les deux générations avec le tenant. Le contrat de réponse reste compatible : `deleted_facebook_social_connections=0` pour une suppression ciblée. Aucun modèle de social login, schéma, credential, client HTTP, gateway, binding ou trafic Buffer n’est ajouté ou modifié. | Test rouge reproduisant la suppression transverse, puis 4 tests / 39 assertions ciblés verts ; matrice de frontière Facebook Login, suppression Meta et OAuth Pulse : 28 / 236 ; suite Auth complète : 70 / 525 ; PHPStan ciblé et `composer qa:format` sur 114 fichiers verts | `MACRO_STEP_2_IN_PROGRESS` ; `FACEBOOK_DATA_DELETION_DECOUPLED_LOCAL` ; précondition WP3 acquise ; runtime, pilote et production toujours NO-GO |
+| EV-PULSE-077 | 2026-08-28 | Étape 2 — suppression d’un faux kill switch et relecture P0 | L’audit exhaustif trouve `PULSE_ENABLED=false` uniquement dans les enveloppes CI, PHPUnit, Playwright et MySQL PowerShell : aucune ligne applicative ne le lit. Ces cinq injections mortes sont retirées afin de ne pas présenter un faux mécanisme de suspension. L’entitlement tenant `social` reste intact ; les futurs switches connexion, synchronisation, livraison, réconciliation et pilote seront ajoutés avec leurs consommateurs réels, tous désactivés par défaut. La référence Buffer publique expose les requêtes de posts et leurs six statuts, mais aucune preuve de webhook ni de corrélation distante n’est acquise ; la boîte de support ne contient encore aucune réponse. Aucun gate P0 n’est fermé par absence documentaire. | Recherche dépôt complète : 0 référence `PULSE_ENABLED` résiduelle ; syntaxe Node, XML et YAML verte ; PowerShell local indisponible, validation laissée à la CI ; documentation Buffer officielle relue ; recherche Gmail read-only sans résultat | `DEAD_CONFIG_REMOVED` ; `P0_GATES_OPEN` ; aucun runtime, pilote, binding ou trafic Buffer |
+| EV-PULSE-078 | 2026-08-28 | Étape 2 — stratégie de réconciliation MVP prête | Deux audits indépendants convergent : l’absence de webhook dans la documentation n’est pas une preuve de capacité négative, mais la requête officielle `posts` permet une réconciliation par organisation, canal, statut et fenêtre temporelle. Le backend propose donc le polling adaptatif tenant-scopé avec synchronisation manuelle tant qu’aucun webhook officiel n’est confirmé. Le polling s’arrête sur les états terminaux, ne déclenche jamais de nouvelle création, respecte les trois fenêtres de quota et `Retry-After`, et bascule vers une action opérateur lorsqu’une création `unknown` ne possède aucun identifiant distant fiable. La proposition satisfait techniquement l’alternative prévue par `BUF-P0-03`, mais la gouvernance conserve le gate ouvert jusqu’à la validation explicite de Jules. | Références officielles Buffer [Posts & Scheduling](https://developers.buffer.com/guides/posts-and-scheduling.html), [référence GraphQL](https://developers.buffer.com/reference.html) et [limites API](https://developers.buffer.com/guides/api-limits.html) ; deux contre-revues contrat/spec ; confirmation « polling validé » demandée à Jules ; aucun appel authentifié, mutation, binding ou changement runtime | `BUFFER_ADAPTIVE_POLLING_PROPOSED` ; `BUF-P0-03_DECISION_READY` ; runtime, pilote et production toujours NO-GO |
+| EV-PULSE-079 | 2026-08-28 | Étape 2 — dossier juridique fournisseur préparé | La source légale publique Buffer confirme une licence pour les applications API, publie un lien vers un DPA à obtenir et valider, une liste de sous-traitants, une politique de rétention et des conditions API datées du 5 août 2026. Elle ne fournit ni SLA, ni engagement de support, ni protocole d’incident suffisant pour Malikia ; une clause sur les requêtes automatisées doit en outre être conciliée par écrit avec les guides officiels qui promeuvent OAuth et les automatisations. Ce dossier réduit l’inventaire restant mais ne vaut ni avis juridique, ni DPA exécuté, ni acceptation sécurité. | [Page légale Buffer](https://buffer.com/legal), DPA et sous-traitants référencés depuis cette page, [page de statut Buffer](https://support.buffer.com/en-us/articles/buffers-status-page-k8r7Kv54iJ) ; revue officielle limitée aux éléments publics | `BUFFER_LEGAL_DOSSIER_PREPARED` ; `BUF-P0-09` reste ouvert ; aucune donnée, aucun secret et aucun message externe |
+| EV-PULSE-080 | 2026-08-28 | Étape 2 — décision de réconciliation acceptée | En réponse directe à la demande de confirmation « polling validé », Jules répond « on continue ». Cette décision humaine accepte pour le MVP Facebook la stratégie exécutable d’EV-PULSE-078 et de la section 10.6 : polling adaptatif tenant-scopé, synchronisation manuelle par le même service idempotent, arrêt sur états terminaux et interdiction absolue de recréer depuis la réconciliation. Elle ferme l’alternative de gouvernance `BUF-P0-03` sans constituer une preuve de webhook, de quota suffisant ou de corrélation distante. Une nouvelle recherche de réponse fournisseur ne retourne aucun message Buffer ; les gates dépendant de cette réponse restent donc ouverts. | Confirmation explicite de Jules dans ce fil le 28 août 2026 ; ADR-PULSE-007 ; section 10.6 ; recherche Gmail Buffer read-only sans résultat ; aucun appel authentifié, mutation, binding ou changement runtime | `BUFFER_ADAPTIVE_POLLING_ACCEPTED` ; `BUF-P0-03_CLOSED` pour le MVP Facebook ; runtime, pilote et production toujours NO-GO |
+| EV-PULSE-081 | 2026-08-28 | Étape 2 — fondation outbox transactionnelle locale | Une migration additive crée l’outbox de livraison provider-neutral. La soumission d’une révision approuvée, le snapshot de cible et l’outbox sont écrits atomiquement ; seul un job `ShouldQueueAfterCommit` dédié et un dispatcher planifié exécutent ensuite l’opération. Le payload est chiffré et vérifié par empreinte, l’identité et l’idempotence sont immuables, et chaque transition compare un claim token avec sa version de fencing. Les leases expirées avant requête redeviennent `pending`; toute création possiblement émise devient `unknown`. Un résultat invalide après le début de requête et un `429` sans preuve d’absence d’effet restent eux aussi `unknown`, donc aucun second `POST` automatique n’est autorisé. Un `unknown` ne peut pas être supersédé par une nouvelle création tant qu’une vraie décision de réconciliation n’existe pas. Le sweeper est l’unique réparateur d’un worker disparu ; un marqueur durable permet aussi de reprendre l’agrégat terminal du post après crash. Un mutex par connexion sérialise publication, activation/désactivation, OAuth, refresh, test, déconnexion et remplacement local ; un verrou tenant empêche la création d’une connexion pendant la suppression complète. La suppression ordinaire d’une connexion conserve l’historique ; seule la suppression complète tenant-scopée purge explicitement l’outbox dans sa transaction. Les contrôles tenant/révision/transport précèdent les mutations métier et l’expurgation couvre les secrets usuels, cookies, signatures, URLs signées et clés privées. L’API locale refuse temporairement `update/cancel` tant que leurs handlers n’existent pas. Le transport `direct_v1` existant passe derrière cette outbox sans dual-write ; l’ancien job direct mort est supprimé après l’attestation de zéro usage/backlog Pulse en production, mais son nom historique reste reconnu par l’inventaire. Aucun client, secret, canal, binding ou trafic Buffer n’est ajouté. | Matrice affectée : 173 tests / 1 804 assertions ; outbox runtime : 16 / 133 ; migration + sanitizer + publication : 48 / 452 ; connexions et suppression : 28 / 213 ; parcours Pulse voisins : 81 / 1 006 ; PHPStan : 926/926 sans erreur ; Pint dirty : 65/65 ; `composer qa:format` : 127 fichiers sélectionnés, dont 66 sales, sans correction ; deux contre-revues sécurité/concurrence, aucun bloqueur P0/P1 final ; index documentaire et checks Git verts | `LOCAL_TRANSACTIONAL_OUTBOX_FOUNDATION_GREEN` ; `LOCAL_OUTBOX_CONCURRENCY_HARDENED` ; `DIRECT_DELIVERY_OUTBOX_BRIDGED` ; gateway/réconciliation Buffer, H2, runtime, pilote et production restent NO-GO |
+| EV-PULSE-082 | 2026-08-28 | Étape 2 — fermeture de l’implémentation locale | Une migration additive complète les cibles avec l’identité distante et le suivi de réconciliation. Un port strictement read-only, trois DTO provider-neutral, une cadence pure, un fake déterministe et un reconciler tenant-scopé rendent la stratégie acceptée exécutable sans aucun binding Buffer : claim/lease/fencing, snapshot de révision et de transport, rejet des résultats hors ordre, arrêt borné, synchronisation manuelle par le même chemin et revue opérateur immédiate lorsque l’identité distante manque. La réconciliation ne possède aucune méthode de création. `provider_post_id` est write-once et n’est jamais exposé à Vue ; les payloads ne publient que les axes éditorial, livraison et synchronisation normalisés. Composer, Calendrier, Historique et Inbox utilisent ces axes avec alertes accessibles ; un état `unknown` demande explicitement de ne pas republier. L’observabilité agrège outbox, leases, retards et réconciliations arrêtées sans exposer tenant, contenu ou identité distante. Le contrat temporel est corrigé : une heure `datetime-local` est résolue dans le fuseau IANA du tenant puis stockée en UTC, les instants avec offset restent compatibles et les heures DST inexistantes ou ambiguës sont refusées ; l’interface recharge la valeur locale canonique. Les clés de secret génériques sont interdites récursivement dans le payload outbox. Le transport direct persiste désormais l’identité distante normalisée sur la cible. Aucun client HTTP, OAuth Buffer, credential, canal Buffer, binding runtime, appel distant ou faux switch inactif n’est ajouté. | Matrice locale affectée : 113 tests / 978 assertions ; contrats UX/temps ciblés : 13 tests Node ; suite Node : 380/380 et build Vite verts avant le gate final ; migration additive `up → down → up` couverte ; revue architecture et sécurité sans P0 local ; validation globale laissée à Jules conformément à sa demande | `MACRO_STEP_2_LOCAL_IMPLEMENTATION_COMPLETE` ; `PROVIDER_NEUTRAL_RECONCILIATION_LOCAL_GREEN` ; `PULSE_STATUS_AXES_UX_GREEN` ; `PULSE_SCHEDULING_TIMEZONE_GREEN` ; `PULSE_DELIVERY_OBSERVABILITY_GREEN` ; le gateway Buffer concret, H2, runtime, pilote et production restent NO-GO |
+| EV-PULSE-083 | 2026-08-29 | Étape 2 — durcissement contradictoire et GO local final | La lecture distante réserve désormais son essai atomiquement avant l’appel fournisseur : une réponse arrivée après expiration du lease reste comptée, les plafonds `unknown=3` et `sending=5` sont absolus, y compris en synchronisation manuelle, et une contention ne consomme aucun essai ni ne réactive un polling arrêté. Le reconciler exige une outbox `create` exacte et courante — tenant, cible, dernière révision soumise, connexion, identité de transport et identifiant distant — avant toute lecture puis à nouveau sous mutex et dans la transaction d’application ; une outbox absente, cross-tenant, historique ou supersédée passe en revue opérateur sans lecture, ou sans appliquer une observation si elle disparaît après lecture. Toutes les mutations métier de cible utilisent un exécuteur transactionnel unique avec l’ordre de verrous `post tenant-scopé → cible → outbox` : l’outbox exacte réarme son marqueur de réparation dans le même commit ; le cas réellement sans outbox recalcule l’agrégat dans la transaction et rollback entièrement en cas d’échec. Seule l’outbox courante `unknown` peut être résolue par une observation terminale exacte ; une erreur distante certaine reste active et ne permet jamais de remapper la même cible. Un `dead` n’est récupérable que si ses quatre champs de résolution sont nuls. Les métriques distinguent l’historique des anomalies encore actives. Deux contre-revues successives ont reproduit puis fermé les fenêtres de crash, les contournements de plafond, les courses tenant/outbox et les chemins de récupération ; aucun P0/P1 local ne subsiste sur le fichier gelé. | Matrice locale finale : 145 tests / 1 359 assertions ; PHPStan : 935/935 sans erreur ; matrice ciblée indépendante : 111 / 1 079 ; Pint ciblé vert ; suite Node 380/380 et build Vite déjà verts, frontend inchangé par ce durcissement ; Graphify actualisé ; suite PHP globale laissée à Jules comme convenu | **GO local Étape 2 confirmé** ; `MACRO_STEP_2_LOCAL_IMPLEMENTATION_COMPLETE` reste acquis ; `MACRO_STEP_2_IN_PROGRESS`, les gates fournisseur, H2 et les NO-GO runtime/pilote/production restent inchangés |
+| EV-PULSE-084 | 2026-08-29 | Étape 3 — control-plane local fail-closed | Une migration additive crée le registre de cutover, les mappings et les événements immuables avec FK composites tenant-scopées, contraintes MySQL nommées et rollback protégé. Les transitions locales disponibles sont volontairement limitées à l’initialisation legacy, au hold d’urgence et à sa reprise explicite : aucun fallback automatique. Elles sont réservées à l’owner du tenant ou au superadmin afin qu’un membre ordinaire ne devienne pas un acteur d’audit impossible à supprimer ; H2 et H3 restent réservés au superadmin de delivery, et chaque événement exige un acteur conservé par FK restrictive. Les verrous tenant puis connexions linéarisent le changement d’autorité avec la création d’outbox et l’appel fournisseur ; une outbox arrêtée avant requête est suspendue puis ne peut être réarmée qu’après résolution des effets ambigus et décision opérateur auditée. La policy exige l’identité exacte connexion + `logical_destination_key`, une preuve owner/shadow complète, la couverture exhaustive des connexions directes actives et une chronologie ordonnée. H2 enregistre aussi le SHA-256 déterministe du manifeste exact de mappings ; toute mutation, y compris dans la même seconde que H2, invalide policy et readiness. La readiness ne sort que des agrégats expurgés, refuse les références inconnues, cross-tenant, dupliquées, incomplètes ou Buffer non mappées, et maintient le drain à NO-GO tant que la barrière des writers et la fenêtre d’observation ne sont pas prouvées. La suppression ciblée Facebook Login conserve ce registre ; seule la suppression complète du tenant le purge dans sa transaction. Le champ legacy redondant non tenant-scopable et la méthode de policy inutilisée ont été retirés avant livraison ; aucun faux writer shadow, handler Buffer, H2, pilote, drain ou H3 n’est simulé. Le transport direct reste nécessaire et n’est donc pas du code mort. | Cœur Step 3 : 26 tests / 278 assertions ; matrice affectée : 113 / 1 054 ; PHPStan : 942/942 sans erreur ; courses pendant l’appel fournisseur et pendant hold/reprise couvertes ; migration ajoutée à la gate MySQL ; deux contre-revues indépendantes sans P0/P1 résiduel reproductible ; suite globale laissée à Jules comme convenu | `MACRO_STEP_3_LOCAL_CONTROL_PLANE_GREEN` ; `MACRO_STEP_3_OPERATIONAL_NO_GO` ; runtime Buffer, H2, pilote, drain réel, H3 et production restent NO-GO |
+| EV-PULSE-085 | 2026-08-29 | Étape 3 — durcissement contradictoire du cutover | L’audit révèle que les états avancés pouvaient être fabriqués par les tests sans prouver les résultats réels du canary et que le hold ne savait reprendre que `direct_v1`. Une migration strictement additive ajoute l’état de reprise, les snapshots immuables d’autorité H2/H3, les mesures observées du canary et les preuves ordonnées de barrière/drain. Le hold conserve désormais l’état exact ; la reprise réarme uniquement les générations encore autorisées pour les effets existants dans cet état, et toute ambiguïté tenant-wide maintient le hold, y compris au rejeu. L’état `awaiting_h3` sépare enfin « drain prouvé » de « H3 signé et direct retiré » et interdit tout nouvel effet direct. H3 exige le runtime candidat, le mapping figé et zéro ambiguïté. Une preuve H2 même partielle fige les mappings. Un snapshot décisionnel tenant est pris sous mutex ; le retrait du handler direct possède un rapport global séparé, structurellement NO-GO tant que la barrière globale des writers n’existe pas. Les observations canary négatives sont refusées par le domaine et testées sans écrire une valeur hors plage dans la colonne MySQL `unsigned`. Les migrations unitaires utilisent uniquement leur préhistoire chronologique, ce qui retire deux faux échecs causés par le chargement de migrations futures dépendantes. Aucun writer H2/canary/drain, gateway, OAuth ou trafic Buffer n’est inventé. | Cœur Step 3 : 33 tests / 362 assertions ; matrice Social/Pulse : 405 / 4 068 ; frontend ciblé : 13/13 et build Vite vert ; PHPStan : 942/942 ; `composer qa:format` : 160 fichiers sélectionnés ; migration opérationnelle ajoutée à la gate MySQL ; wrapper direct devenu mort supprimé ; deux contre-audits finaux sans P0/P1 reproductible | `MACRO_STEP_3_LOCAL_CONTROL_PLANE_GREEN` renforcé ; exécution toujours `MACRO_STEP_3_OPERATIONAL_NO_GO` jusqu’au runtime réel, aux preuves fournisseur, à H2, au pilote, au drain et à H3 |
+| EV-PULSE-086 | 2026-08-29 | Étape 3 — réparation et preuve MySQL de la migration | L’échec MySQL `1059` provenait d’une ancienne exécution où Laravel avait généré un nom de FK de 69 caractères. MySQL avait auto-commité deux tables partielles vides sans enregistrer la migration. Après vérification de zéro ligne et du statut `Pending`, seul le `down()` ciblé de `045009` a retiré ces artefacts ; ni `migrate:rollback` ni `migrate:fresh` n’ont été utilisés. Les migrations courantes nomment explicitement leurs 10 FK et 11 index, avec une longueur réelle maximale de 45 caractères. Le `up()` refuse désormais avant toute nouvelle écriture la présence d’une table partielle ; le `down()` refuse de supprimer si l’une des trois tables contient une ligne. Le test contrôle les colonnes et l’unicité exactes des index, les noms FK MySQL réels, tous les identifiants et le parcours fail-fast → préservation → récupération → recréation. | MySQL applicatif : `045009` et `061232` `DONE`, deux enregistrements, trois tables et colonnes opérationnelles présentes, 10 FK attendues, 0 ligne ; MySQL isolé : 2 tests / 105 assertions, base temporaire supprimée ; cœur Step 3 : 33 / 408 ; matrice Social/Pulse : 405 / 4 114 ; PHPStan 942/942 ; `composer qa:format` 160 fichiers ; checks Git verts ; deux contre-revues finales sans P0/P1 | Incident `1059` fermé ; `MACRO_STEP_3_LOCAL_CONTROL_PLANE_GREEN` confirmé ; le runtime Buffer, H2, le pilote, le drain réel, H3 et la production restent NO-GO |
+| EV-PULSE-087 | 2026-08-29 | Ouverture de la recette locale Pulse | Le workspace local Studio Naya disposait déjà de l’entitlement `social`. Une connexion Facebook de test a été créée par le service applicatif prévu à cet effet sur le transport `direct/direct_v1`, et les permissions manquantes ont été ajoutées à deux membres distincts pour couvrir publication et approbation sans retirer leurs droits existants. Le worker de développement couvre `social-publish` et `social-automation`, le scheduler est actif et aucun backlog ou échec Pulse n’est présent. Le publisher local simule la réponse fournisseur : aucun appel, credential ou trafic Facebook/Buffer n’est ajouté. | Parcours Pulse/Social ciblé : 396 tests / 4 011 assertions ; Node : 380/380 ; build Vite : 2 662 modules ; connexion Facebook de test active ; worker et scheduler actifs ; 0 outbox Pulse en attente et 0 job Pulse échoué au moment de l’ouverture | `PULSE_LOCAL_ACCEPTANCE_READY` : Jules peut tester le parcours complet Malikia sur la plateforme locale ; les gates Buffer, H2, pilote réel, H3 et production restent strictement NO-GO |
+
+Les statuts inscrits dans les événements antérieurs sont historiques. EV-PULSE-042 remplace leur verdict de construction WP2-A. EV-PULSE-048 remplace l'hypothèse de cadrage d'EV-PULSE-045 pour le seul propriétaire/payeur. EV-PULSE-049 ferme le défaut du runner MySQL, mais ne transforme pas la base locale synthétique en clone représentatif. EV-PULSE-050 publie ce lot fonctionnel sans accorder le gate schéma. EV-PULSE-051 prépare l’inventaire explicite de chaque queue connue ; EV-PULSE-058 remplace son interface unitaire par le manifeste multi-scopes v2 sans prétendre découvrir la liste ni mesurer les drivers externes. EV-PULSE-052 publie la version unitaire historique sans fermer le gate schéma. EV-PULSE-053 documente les prix, le plan recommandé et les prérequis de `BUF-P0-10`, mais ne vaut ni confirmation de capacité OAuth multi-client, ni validation du parcours pilote. EV-PULSE-054 publie cette base commerciale sans fermer les preuves restantes ni autoriser le runtime Buffer. EV-PULSE-055 rend le budget logique du harnais directement observable sans le confondre avec une mesure de consommation fournisseur ou du futur runtime. EV-PULSE-056 publie cette instrumentation sans fermer les preuves opérationnelles restantes. EV-PULSE-057 clôt la validation CI du checkpoint `b11a9f35`. EV-PULSE-059 impose le découplage Facebook Data Deletion avant la création de tout canal Buffer ; EV-PULSE-076 l’implémente et le valide localement sans autoriser le runtime. EV-PULSE-077 supprime le faux kill switch sans lecteur et confirme qu’une absence documentaire ne ferme aucun gate. EV-PULSE-078 rend la décision de polling adaptatif avec synchronisation manuelle exécutable et prête à fermer `BUF-P0-03`, sans inventer un webhook absent ni fermer les preuves de quota et de corrélation. EV-PULSE-079 prépare le dossier public de `BUF-P0-09`, qui reste soumis à validation juridique et sécurité. EV-PULSE-080 consigne la confirmation explicite de Jules et ferme `BUF-P0-03` pour le MVP Facebook ; les preuves distinctes de quota, corrélation et parcours restent ouvertes. EV-PULSE-081 valide la fondation outbox locale et le pont `direct_v1` sans accorder d’intégration Buffer : le gateway, la corrélation distante, les capacités, H2, le pilote et la production restent soumis à leurs gates. EV-PULSE-060 consolide les validations locales du manifeste v2 sans fermer le gate du clone représentatif ni celui des queues externes. EV-PULSE-061 clôt sa validation distante sur `652e61f1` sans autoriser WP2-B. EV-PULSE-062 stabilise uniquement le gate PHP transverse face aux locales numériques à virgule et n’accorde aucun gate Buffer supplémentaire. EV-PULSE-063 clôt sa validation distante sur `fdc4c146`. EV-PULSE-064 remplace le pilotage opérationnel granulaire par trois macro-étapes sans modifier les invariants ni accorder le gate WP2-B. EV-PULSE-065 étend la preuve locale aux deux workloads Pulse connus et fige le contrat de destination logique sans prétendre découvrir la topologie déployée. EV-PULSE-066 envoie la question fournisseur autorisée sans secret et laisse la capacité en attente de réponse. EV-PULSE-067 ferme les validations locales intégrées du checkpoint sans fermer H1 ni autoriser WP2-B. EV-PULSE-068 rend le contrat de clé exécutable dans le preflight read-only, sans transformer la preuve locale en preuve représentative ni accorder une écriture de schéma. EV-PULSE-069 ferme la validation distante demandée par EV-PULSE-067 sur `42c2ef94`, sans couvrir le lot local suivant ni accorder H1. EV-PULSE-070 ajoute la preuve de configuration effective et ferme l'historique local suivi sans confondre profils déclaratifs et processus déployés. EV-PULSE-071 confirme que les préparatifs locaux pré-H1 sont épuisés. EV-PULSE-072 remplace l’exigence de clone pour cette étape locale par l’attestation explicite qu’aucun usage Pulse de production n’existe. EV-PULSE-073 exécute et valide l’identité de transport WP2-B sous cette hypothèse, sans accorder aucun runtime Buffer. EV-PULSE-074 rectifie la frontière ; EV-PULSE-075 la remplace comme verdict courant et ferme l’Étape 1 sur la fondation éditoriale complète.
+
+### 0.1 Gate de déploiement WP0-S
+
+Pour le seul lot de sécurité WP0-S, le code courant est **GO uniquement pour un déploiement atomique sous maintenance**. Ce GO limité ne vaut ni GO fondation Buffer, ni GO pilote, ni autorisation de mise en production globale :
+
+1. arrêter l’entrée de nouveaux callbacks OAuth et drainer les workers et nœuds web anciens ;
+2. attendre ou invalider la fenêtre OAuth engagée de 15 minutes ;
+3. déployer les deux migrations et le code dans la même fenêtre, avec la même `APP_KEY` et, en cas de rotation, les anciennes clés conservées dans `APP_PREVIOUS_KEYS` ;
+4. exécuter les contrôles de migration et de connexion, puis reprendre le trafic.
+
+Le déploiement rolling/zero-downtime du lot courant est **NO-GO** : le nouveau writer place le verifier dans le champ chiffré dédié alors que l’ancien callback ne lit que `metadata`.
+
+L’alternative rolling exige trois versions distinctes : expansion du schéma ; reader compatible et writer temporairement double ; drainage de la fenêtre de 15 minutes, nettoyage des données legacy puis suppression du double writer. Cette alternative n’est pas implémentée dans ce lot.
+
+Le `down()` de la migration de données restaure volontairement le verifier en clair dans `metadata` pour permettre un retour coordonné vers l’ancien code. Il ne constitue pas un rollback de routine et ne doit jamais être exécuté alors que le nouveau code reste en service.
+
+La preuve locale `up → down → up` utilise SQLite. Avant production, la même séquence doit être répétée sur un clone MySQL représentatif, avec sauvegarde vérifiée et contrôle de déchiffrement ; SQLite ne ferme pas ce gate fournisseur de base de données.
+
+### 0.2 Pilotage actif — exactement trois macro-étapes
+
+Les WP0 à WP7, les événements EV-PULSE et les décisions BUF-P0 restent la source de traçabilité technique. Ils ne constituent plus le tableau de pilotage courant. Toute sous-tâche doit se rattacher à l’une des trois macro-étapes ci-dessous ; aucune quatrième macro-étape n’est créée.
+
+| Macro-étape | Cohérence de domaine | État | Critère de sortie unique et vérifiable | Hors périmètre | Point humain unique |
+| --- | --- | --- | --- | --- | --- |
+| **Étape 1 — Fondation représentative et WP2-B additive** | Pré-WP2-B et WP2-B : les données legacy, les queues, l'identité logique, les révisions éditoriales, le schéma et les backfills forment une seule fondation réversible | **TERMINÉE** | `EDITORIAL_FOUNDATION_LOCAL_GREEN=true` : l’absence d’usage production est attestée ; périmètre local accepté ; migrations additives, identités, révisions immuables, axes, liens d’approbation, publication depuis snapshot, backfills, isolation, rejeu et rollback verts sur SQLite/MySQL ; aucun binding ou trafic Buffer | Client HTTP Buffer, OAuth/canal Buffer, outbox distante, UX, pilote, cutover et suppression du direct | Jules a accordé le périmètre local ; les gates automatisés et le backfill local ferment H1 |
+| **Étape 2 — Runtime Facebook fiable et UX, désactivés par défaut** | Reste de WP1, WP2-C à WP5 et découplage Facebook Data Deletion : contrat fournisseur, gateway, outbox, réconciliation, UX, observabilité et dossier owner/shadow se valident comme un produit activable | **IMPLÉMENTATION LOCALE TERMINÉE — sortie canonique en attente des gates distants, des preuves owner/shadow et de H2** | P0 applicables fermés ; isolation, idempotence et single-transport prouvées ; runtime, UX, accessibilité et observabilité verts ; mapping owner/shadow complet et figé dans le dossier H2 ; tous les flags de livraison/pilote restent désactivés par défaut | Trafic pilote, activation canary/cutover, drain, retrait du direct et social login utilisateur | Jules rend l'unique validation humaine de l'étape sur le dossier de lancement et accorde ou refuse le GO pilote |
+| **Étape 3 — Pilote, cutover et retrait prouvé du direct** | WP6 et WP7 : le mapping owner/shadow figé à H2, le pilote, le canary, le rollback, le drain et la suppression du legacy forment une seule séquence opérationnelle | **TERMINÉE EN LOCAL — EXÉCUTION NO-GO** | Control-plane local fail-closed, readiness, mapping exact, hold/reprise et migrations SQLite/MySQL prouvés ; canary réel, rollback, drain et retrait du direct restent non acquis | Nouvelles promesses analytics, autre canal que Facebook et toute réécriture destructive des migrations appliquées | Jules rend l'unique validation humaine de l'étape : GO général et retrait du direct, ou NO-GO, sur les preuves du canary et du drain |
+
+`GO_WP2B_SCHEMA_LOCAL_ONLY`, l’identité de transport et `EDITORIAL_FOUNDATION_LOCAL_GREEN=true` sont acquis : l’Étape 1 est fermée. L’implémentation locale autorisée de l’Étape 2 est terminée : outbox et transport unique, réconciliation provider-neutral read-only, cadence, fake, lease/fencing, axes UX, accessibilité, fuseau tenant et observabilité sont verts sans binding distant. `FACEBOOK_DATA_DELETION_DECOUPLED_LOCAL` empêche une demande Meta liée au login de supprimer une connexion de diffusion. La stratégie de polling adaptatif avec synchronisation manuelle est entièrement spécifiée, implémentée localement et acceptée par Jules ; `BUF-P0-03` est fermé pour le MVP Facebook. L’Étape 3 locale est également terminée et acceptée par Jules : registre additif, mapping exact, audit, mutex, hold/reprise et readiness restent fail-closed et ne peuvent produire aucun trafic candidat. Cela ne contourne pas la frontière entre les étapes : le gateway Buffer de livraison, OAuth multi-utilisateur, les preuves owner/shadow et la réconciliation distante de livraison restent volontairement absents jusqu’à la fermeture des gates P0 applicables, puis H2 doit accorder ou refuser le GO pilote. Le pilote, le drain, H3 et le retrait du direct restent donc NO-GO. Si Pulse reçoit des données ou des workers de production avant le pilote, l’inventaire représentatif doit être rejoué et approuvé avant toute activation distante.
+
+## 1. Décision exécutive
+
+La direction d’architecture est approuvée :
+
+> **Malikia Pulse reste le système éditorial et métier. Buffer devient l’unique passerelle de livraison vers les réseaux sociaux.**
+
+La mise en production n’est pas approuvée. Le modèle MVP confirmé impose que chaque client détienne et paie son propre compte Buffer. La référence de prix et de capacité publiée le 28 août 2026 est documentée, `Essentials` est recommandé comme minimum **côté client** pour une Page Facebook en production et `Free` est limité à un pilote borné. Le plan de l'organisation qui enregistrera l'app OAuth Malikia, le partage de son quota entre grants, la charge réelle par livraison et le parcours client de bout en bout restent à valider.
+
+L’audit confirme que Pulse possède déjà un domaine éditorial réutilisable. Le contrat/fake local WP2-A et un outil CLI read-only d'inventaire legacy existent ; aucun transport, schéma, migration, backfill, configuration ou binding Buffer n’est actif. Le transport actif reste un scaffold de publishers directs Facebook, Instagram, LinkedIn et X.
+
+La décision courante est donc :
+
+| Niveau | Décision | Signification |
+| --- | --- | --- |
+| Architecture | GO | La séparation Pulse métier / Buffer livraison est retenue |
+| Construction WP2-A contract/fake locale | Validée localement | Port, DTO/résultat et fake déterministe testés ; WP2-A ne lit, n'accepte et ne transmet aucun credential et ne produit aucun trafic Buffer |
+| Pré-WP2-B inventaire legacy | Validé pour la préproduction locale | CLI agrégé read-only et matrice MySQL verts ; Jules atteste qu’aucun historique Pulse de production n’existe, donc aucun clone de production n’est requis pour ce gate local |
+| Construction WP2-B schéma | Validée localement | Colonnes additives, modèles de routage direct, backfill/rollback, writers et worker fail-closed validés sur SQLite et MySQL ; aucun runtime Buffer |
+| Fondation outbox locale WP4 | Validée localement | Outbox additive, atomique, chiffrée, idempotente et fenced ; le seul handler actuel exécute `create` via `direct_v1`, sans client ni trafic Buffer |
+| Runtime Buffer WP2-C/WP3/WP4 | NO-GO actuel | Les gates P0 applicables restent ouverts ; aucune route HTTP Buffer, aucun worker, client HTTP ou binding Buffer actif. Les harnais WP1 restent gouvernés par leurs autorisations distinctes |
+| Pilote | NO-GO actuel | Aucun flux Buffer fiable n’est implémenté ni autorisé |
+| Généralisation | NO-GO actuel | Aucune preuve complète de capacité, migration, sécurité ou exploitation |
+
+### Règles non négociables
+
+- Aucun nouvel investissement dans un publisher social direct.
+- Aucun appel Buffer depuis le navigateur.
+- Aucun token, secret, verifier PKCE ou payload sensible dans les DTO frontend ou les logs.
+- Aucun fallback automatique vers les APIs sociales directes.
+- Aucun contenu non approuvé ne quitte Pulse.
+- Aucun retry de création distant après un résultat ambigu sans réconciliation.
+- Aucun changement de transport décidé dynamiquement par un feature flag au moment où un worker s’exécute.
+- Aucune promesse d’analytics, de commentaires ou d’engagement non couverte par le contrat public Buffer.
+
+## 2. État réel du dépôt au point de départ
+
+### 2.1 Matrice de readiness
+
+| Domaine | État observé | Écart à fermer |
+| --- | --- | --- |
+| Client GraphQL Buffer | Absent | Créer un client isolé et testé |
+| OAuth Buffer | Absent | Implémenter PKCE, organisations, scopes et révocation |
+| Connexion provider | Absente | Séparer le grant Buffer des canaux |
+| Synchronisation de canaux | Absente | Découvrir, normaliser et mettre en cache les capacités |
+| Livraison | Publishers directs génériques | Remplacer par un gateway Buffer |
+| Programmation | Job Laravel retardé jusqu’à la date | Soumettre immédiatement à Buffer après approbation |
+| Outbox | Absente | Ajouter une outbox transactionnelle avec claim et lease |
+| Idempotence locale | Absente | Clé unique par cible, opération et révision |
+| Idempotence distante | Non confirmée | Gate fournisseur et protocole de timeout ambigu |
+| Réconciliation | Absente | Ajouter polling adaptatif et action manuelle |
+| Quotas | Non gérés | Budgets sur trois fenêtres et équité tenant |
+| Statuts | Éditorial, livraison et sync mélangés | Séparer les axes |
+| Médias | URL publique locale ou externe arbitraire | URL HTTPS stable avec cycle de vie |
+| UI | Onze surfaces et composants monolithiques | Simplifier et exposer la récupération par canal |
+| Tests Buffer | Aucun | Fake, contrats HTTP, concurrence, migration et E2E |
+| Observabilité Buffer | Absente | Métriques, alertes, cockpit et runbooks |
+
+### 2.2 Socle métier à préserver
+
+Pulse fournit déjà :
+
+- brouillons et publications ;
+- une cible par canal ;
+- préremplissage depuis produits, services, promotions et campagnes ;
+- voix de marque, modèles, médiathèque et assistance IA ;
+- calendrier et historique ;
+- approbations et permissions social.view, social.manage, social.publish et social.approve ;
+- campagnes et Autopilot ;
+- feature tenant social ;
+- états partiels par cible côté backend ;
+- chiffrement des credentials au repos.
+
+Les modèles **SocialPost**, **SocialPostTarget**, **SocialApprovalRequest**, **SocialAutomationRule**, **SocialPostTemplate** et **SocialMediaAsset** restent les fondations métier.
+
+### 2.3 Couche directe à remplacer
+
+Le chemin actif est documenté par :
+
+- [SocialProviderRegistry](../app/Services/Social/SocialProviderRegistry.php), qui injecte quatre publishers directs ;
+- [PlatformPublisherInterface](../app/Services/Social/Contracts/PlatformPublisherInterface.php), qui mélange définition, OAuth, refresh et publication ;
+- [AbstractPlatformPublisher](../app/Services/Social/Providers/AbstractPlatformPublisher.php), qui effectue un POST générique ;
+- [AbstractOauthPlatformPublisher](../app/Services/Social/Providers/AbstractOauthPlatformPublisher.php), qui porte les échanges de token par réseau ;
+- [SocialPublishingService](../app/Services/Social/SocialPublishingService.php), qui sélectionne directement un publisher réseau ;
+- l’ancien `PublishSocialPostTargetJob`, qui exécutait directement la cible et a été supprimé en EV-PULSE-081 après l’attestation de zéro usage/backlog de production ; son nom reste reconnu uniquement par l’inventaire historique.
+
+Cette couche est une baseline historique directe, pas une implémentation Buffer.
+
+### 2.4 Défauts critiques prouvés par l’audit
+
+Cette section décrit le point de départ au commit de baseline. Les fermetures réalisées depuis sont consignées dans le journal d’évolution ; elles ne transforment pas rétroactivement cette photographie historique.
+
+#### Double publication possible
+
+**SocialPublishingService** acceptait explicitement une cible déjà en cours de publication. Deux workers ou un crash après acceptation distante, mais avant sauvegarde locale, pouvaient produire un deuxième envoi.
+
+Il n’existait alors :
+
+- ni verrou de cible ;
+- ni claim atomique ;
+- ni clé d’idempotence ;
+- ni révision éditoriale persistée ;
+- ni recherche distante avant retry ;
+- ni état de résultat ambigu.
+
+#### Retries neutralisés
+
+**SocialPublishingService** capturait tous les Throwable, marquait la cible failed et ne relançait pas l’exception. Les tries et backoffs déclarés dans **PublishSocialPostTargetJob** ne s’appliquaient donc pas aux erreurs réseau, 429, 5xx ou timeouts fournisseur.
+
+#### Dispatch avant commit possible
+
+Autopilot pouvait appeler la publication dans une transaction alors que les connexions de queue avaient after_commit désactivé. Un worker pouvait s’exécuter avant le commit, ne pas trouver une cible, retourner silencieusement et perdre la livraison.
+
+#### Course dans l’approbation
+
+**SocialApprovalService** déclenchait la publication avant de persister la résolution de l’approbation, sans transaction globale ni verrou. Deux approbateurs concurrents pouvaient mettre en queue la même révision.
+
+#### Invariant tenant incomplet
+
+Le worker recevait seulement un identifiant de cible et ne vérifiait pas explicitement que :
+
+- le post ;
+- la cible ;
+- le canal ;
+- la connexion provider ;
+- et l’organisation Buffer
+
+appartiennent tous au même tenant.
+
+#### Risque OAuth et DTO
+
+Le verifier PKCE du provider X était placé dans metadata, et le DTO de connexion retournait alors la metadata complète. La refonte devait passer à des DTO en liste blanche et conserver tous les secrets exclusivement côté serveur.
+
+#### Contrat média insuffisant
+
+La médiathèque utilise un disque public local et accepte aussi des URL externes arbitraires. Elle ne garantit pas encore qu’un média restera publiquement accessible, en HTTPS, jusqu’à sa date de publication plus une période de grâce.
+
+#### Défauts UI observés dans la baseline
+
+- Pendant pending_approval, [SocialPostComposer](../resources/js/Pages/Social/Components/SocialPostComposer.vue) verrouillait les champs texte mais laissait [DropzoneInput](../resources/js/Components/DropzoneInput.vue) interactif. L’approbateur pouvait voir une image locale différente de la révision réellement approuvée.
+- Le backend retournait déjà le statut, la date d’échec et la raison par cible, mais [SocialPostHistory](../resources/js/Pages/Social/Components/SocialPostHistory.vue) ne les affichait pas.
+- Les capacités des réseaux étaient codées en dur dans Vue.
+- Aucun test frontend Pulse ne couvrait le responsive, l’accessibilité, la récupération ou les statuts Buffer.
+
+### 2.5 Interprétation des tests existants
+
+Lors de l’audit du 26 août 2026 :
+
+- 50 tests backend Pulse ciblés et 601 assertions étaient verts ;
+- 8 contrôles Node partagés étaient verts ;
+- le dépôt restait propre sur develop.
+
+Ces résultats prouvent la stabilité de la baseline directe. Ils ne prouvent pas l’idempotence, la réconciliation, la concurrence, la gestion des quotas ou la fiabilité Buffer.
+
+## 3. Portée et non-objectifs
+
+### 3.1 Inclus dans la refonte
+
+- connexion d’un compte Buffer appartenant au client ;
+- OAuth, organisations et canaux ;
+- activation des canaux dans Pulse ;
+- publication immédiate ;
+- programmation exacte ;
+- variantes facultatives par réseau ou canal ;
+- approbation locale avant livraison ;
+- modification et annulation lorsque Buffer le permet ;
+- réconciliation des statuts ;
+- diagnostic, reconnexion et resynchronisation ;
+- migration des brouillons, règles Autopilot, modèles et posts futurs ;
+- mode dégradé sans perte de travail éditorial ;
+- observabilité, runbooks et rollback.
+
+### 3.2 Hors scope initial
+
+- lecture ou réponse aux commentaires et messages ;
+- community management complet ;
+- analytics sociaux avancés ;
+- administration complète d’un compte Buffer ;
+- compte Buffer mutualisé détenu par Malikia ;
+- support de nouvelles plateformes avant stabilisation des quatre réseaux déjà visés ;
+- utilisation des workflows d’approbation Buffer à la place de ceux de Pulse ;
+- authentification des utilisateurs à Malikia par Google, Microsoft, Facebook ou LinkedIn.
+
+Les composants **UserSocialAccount**, **Auth\SocialAuthController**, la configuration social_auth et les routes de connexion utilisateur restent hors périmètre et doivent être préservés.
+
+## 4. Contrat public Buffer revalidé le 27 août 2026
+
+Les faits de cette section sont datés. Ils doivent être revérifiés avant chaque gate de lancement, car l’API évolue rapidement.
+
+### 4.1 Points confirmés
+
+#### API
+
+L’API publique actuelle est GraphQL sur https://api.buffer.com. La refonte ne doit jamais s’appuyer sur l’ancienne API REST.
+
+Sources :
+
+- [Documentation développeur Buffer](https://developers.buffer.com/)
+- [Présentation officielle de l’API](https://support.buffer.com/en-us/articles/what-is-buffers-api-GtIYIQilz5)
+
+#### OAuth et rotation
+
+Pour un client OAuth, Buffer exige Authorization Code avec PKCE. Le state doit être vérifié et la redirect URI doit correspondre exactement. Le scope offline_access est requis pour obtenir un refresh token.
+
+Chaque refresh token est à usage unique :
+
+- un refresh réussi invalide l’ancien token ;
+- réutiliser un ancien refresh token révoque tous les tokens associés au grant et impose une nouvelle autorisation ;
+- la durée doit être lue depuis expires_in et non codée en dur.
+
+Conséquence : un verrou distribué par grant, une transaction et un contrôle de version sont obligatoires pour le refresh.
+
+Source : [Authentification Buffer](https://developers.buffer.com/guides/authentication.html).
+
+#### Quotas
+
+Les limites documentées par client utilisent trois fenêtres glissantes :
+
+| Plan | 15 minutes | 24 heures | 30 jours |
+| --- | ---: | ---: | ---: |
+| Free | 100 | 250 | 3 000 |
+| Essentials | 100 | 250 | 7 500 |
+| Team | 100 | 500 | 15 000 |
+
+Chaque réponse GraphQL expose plusieurs headers RateLimit et RateLimit-Policy. Les politiques doivent être identifiées par leur fenêtre, et Retry-After doit être respecté sur HTTP 429.
+
+Un polling toutes les cinq minutes représente déjà 288 appels par jour avant toute autre opération. Le partage réel des buckets d’un app client OAuth entre tenants est donc une preuve P0 indispensable avant le runtime multi-tenant.
+
+Source : [Limites de l’API Buffer](https://developers.buffer.com/guides/api-limits.html).
+
+#### Erreurs GraphQL
+
+Une mutation peut retourner une erreur typée dans data ou une erreur système dans errors sous HTTP 200. Les erreurs de transport, 401 et 429 restent traitées séparément.
+
+Le client doit donc interpréter :
+
+- le statut HTTP ;
+- le tableau GraphQL errors ;
+- le type concret de l’union de mutation ;
+- les headers de quota ;
+- un identifiant de requête lorsqu’il existe.
+
+Source : [Gestion des erreurs Buffer](https://developers.buffer.com/guides/error-handling.html).
+
+#### Publication et programmation
+
+Buffer documente notamment :
+
+- shareNow pour une publication immédiate ;
+- customScheduled avec dueAt ISO-8601 UTC pour une heure exacte ;
+- addToQueue pour la prochaine plage disponible.
+
+Pulse choisit architecturalement de soumettre une programmation exacte à Buffer dès son approbation. Laravel ne doit pas conserver un job dormant jusqu’à la date finale.
+
+Source : [Publications et programmation](https://developers.buffer.com/guides/posts-and-scheduling.html).
+
+La valeur shareNow est également décrite par le type [ShareMode](https://developers.buffer.com/types/ShareMode.html).
+
+Les statuts distants documentés comprennent :
+
+- draft ;
+- needs_approval ;
+- scheduled ;
+- sending ;
+- sent ;
+- error.
+
+Source : [PostStatus](https://developers.buffer.com/types/PostStatus.html).
+
+Les publications API respectent aussi les permissions et politiques du canal Buffer. Un canal peut donc produire draft ou needs_approval. Le spike doit décider si ces canaux sont refusés dans le MVP ou supportés avec un état remote_approval_required visible ; Pulse ne doit jamais masquer une seconde approbation distante.
+
+#### Médias
+
+Buffer ne fournit pas d’endpoint d’upload pour ce flux. Le média est récupéré depuis une URL :
+
+- HTTPS ;
+- directe ;
+- publique sans authentification ;
+- stable jusqu’à la publication.
+
+Les URL signées à courte durée sont inadaptées aux publications futures.
+
+Source : [Hébergement des médias](https://developers.buffer.com/guides/hosting-media.html).
+
+#### Analytics et engagement
+
+Les métriques publiques sont encore décrites comme expérimentales et orientées vers un usage personnel par clé API. Elles ne doivent pas devenir une dépendance de production OAuth. Les commentaires ne sont pas couverts pour le MVP.
+
+Source : [Limites actuelles de l’API](https://support.buffer.com/en-us/articles/what-is-buffers-api-GtIYIQilz5).
+
+### 4.2 Capacités non documentées publiquement
+
+Au 27 août 2026, aucune garantie publique n’a été identifiée pour :
+
+- un webhook de changement de statut ;
+- une clé d’idempotence de création ;
+- un clientMutationId ou champ équivalent récupérable ;
+- une recherche garantie après un timeout ambigu ;
+- le partage exact des quotas OAuth entre tenants.
+
+Cette formulation ne signifie pas que Buffer ne possède pas ces capacités. Elle signifie qu’elles doivent être confirmées par écrit ou démontrées par le spike.
+
+Une clé locale protège Pulse contre ses propres doubles traitements. Elle ne garantit pas un exactly-once distant si Buffer a accepté la publication avant une coupure de réponse.
+
+### 4.3 Contradictions documentaires à mesurer au runtime
+
+Deux formulations officielles ne doivent pas être résolues par hypothèse :
+
+- le guide d’erreurs indique que les erreurs GraphQL utilisent HTTP 200 ;
+- le guide des quotas documente explicitement HTTP 429 avec `Retry-After` et `extensions.window`.
+
+Le harness WP1-A conserve donc simultanément le statut HTTP, le tableau `errors`, `Retry-After`, les valeurs répétées de `RateLimit` et de `RateLimit-Policy`, ainsi qu’un identifiant de requête lorsqu’il existe. Aucun statut de transport n’est déduit du seul corps GraphQL.
+
+## 5. Registre des décisions P0
+
+Toutes les lignes restent ouvertes ou partiellement ouvertes, à l’exception de `BUF-P0-03`, fermé pour le MVP Facebook par la décision explicite consignée dans EV-PULSE-080 et ADR-PULSE-007. Les gates ouverts ne bloquent plus la construction locale de WP2-A contract/fake, mais ils bloquent la phase indiquée tant que la preuve attendue n'est pas attachée, sauf exception locale et réversible explicitement bornée dans la colonne « Phase bloquée » et en section 18.2. Le propriétaire/payeur étant confirmé, le seul gate local WP2-B peut laisser ouvertes les autres preuves commerciales de `BUF-P0-10` sans autoriser d'intégration distante, de pilote ou de production.
+
+| ID | Question | Preuve attendue | Responsable | Phase bloquée | État |
+| --- | --- | --- | --- | --- | --- |
+| BUF-P0-01 | OAuth avec deux organisations et plusieurs rôles | Trace du spike, scopes et canaux visibles | Backend + produit | Intégration distante | Ouvert |
+| BUF-P0-02 | Bucket de quota OAuth partagé entre tenants | Réponse écrite Buffer et calcul de capacité | Produit + exploitation | Intégration distante et pilote | Ouvert — la documentation indique des quotas par client, mais la partition OAuth inter-tenant reste à confirmer |
+| BUF-P0-03 | Webhook de statut disponible ou prévu | Contrat ou réponse écrite Buffer, ou décision explicite de polling | Backend | WP2-C/runtime Buffer, réconciliation WP4 distante et pilote | Fermé pour le MVP Facebook — décision explicite de polling adaptatif tenant-scopé et synchronisation manuelle acceptée par Jules ; aucun webhook n’est présumé absent ; les mesures de quota restent portées par `BUF-P0-02/10` |
+| BUF-P0-04 | Idempotence ou corrélation distante | Contrat, champ supporté ou protocole officiel | Backend | WP2-C/runtime Buffer, WP4 distant et pilote | Ouvert |
+| BUF-P0-05 | Recherche après timeout ambigu | Test réel après acceptation sans réponse | Backend | WP2-C/runtime Buffer, WP4 distant et pilote | Ouvert |
+| BUF-P0-06 | Modification, replanification et suppression par statut | Matrice testée draft à error | Backend + produit | Intégration distante et pilote | Ouvert — edit/delete prouvés uniquement sur `draft`; move de file, replanification et autres statuts non prouvés |
+| BUF-P0-07 | Capacités, formats, publication par notification et approbation distante | Matrice par canal, dont draft et needs_approval | Produit + frontend | Activation produit et pilote | Ouvert — format Facebook `post` et refus provisoire `move@draft/bottom` observés; autres capacités, canaux et approbation non prouvés |
+| BUF-P0-08 | URL média stable et cycle de vie | Spike avec publication future et suppression différée | Backend + sécurité | Pilote média | Ouvert |
+| BUF-P0-09 | Usage SaaS, DPA, support et incident | Validation juridique et fournisseur | Juridique + sécurité | Intégration distante, pilote et production | Ouvert — dossier public préparé ; DPA applicable, contradiction sur les requêtes automatisées, support/incident et validation juridique/sécurité encore requis |
+| BUF-P0-10 | Modèle commercial compte client | Propriétaire/payeur, parcours, prix/plan, capacité et prérequis validés | Produit | WP2-B schéma jusqu'au GO local séparé, WP2-C/runtime Buffer, pilote, production et généralisation | Partiellement fermé — propriétaire/payeur et politique `Free` pilote / `Essentials` production acquis ; prix officiels et prérequis documentés ; compteur logique WP1 et protocole fournisseur préparés ; quota OAuth multi-client, consommation runtime réelle et parcours pilote ouverts |
+
+### 5.1 Harness probatoire WP1-A
+
+Le harness temporaire [wp1-read-only-probe.mjs](../scripts/spikes/buffer/wp1-read-only-probe.mjs) reste hors du runtime Laravel et ne constitue ni le client GraphQL, ni le gateway, ni le fake Buffer prévus après WP2-A.
+
+Garde-fous :
+
+- endpoint figé à `https://api.buffer.com` et redirections refusées ;
+- environnement obligatoire et limité à `local`, `development`, `test` ou `testing` dans `APP_ENV`/`NODE_ENV` ; toute valeur de production, staging ou inconnue est refusée ;
+- activation explicite par `BUFFER_WP1_PROBE_ENABLED=true` ;
+- token lu depuis `BUFFER_WP1_PROBE_ACCESS_TOKEN`, jamais depuis un argument CLI ;
+- timeout borné entre 1 et 30 secondes ;
+- une seule requête par exécution, sans retry ;
+- réponse lue en flux et bornée à 1 Mio ;
+- messages d’erreur hashés et masquage exact du token sur tous les champs distants normalisés ;
+- trois périodes de quota distinctes exigées et appariées entre `RateLimit` et `RateLimit-Policy` par leur label et leur `w` pour `account` et `channels` ; l’introspection `schema`, qui n’émet pas ces headers en pratique, conserve leur absence comme preuve sans invalider un contrat valide ;
+- aucune mutation, persistance, tâche planifiée ou route web ;
+- sortie brute considérée éphémère et interdite de commit.
+
+Parcours opérateur lorsque des credentials de spike seront disponibles :
+
+1. utiliser Node.js 20.6 ou plus récent et placer les variables WP1 uniquement dans le `.env` local non versionné ;
+2. exécuter `npm run pulse:buffer:probe` pour relever le compte, les organisations, le client connecté, les scopes et les headers de quota ;
+3. exécuter `npm run pulse:buffer:probe -- --organization=<id>` séparément pour chaque organisation autorisée ;
+4. exécuter `npm run pulse:buffer:probe -- --schema` séparément pour contrôler le contrat GraphQL sans mutation ;
+5. pseudonymiser la preuve avant d’en reporter le résumé dans ce journal ;
+6. laisser tous les BUF-P0 ouverts tant que les rôles, mutations, timeouts ambigus, quotas inter-tenants, médias, aspects juridiques et modèle commercial ne sont pas démontrés.
+
+Les tests du harness utilisent uniquement des réponses simulées et bloquent toute requête inattendue. Ils valident le format de la sonde, pas le comportement réel du client OAuth Malikia chez Buffer.
+
+### 5.2 Preuve authentifiée WP1-A — résumé pseudonymisé
+
+La collecte réelle du 2026-08-27 utilise deux requêtes GraphQL séparées et strictement read-only. Aucun fichier de réponse n’est créé.
+
+Constats observés :
+
+- `account` répond HTTP 200 sans erreur GraphQL et expose une seule organisation pseudonymisée `ORG-01` ;
+- `connectedApps` est vide, donc le client OAuth et ses scopes propres ne sont pas observables par cette lecture ;
+- `channels` répond HTTP 200 sans erreur GraphQL et expose trois canaux pseudonymisés : Instagram business, LinkedIn page et Facebook page ;
+- les trois canaux sont connectés, non verrouillés, avec file active et timezone `America/Toronto` ;
+- les scopes réseau comprennent la publication Instagram, l’écriture sociale LinkedIn et la gestion des publications de page Facebook ;
+- les actions visibles comprennent la consultation de publication et la gestion des mises à jour/plannings, sans démontrer le nom ni le comportement d’une mutation GraphQL ;
+- les quotas réels sont 100 requêtes/15 minutes, 250/jour et 3 000/30 jours ; chaque appel consomme une unité dans chacune des trois fenêtres ;
+- la partition de quota opaque reste identique entre `account` et `channels` pour ce credential.
+
+Portée probatoire :
+
+- `BUF-P0-01` reçoit une preuve authentifiée partielle — une organisation et trois canaux visibles — mais reste ouvert car le critère exige deux organisations, plusieurs rôles et les scopes du client ;
+- `BUF-P0-02` reçoit une preuve authentifiée partielle — même partition et décrément partagé entre deux opérations — mais reste ouvert faute de test inter-tenant, de réponse écrite Buffer et de calcul de capacité ;
+- `BUF-P0-03` à `BUF-P0-10` ne sont pas avancés par ces lectures ;
+- aucun 429 réel, mutation, média, webhook, timeout ambigu, approbation distante ou cycle edit/delete n’est testé.
+
+Les identifiants de compte, organisation et canal, les noms, request IDs, partition keys et valeurs de token restent volontairement hors de ce document et hors de Git.
+
+### 5.3 Preuve authentifiée WP1-B — contrat de schéma
+
+La collecte réelle du 2026-08-27 utilise une seule opération `query PulseBufferSchemaProbe` composée exclusivement de sélections d’introspection `__type`. Elle n’embarque aucune variable, aucun identifiant métier et aucun document `mutation`.
+
+Contrats racine observés :
+
+| Opération | Argument(s) | Retour |
+| --- | --- | --- |
+| `post` | `input: PostInput!` | `Post!` |
+| `posts` | `after: String`, `first: Int`, `input: PostsInput!` | `PostsResults!` |
+| `createPost` | `input: CreatePostInput!` | `PostActionPayload!` |
+| `editPost` | `input: EditPostInput!` | `PostActionPayload!` |
+| `deletePost` | `input: DeletePostInput!` | `DeletePostPayload!` |
+| `movePostInQueue` | `input: MovePostInQueueInput!` | `MovePostInQueuePayload!` |
+
+Le schéma authentifié confirme également :
+
+- les 14 champs de `CreatePostInput`, dont `assets: [AssetInput!]! = []`, `channelId: ChannelId!`, `mode: ShareMode!`, `needsApproval: Boolean! = false` et `schedulingType: SchedulingType!` ;
+- les 14 champs de `EditPostInput`, avec `id: PostId!` et les variantes éditables nullable ;
+- `DeletePostInput.id: PostId!` et `MovePostInQueueInput.position: QueuePosition!` ;
+- `QueuePosition = bottom | top`, `ShareMode = addToQueue | customScheduled | shareNext | shareNow`, `SchedulingType = automatic | notification`, `PostApprovalChange = request | revert` ;
+- `PostStatus = draft | error | needs_approval | scheduled | sending | sent` ;
+- les unions typées de succès et d’erreurs nécessaires aux opérations Create/Edit/Delete/Move.
+
+Le résultat réel est HTTP 200, sans erreur GraphQL et classé `success`. Contrairement aux lectures `account` et `channels`, cette introspection ne contient ni `RateLimit` ni `RateLimit-Policy`. Le harness conserve donc des tableaux de quota vides pour cette opération seulement ; il ne transforme pas cette absence en quota supposé et ne relâche pas le gate des deux opérations métier.
+
+Portée probatoire :
+
+- l’existence et la forme des lectures et mutations sont désormais démontrées pour ce credential ;
+- cette introspection ne démontre ni autorisation effective, ni effet, ni statut final, ni idempotence, ni comportement après timeout d’une mutation ;
+- `BUF-P0-05`, `BUF-P0-06` et `BUF-P0-07` reçoivent une base contractuelle, mais restent ouverts jusqu’à une matrice comportementale réelle explicitement autorisée ;
+- tous les autres `BUF-P0` restent inchangés ;
+- aucune création, édition, replanification, suppression ou publication distante n’a été effectuée.
+
+Aucun request ID, token, identifiant de compte/organisation/canal, partition key ou corps brut n’est conservé dans Git.
+
+### 5.4 Preuve authentifiée WP1-D — metadata Facebook
+
+L'introspection authentifiée du 2026-08-27 ajoute la chaîne d'input spécifique à Facebook :
+
+| Niveau | Contrat confirmé |
+| --- | --- |
+| `CreatePostInput` | `metadata: PostInputMetaData` — nullable |
+| `PostInputMetaData` | `facebook: FacebookPostMetadataInput` — nullable |
+| `FacebookPostMetadataInput` | `annotations: [AnnotationInputFacebook!]`, `firstComment: String`, `linkAttachment: LinkAttachmentInput`, `type: PostTypeFacebook!` |
+| `PostTypeFacebook` | `post`, `reel`, `story`, tous actifs |
+
+Le seul candidat minimal cohérent avec un brouillon Facebook texte est donc `metadata.facebook.type=post`. Cette conclusion était une **validation de forme**, pas encore une preuve comportementale : le schéma autorise aussi l'omission complète de `metadata`, et l'erreur `InvalidInputError` ne fournit aucun chemin de champ structuré. WP1-F démontre ensuite qu'un create portant cette metadata est accepté comme brouillon Facebook standard, sans attribuer rétrospectivement une cause structurée aux deux refus antérieurs.
+
+Le probe sépare désormais deux profils :
+
+- `full` exige le contrat complet, la capacité structurée `facebook_create_metadata` et la chaîne de sortie metadata avant toute création ;
+- `cleanup` ignore toute dérive du contrat d'input de création, mais exige `post`, `deletePost` et la chaîne de sortie strictement nécessaire pour confirmer qu'un objet journalisé reste un post Facebook standard avant de le supprimer.
+
+Le gate mutation local reste désactivé et aucune empreinte de cible n'est configurée après cette collecte. Aucun objet distant n'est actif ou à réconcilier.
+
+### 5.5 Préparation locale WP1-E — post Facebook standard
+
+WP1-E transforme le candidat de forme confirmé par WP1-D en contrat local exécutable, sans l'envoyer à Buffer. La variable create conserve toutes les valeurs déjà isolées et ajoute uniquement :
+
+```text
+metadata.facebook.type=post
+```
+
+La liste blanche interdit toute autre clé sous `metadata` et `facebook`. Les documents create, edit, move et inspect demandent tous la branche de sortie minimale `FacebookPostMetadata.type`; un succès n'est accepté que si le serveur retourne exactement le type Facebook `post`. Dans ce contrat historique WP1-E, edit omet la metadata en entrée et doit donc prouver sa conservation en sortie. Move reste limité à l'identifiant et à la position `bottom` et doit fournir la même preuve.
+
+Le profil `cleanup` ne dépend toujours d'aucun type d'input create. Il valide uniquement le contrat de lecture/suppression et les quatre maillons de sortie nécessaires à l'inspection. Si l'objet inspecté n'a pas la metadata exacte, aucune suppression n'est tentée et le journal est conservé pour réconciliation. Si un create avait déjà retourné un identifiant avant une réponse metadata invalide, le `finally` conserve au contraire l'unique tentative de suppression et la vérification `NOT_FOUND` minimale.
+
+Dans WP1-E, edit omettait la metadata et devait prouver sa conservation uniquement en sortie. L'essai WP1-F montre que Buffer refuse cet input d'édition avec `InvalidInputError`. WP1-G isole donc l'ajout exact `metadata.facebook.type=post` sur edit, sans nouvel appel distant.
+
+### 5.6 Preuve distante WP1-F et préparation locale WP1-G
+
+L'unique cycle autorisé pour WP1-F confirme successivement : preflight vert, create d'un brouillon Facebook `post` conforme, refus typé de l'edit, arrêt avant move, suppression unique puis lecture `NOT_FOUND`. Le journal de récupération est effacé seulement après cette dernière confirmation. Aucun objet distant, identifiant, verrou ou besoin de réconciliation ne subsiste.
+
+WP1-G ne retente pas le cycle. Le contrat local renvoie désormais sur edit la même metadata Facebook minimale que celle acceptée au create. Il traite aussi toute issue réseau ou réponse inexploitable comme ambiguë, interdit les retries automatiques et conserve le journal dès qu'une suppression ne peut pas être confirmée. La tranche distante distincte WP1-H ci-dessous exécute ensuite ce contrat une seule fois.
+
+### 5.7 Preuve distante WP1-H — edit confirmé, move draft refusé
+
+WP1-H exécute une seule fois le contrat préparé par WP1-G. Le préflight initial est volontairement privé d'empreinte cible : il confirme les capacités et la cible unique, puis s'arrête avec `target_confirmation_required` avant tout journal ou document de mutation. L'empreinte fraîche est ensuite fournie uniquement au processus du cycle, sans être enregistrée dans Git.
+
+Le cycle réel confirme que Buffer accepte l'édition du brouillon Facebook lorsque l'input edit renvoie exactement `metadata.facebook.type=post`. Le post reste `draft`, sur le même canal, avec le texte édité exact, sans date, envoi, partage ou lien externe. Cette preuve comportementale remplace l'hypothèse encore ouverte après WP1-F.
+
+La mutation expérimentale `movePostInQueue(position: bottom)` répond ensuite par un `VoidMutationError`. Le résultat est classé `draft_move_rejected` : Buffer a répondu de façon typée, donc le harnais ne le traite ni comme une issue inconnue ni comme une réussite. Le move n'est pas rejoué. La suppression unique et sa vérification `NOT_FOUND` réussissent, sans objet distant, journal, verrou ou réconciliation manuelle résiduelle.
+
+Cette tranche apporte une preuve partielle à `BUF-P0-06` pour create/edit/delete au statut draft et à `BUF-P0-07` pour le format Facebook `post`. Elle ne ferme aucun gate : la matrice des autres statuts, la replanification, l'approbation et les autres canaux restent à couvrir. WP1-I qualifie ce refus dans la section suivante, sans inventer de contournement ni autoriser d'intégration Buffer distante avant le gate correspondant.
+
+### 5.8 Décision WP1-I — capacité bornée par statut
+
+La documentation Buffer officielle établit deux faits distincts :
+
+- [`saveToDraft=true`](https://developers.buffer.com/examples/create-draft-post.html) conserve le post au statut `draft` et ne le programme pas avant une action explicite ;
+- [`movePostInQueue`](https://developers.buffer.com/reference.html) est une mutation expérimentale décrite pour un post déjà présent dans la file, vers `top` ou `bottom`. Elle réordonne la file et ne revalide pas le contenu ; elle n'est pas une preuve de replanification.
+
+Le contrat [`EditPostInput`](https://developers.buffer.com/types/EditPostInput.html) permet séparément de conserver un post en brouillon avec `saveToDraft=true`, ou de modifier son mode et sa date. Ces opérations ne doivent donc pas être fusionnées sous une capacité générique « déplacer/replanifier ».
+
+La décision WP1-I est volontairement bornée :
+
+- le résultat réel `VoidMutationError` reste `draft_move_rejected`, `ok=false`, définitif, non ambigu et non retryable pour cet appel ;
+- la seule frontière négative observée est `Facebook Page + status=draft + position=bottom` ; le message distant n'étant pas conservé et le type d'erreur n'exposant aucun code métier structuré, aucune cause plus précise n'est affirmée ;
+- le produit ne doit pas proposer un réordonnancement de file à un post encore `draft` ; les capacités devront être évaluées par statut, opération et canal dans le futur modèle WP2 ;
+- le même tuple ne doit pas être rejoué sans nouvel élément contractuel et nouvelle autorisation ; aucune mutation distante n'est exécutée par WP1-I ;
+- la branche de succès du harnais reste nécessaire pour détecter une évolution du contrat et pour la future matrice des posts réellement en file. Elle est couverte et n'est pas du code mort.
+
+| Opération | Statut/cible observé | Verdict WP1-I | Portée restante |
+| --- | --- | --- | --- |
+| Créer un brouillon | Facebook Page, `post`, `draft` | Succès réel confirmé | Autres formats, canaux et statuts |
+| Modifier un brouillon | Facebook Page, `post`, `draft` | Succès réel confirmé avec metadata exacte | Replanification, approbation et autres statuts |
+| Déplacer vers `bottom` | Facebook Page, `post`, `draft` | Refus typé observé ; frontière négative provisoire | Post réellement en file, `top`, autres canaux |
+| Supprimer et vérifier | Facebook Page, `post`, `draft` | Succès réel et `NOT_FOUND` confirmé | Suppression par autres statuts |
+| Replanifier | Non testé | Inconnu | Matrice complète requise |
+
+Le prochain contrat probatoire doit isoler un post réellement en file d'attente. Il ne sera exécutable qu'avec un canal de test empêchant matériellement une publication accidentelle — par exemple une file dédiée et maîtrisée — ainsi qu'un préflight de créneau, une suppression garantie et une autorisation distincte. Tant que ces préconditions ne sont pas réunies, `BUF-P0-06` et `BUF-P0-07` restent ouverts : l'essai distant, l'activation produit et le pilote restent interdits, tandis que WP2-A contract/fake peut avancer uniquement en mode local et réversible.
+
+### 5.9 Pré-WP2-B — inventaire legacy borné
+
+Le contrat `pulse_legacy_inventory_v2` remplace le ciblage unitaire v1. Sans `--queue-scope`, la commande utilise la connexion courante et les queues des workloads `social_automation` et `social_publish`, en dédupliquant leur scope physique s'ils partagent la même queue. Ce mode reste un relevé exploratoire dont la liste n'est pas attestée. Une preuve candidate pour le gate doit déclarer chaque couple `connexion:queue`, le contexte de source et l'attestation séparée de complétude :
+
+```bash
+php artisan pulse:buffer:inventory-legacy \
+    --json \
+    --source-context=representative-clone \
+    --queue-scope=database:social-automation \
+    --queue-scope=database:social-publish \
+    --queue-scope=legacy_database:legacy-social-publish \
+    --queue-scope=sqs:legacy-social-publish \
+    --confirm-queue-scope-list-complete \
+    --confirm-read-only-scan
+```
+
+Le manifeste v2 inventorie uniquement :
+
+- les agrégats des connexions et cibles sociales ; pour les connexions, `logical_destination_key_readiness` compte les lignes évaluées, dérivables, en échec de dérivation et les groupes de doublon ou collision, sans émettre la moindre clé ni préimage ;
+- les cibles sans connexion résolue, les écarts de tenant et les cibles futures ;
+- `social_automation_rules.target_connection_ids` et `social_post_templates.metadata.selected_target_connection_ids`, y compris références manquantes, cross-tenant, invalides ou dupliquées ;
+- les jobs dont le `displayName` exact est `PublishSocialPostTargetJob` ou `GenerateSocialPostCandidateJob` sur chaque queue `database` déclarée, classés par workload et séparés entre ready, delayed, réservation active et réservation expirée, indépendamment du nom physique de la queue ;
+- les mêmes deux familles exactes encore présentes dans le stockage `failed_jobs`, afin qu'une future commande `queue:retry` ne réactive pas silencieusement un routage legacy. Le champ historique `failed_publications` reste une projection compatible de la famille publication.
+
+Les scopes sont tous validés avant le scan, normalisés, triés de façon canonique et limités à 32. Les doublons logiques et deux alias pointant vers la même connexion/table/queue database sont refusés. Deux noms de queue distincts sur la même connexion restent valides. Les noms strictement logiques sont affichés ; toute valeur pouvant contenir une URL ou un identifiant opérationnel est remplacée par une empreinte `sha256:` sans sortir en clair. Redis, SQS et Beanstalkd sont déclarés non mesurables sans instancier leur driver ni ouvrir leur connexion ; l'attestation de liste peut donc être vraie alors qu'une preuve externe reste obligatoire.
+
+Les lectures du domaine s'effectuent dans une transaction. Les références et la préparation des identités logiques sont traitées par lots SQL bornés de 500. La détection globale des répétitions conserve un ensemble de clés dérivées et un ensemble des clés déjà signalées ; elle compte un groupe bloquant par clé répétée sans exposer ces valeurs et sans tenter de distinguer doublon et collision. Cette exactitude implique une mémoire O(N), même si l'hydratation SQL est bornée par chunk ; le clone doit donc attester sa cardinalité et le budget mémoire avant ce passage, ou utiliser une déduplication externe. Les scopes de queue sont ensuite mesurés séquentiellement, puis `failed_jobs` dans un passage indépendant. `started_at`, `completed_at` et `cross_source_atomic=false` bornent explicitement cette fenêtre sans prétendre à un snapshot atomique. `--source-context` est une provenance déclarée par l'opérateur, pas une vérification que la base est réellement représentative. De même, `--confirm-queue-scope-list-complete` est refusé sans au moins un `--queue-scope` explicite et refuse une liste qui ne couvre pas les deux workloads courants ; il atteste néanmoins seulement que la liste fournie est complète. La commande ne découvre ni les anciennes queues, ni les anciens noms de classes, ni les environnements externes. Une absence de candidat ne ferme donc la politique des jobs que si la liste est attestée et si tous ses scopes sont mesurables ; sinon le verdict reste explicitement indéterminé.
+
+Aucune valeur de ligne, credential, identifiant distant, payload ou configuration de connexion n'est exposée. Seuls les candidats préfiltrés par le nom de classe sont décodés ; les payloads illisibles sont comptés. Chaque exécution, locale comprise, exige `--confirm-read-only-scan` : l'autorisation explicite ne dépend ni de `APP_ENV`, ni de l'option Artisan globale `--env`. L'opérateur ne doit la fournir que pour une base locale, un clone ou un environnement approuvé.
+
+La section additive `configured_pulse_topology` photographie uniquement la configuration Laravel effective. Elle contient exactement les workloads `social_automation` et `social_publish`, leur état configuré, une empreinte SHA-256 du nom de queue et le nombre de profils production déclaratifs qui référencent chaque workload. Elle n'émet ni nom de queue brut, ni nom de profil, ni commande de worker. `evidence_scope=effective_application_configuration_only`, `deployed_runtime_proven=false` et `requires_external_attestation=true` interdisent de transformer cette projection en preuve que les processus tournent réellement. Le relevé local `queue:workload-audit --json` est vert et l'historique suivi ne montre aucun renommage des deux classes ou de leurs valeurs par défaut ; l'absence de manifeste de process manager versionné laisse cependant les overrides et la topologie déployée à recouper avec l'exploitation et un canari acquitté.
+
+L'exécution sur la base MySQL locale courante donne :
+
+| Domaine | Résultat agrégé local |
+| --- | --- |
+| Connexions | 1 Instagram, déconnectée et inactive |
+| Préparation `logical_destination_key` | 1 connexion évaluée et dérivable ; 0 échec de dérivation ; 0 groupe doublon/collision ; aucune clé ou préimage émise |
+| Cibles | 18 au total : 6 pending, 6 published, 6 scheduled ; 5 scheduled dans le futur |
+| Intégrité cible | 0 sans connexion résolue ; 0 cross-tenant |
+| Références automation/template | 0 référence active, manquante, cross-tenant, invalide ou dupliquée ; 4 templates sans destination persistée |
+| Queues `social-automation` / `social-publish` | 2 scopes sur 2 mesurables ; 0 job exact et 0 candidat illisible pour chacun des deux workloads |
+| `failed_jobs` | 0 job Pulse exact et 0 candidat illisible pour chacun des deux workloads |
+| Manifeste | source `local`, liste non attestée, politique des jobs indéterminée, capture séquentielle non atomique |
+
+Ce relevé prouve le fonctionnement manuel sur la base MySQL locale courante. Le canonicaliseur passe 27 tests / 53 assertions ; l'inventaire v2 passe 33 tests / 402 assertions sur SQLite et la matrice combinée passe 60 tests / 455 assertions sur MySQL. Jules atteste ensuite qu’aucun usage Pulse de production n’existe et accepte cette base locale comme périmètre représentatif de préproduction pour H1. L’absence de clone et de topologie déployée n’est donc plus un blocage de WP2-B local ; elle redeviendra une exigence si des données ou workers de production apparaissent avant le pilote. Le contrat de `logical_destination_key` est figé et exécuté ci-dessous.
+
+#### 5.9.1 Contrat retenu de destination logique
+
+Le sous-gate de design est désormais figé, sans autoriser de migration :
+
+- `logical_destination_key` est un `VARCHAR(71)` nullable, sans défaut, conforme à `\Aldk:v1:[0-9a-f]{64}\z` ;
+- la clé ne contient jamais le transport, la génération, l'identifiant de connexion local, un label, un handle ou un identifiant de canal Buffer ; elle représente la destination métier et doit donc rester identique lors du futur mapping direct vers Buffer ;
+- pour une connexion legacy, la préimage est le tableau de chaînes `['malikia-pulse-logical-destination', 'v1', tenant, platform, external_id]` : `tenant` est obligatoirement une chaîne décimale canonique positive, sans signe, zéro initial ni cast entier ; `platform=strtolower(trim(platform))` doit être autorisée et `external_id=trim(external_account_id)` doit être non vide, de 191 caractères Unicode maximum mesurés après `trim()`, UTF-8 valide et sans caractère de la catégorie Unicode `Cc` après ce même `trim()` ; la casse, les espaces internes, la forme Unicode et les octets internes de l'identifiant opaque sont préservés ;
+- la valeur est `ldk:v1:` suivie du SHA-256 hexadécimal de cette préimage encodée avec `JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR` ; la préimage exacte `["malikia-pulse-logical-destination","v1","42","facebook","fb-page-001"]` doit produire `ldk:v1:124ed8299d785e5082ac3d283dc5337de6140a5e584f718f2371cf22836af643` ;
+- aucun fallback vers `label`, `account_handle` ou `metadata.provider_target_id` n'est autorisé. Une ligne dépendant uniquement de metadata est une anomalie à qualifier sur le clone, jamais une identité inventée ;
+- une future ligne canal Buffer copie la clé validée pendant le mapping owner-validé ; elle ne la recalcule jamais depuis l'identifiant de canal Buffer. Une destination Buffer-only reste hors WP2-B tant qu'un identifiant réseau natif fiable n'est pas prouvé ;
+- la seule transition d'identité permise est `NULL → valeur canonique`. Une fois la clé définie, le tenant, la plateforme, l'identifiant réseau natif, `delivery_provider`, `transport_generation` et la clé sont immuables ; une reconnexion vers une autre destination crée une nouvelle ligne ;
+- la cible copie le triplet de transport et la clé de sa connexion à sa création. Une cible déjà mise en queue ne se remappe jamais ; une cible éditable change de destination par suppression/recréation explicite ;
+- une collision de hash, un doublon logique dans un tenant/génération, deux cibles actives d'un même post vers la même clé, un écart tenant, une cible active orpheline ou un triplet partiel arrêtent le backfill avant toute écriture.
+
+`SocialLogicalDestinationKeyService` est l'implémentation unique de cette dérivation. Il n'accepte qu'un tenant, une plateforme et l'identifiant réseau natif ; il n'accepte ni modèle, ni label, ni handle, ni metadata, ni identifiant Buffer. Le préflight read-only l'utilise déjà et ne publie que ses quatre compteurs agrégés. Cette consommation évite un canonicaliseur dormant ou une seconde implémentation dans le futur backfill, mais n'autorise toujours aucune migration.
+
+Le premier dossier WP2-B est implémenté avec exactement trois colonnes nullable et sans défaut sur `social_account_connections` et `social_post_targets` : `delivery_provider VARCHAR(32)`, `transport_generation VARCHAR(32)` et `logical_destination_key VARCHAR(71)`. Le backfill séparé, transactionnel et rejouable prépare `direct`, `direct_v1` et copie la clé de la connexion vers la cible après un préflight complet. Aucun index, unique, trigger, grant, canal ou credential Buffer n'est ajouté. Les tests couvrent le vecteur contractuel, l'isolation tenant, les anomalies fail-closed, l'immutabilité, le rejeu, le rollback et `up → down → up` sur SQLite et MySQL. Le passage local remplit 1 connexion et 18 cibles ; le rejeu ne modifie aucune ligne.
+
+### 5.10 Base commerciale Facebook-only — référence du 28 août 2026
+
+**Décision utile :** chaque tenant client conserve la propriété et la facturation de son compte Buffer. Pour le périmètre MVP d'une seule Page Facebook, `Essentials` est le minimum recommandé côté client en production ; `Free` est une option de pilote à faible volume, pas une promesse de capacité ; `Team` n'est pas le choix client par défaut tant que Pulse porte seul la création, l'approbation et l'audit. `Team` peut néanmoins devenir nécessaire pour des collaborateurs Buffer ou pour augmenter les app clients et quotas de l'organisation fournisseur qui enregistrera l'app Malikia.
+
+Les prix ci-dessous sont ceux affichés en dollars américains par Buffer au 28 août 2026, hors taxes et remises particulières. Buffer confirme que tous ses abonnements sont facturés en USD et indique que sa grille a été mise à jour en novembre 2025. Le calculateur [Pricing](https://buffer.com/pricing) et la page [facturation et taxes](https://support.buffer.com/en-us/articles/why-was-i-charged-that-your-bill-taxes-and-vat-explained-YMilE1mo8m) doivent être relus au moment où le client souscrit : aucun montant ne sera codé en dur ni encaissé par Malikia.
+
+| Plan du compte client | Coût affiché pour 1 canal Facebook | File planifiée par canal | Position MVP côté client |
+| --- | --- | --- | --- |
+| `Free` | 0 USD | 10 publications simultanément en file | Pilote borné seulement : une Page, charge mesurée et dix publications au maximum en file |
+| `Essentials` | 6 USD/mois, ou 60 USD/an | 5 000 selon la fair use policy | **Minimum recommandé en production** pour retirer la limite de dix publications en file |
+| `Team` | 12 USD/mois, ou 120 USD/an | 5 000 selon la fair use policy | À retenir si le client utilise aussi les collaborateurs, rôles ou approbations de Buffer |
+
+La capacité API est une décision distincte portée par le plan de l'organisation qui crée l'app client OAuth, selon l'[aide opérationnelle Buffer](https://support.buffer.com/en-us/articles/troubleshooting-buffers-api-VgBuQXUCDI) :
+
+| Plan de l'organisation qui crée l'app client | App clients créables | Quota / 15 min | Quota / 24 h | Quota / 30 j |
+| --- | ---: | ---: | ---: | ---: |
+| `Free` | 1 | 100 | 250 | 3 000 |
+| `Essentials` | 3 | 100 | 250 | 7 500 |
+| `Team` | 5 | 100 | 500 | 15 000 |
+
+Points de capacité à ne pas confondre :
+
+- un compte `Free` accepte jusqu'à trois canaux connectés, mais garde une limite à vie de huit canaux distincts déjà connectés ; cette limite historique disparaît sur les plans payants ;
+- Facebook est borné par Buffer à 35 publications par fenêtre glissante de 24 heures, indépendamment du nombre de publications stockées en file ; Pulse pourra retenir une limite produit inférieure ;
+- le profil de quota authentifié d'EV-PULSE-017 — 100/15 min, 250/24 h et 3 000/30 j — correspond à la grille `Free` actuelle, sans prouver le libellé d'abonnement du compte testé ;
+- la page marketing [Buffer API](https://buffer.com/api) annonce encore 100 requêtes/24 h pour `Free`, tandis que la [référence développeur](https://developers.buffer.com/guides/api-limits.html), la page de prix, l'aide opérationnelle et la preuve réelle convergent vers 250 ; le preflight doit toujours lire les trois headers `RateLimit-Policy` effectifs et ne jamais déduire un quota du seul nom du plan ;
+- les quotas sont annoncés **par app client** et l'aide Buffer les rattache au plan de l'organisation où cet app client est créé. La documentation publique consultée ne précise pas si tous les grants OAuth d'un même app client partagent exactement le même bucket. Le modèle « chaque client paie son compte » n'établit donc pas que chaque grant OAuth de Malikia reçoit un bucket indépendant. Cette question reste dans `BUF-P0-02` et doit recevoir une réponse écrite de Buffer ou une preuve contrôlée avant le runtime multi-tenant ;
+- le harnais WP1 expose maintenant un compteur local d'opérations GraphQL logiques tentées : 8 pour le cycle probatoire canonique, soit 3 probes, 3 opérations de cycle et 2 opérations de nettoyage ; 6 pour un `cleanup-only` complet, soit 3 probes et 3 opérations de réconciliation. Ces nombres ne mesurent ni la consommation réellement comptabilisée par Buffer, ni le futur chemin de livraison/réconciliation de production. Les quotas ne peuvent donc pas encore être convertis honnêtement en « publications par client ».
+
+Une sensibilité purement illustrative montre pourquoi le bucket OAuth doit être clarifié. Après le troisième probe, le gate WP1-C exigeait une réserve conservatrice de huit unités avant d'autoriser la suite composée au maximum de cinq opérations logiques de mutation et nettoyage. En divisant chaque fenêtre officielle par cette réserve, sans prétendre qu'elle représente le futur runtime, un unique app client pourrait au plus démarrer le nombre entier de cycles suivant :
+
+| Plan de l'organisation qui crée l'app client | Cycles de preuve / 15 min | Cycles de preuve / 24 h | Cycles de preuve / 30 j |
+| --- | ---: | ---: | ---: |
+| `Free` | 12 | 31 | 375 |
+| `Essentials` | 12 | 31 | 937 |
+| `Team` | 12 | 62 | 1 875 |
+
+Ces divisions arrondies à l'entier inférieur ne sont ni une prévision de trafic, ni un engagement de publications : le cycle WP1 inclut des opérations de test absentes d'une livraison normale, tandis que la réconciliation de production ajoutera d'autres lectures. La réserve de 8 est vérifiée **après** les trois probes, alors que `api_request_evidence.total_attempted=8` additionne ces trois probes et cinq opérations suivantes ; leur égalité est une coïncidence et ne transforme pas la table en capacité réelle. Elle démontre seulement que le plan payé par chaque tenant ne suffit pas à dimensionner un app client Malikia potentiellement partagé.
+
+Parcours client cible, à valider ensuite par un essai de bout en bout :
+
+1. le client crée ou utilise son propre compte et son organisation Buffer, choisit son plan et règle Buffer directement ;
+2. dans Buffer, il connecte une **Page Facebook**, jamais un profil personnel ou professionnel, au moyen d'un profil Meta ayant le contrôle total de la Page et, le cas échéant, du Business Portfolio ; il conserve toutes les permissions demandées pendant le consentement Meta ;
+3. Malikia [enregistre séparément un app client OAuth](https://support.buffer.com/en-us/articles/how-to-create-your-buffer-api-key-ShIgYVwM6j) côté fournisseur avec nom, politique de confidentialité publique et redirect URI exactes ; l'application serveur utilise Authorization Code + PKCE et ne place jamais le secret dans le navigateur ;
+4. depuis Pulse, le client autorise uniquement `account:read`, `posts:read`, `posts:write` et `offline_access`, puis sélectionne explicitement son organisation et l'unique Page Facebook autorisée ; les scopes supplémentaires restent interdits tant qu'un besoin prouvé ne les exige pas ;
+5. Pulse vérifie côté serveur le compte, l'organisation, le canal, les permissions de publication, les [`OrganizationLimits`](https://developers.buffer.com/types/OrganizationLimits.html) et les trois fenêtres de quota avant d'accepter la connexion ; les access tokens expirant après une heure et les refresh tokens étant rotatifs et à usage unique, leur stockage chiffré, leur version et leur renouvellement sous verrou restent obligatoires ;
+6. avant le pilote, l'écran récapitule que Buffer facture le client, affiche le plan observé ou `inconnu`, les limites effectives, le canal sélectionné, l'état de reconnexion et un lien vers le tarif officiel ; Malikia ne garantit ni le prix futur ni une capacité supérieure aux headers observés.
+
+Le canal fournisseur est désormais précis : Buffer invite les intégrations multi-utilisateurs ayant besoin de limites supérieures à écrire à `developersupport@buffer.com` dans son [aide API](https://support.buffer.com/en-us/articles/what-is-buffers-api-GtIYIQilz5) et son [guide des limites](https://developers.buffer.com/guides/api-limits.html). Le message devra présenter Malikia comme une intégration SaaS OAuth où chaque client connecte son propre compte, puis demander sans transmettre de token, secret, identifiant de compte/organisation/canal ou valeur `pk` :
+
+1. si les trois fenêtres d'un unique app client OAuth sont partagées entre tous ses grants ou partitionnées par grant, compte ou organisation ;
+2. ce que représente la partition opaque `pk` et si deux grants distincts du même app client doivent normalement l'avoir identique ;
+3. la procédure, les critères et les plafonds disponibles pour augmenter les limites d'une intégration multi-utilisateur ;
+4. si un changement de plan de l'organisation propriétaire de l'app client modifie les grants existants sans nouvelle autorisation.
+
+La preuve conservée sera uniquement la date, une référence de ticket, la réponse écrite expurgée et la décision de capacité qui en découle. L’autorisation d’EV-PULSE-064 a été exécutée par EV-PULSE-066 : le courriel est parti le 28 août 2026 à 19:26 UTC et Gmail l’a classé `SENT`. Il ne contient aucun token, secret, identifiant distant, request ID, valeur `pk` ou `client_id`, et aucun identifiant de message n'est persisté dans le dépôt. Si Buffer exige le `client_id` public, son partage fera l’objet d’une autorisation séparée sans jamais joindre le `client_secret`. L’envoi ne ferme aucun gate Buffer ; la réponse écrite et la décision de capacité restent attendues.
+
+Il reste trois preuves avant de considérer la partie opérationnelle de `BUF-P0-10` validée. Le seuil produit `Free` admis pour un pilote borné et le minimum `Essentials` en production sont déjà acceptés par ADR-PULSE-012 :
+
+1. réponse écrite de Buffer sur le partage du bucket d'un app client OAuth entre plusieurs comptes clients et voie d'augmentation des limites ;
+2. budget effectivement débité par Buffer pour le futur chemin de livraison et chaque cycle de réconciliation Facebook ; le compteur logique WP1 est acquis mais ne ferme pas cette preuve runtime ;
+3. parcours pilote complet avec un compte client représentatif, incluant connexion Meta → Buffer → Pulse, expiration/refresh, reconnexion et downgrade ;
+
+## 6. Systèmes de référence et invariants
+
+### 6.1 Autorité par domaine
+
+| Domaine | Source de vérité |
+| --- | --- |
+| Contenu, variante et révision | Pulse |
+| Source produit, service, promotion ou campagne | Pulse |
+| Voix de marque, modèles et IA | Pulse |
+| Permissions et approbation | Pulse |
+| Intention de date et fuseau | Pulse |
+| Grant OAuth et organisations accessibles | Buffer, représentés localement |
+| Canaux et capacités distantes | Buffer, mis en cache dans Pulse |
+| Livraison finale | Buffer |
+| Historique et audit métier | Pulse |
+| Statut distant | Buffer, réconcilié dans Pulse |
+| Analytics avancés et engagement | Hors contrat Pulse initial |
+
+### 6.2 Invariants obligatoires
+
+1. Une révision approuvée ne peut produire qu’une opération create automatique par cible et génération de récupération.
+2. Une cible ne peut référencer qu’un canal, un provider et une organisation du même tenant que le post.
+3. L’approbation, le gel de la révision et l’insertion de l’outbox sont atomiques dans la même transaction.
+4. Seul le dispatch ou le traitement de l’outbox intervient après commit.
+5. Un worker réclame une entrée par compare-and-swap avec lease expirante et fencing token avant tout appel distant.
+6. Un timeout ambigu ne déclenche jamais automatiquement une nouvelle création.
+7. Le transport choisi est persisté sur la cible et l’outbox avant mise en queue.
+8. Un changement de feature flag ne change pas le transport d’une cible déjà créée.
+9. Une programmation exacte ne devient jamais silencieusement addToQueue.
+10. Un succès de mutation create signifie submitted, pas published.
+11. Published est dérivé d’un statut distant sent réconcilié.
+12. Partial_failed est un statut agrégé du post, jamais le statut d’une cible individuelle.
+13. Les credentials, tokens, verifiers et réponses sensibles restent côté serveur.
+14. Un média approuvé est immuable ; toute modification crée une nouvelle révision.
+15. Une URL média reste disponible jusqu’à la date distante plus une période de grâce définie.
+16. Aucun rollback n’active automatiquement le transport direct.
+17. Une récupération manuelle après unknown crée une nouvelle recovery_generation ou une nouvelle révision, référence l’outbox remplacée et reste auditée.
+18. Un sweeper durable retrouve périodiquement les outbox pending ou retryable et répare les leases expirées claimed ou submitting.
+19. Les canaux pouvant produire draft ou needs_approval chez Buffer sont refusés ou affichés comme remote_approval_required tant que leur politique n’est pas explicitement supportée.
+
+## 7. Architecture cible
+
+~~~mermaid
+flowchart LR
+    A[Sources métier Malikia] --> B[Composeur et variantes Pulse]
+    B --> C[Révision éditoriale]
+    C --> D[Approbation Pulse]
+    D -->|même transaction| E[Targets + Outbox]
+    E -->|après commit| F[Worker de soumission]
+    F --> G[Gateway Buffer]
+    G --> H[API GraphQL Buffer]
+    H --> I[Canaux sociaux]
+    J[Stockage média de livraison] --> H
+    H --> K[Réconciliation]
+    K --> L[Statuts locaux et historique]
+~~~
+
+### 7.1 Composants et responsabilités
+
+| Composant cible | Responsabilité | Ne doit pas faire |
+| --- | --- | --- |
+| BufferGraphqlClient | HTTP, GraphQL, headers, timeouts et réponse brute minimale | Décider des statuts métier |
+| BufferOauthService | PKCE, state, callback et sélection d’organisation | Retourner des secrets au frontend |
+| BufferTokenService | Refresh verrouillé, transactionnel et versionné | Rafraîchir en concurrence sans lock |
+| BufferDistributionGateway | Traduire les opérations Pulse en contrat Buffer | Exposer le schéma GraphQL au domaine |
+| BufferChannelSynchronizer | Organisations, canaux, capacités et tombstones | Écraser l’historique legacy |
+| SocialDeliveryOutboxService | Créer, réclamer, relâcher et terminer les opérations | Effectuer un appel réseau dans la transaction métier |
+| SocialDeliveryReconciler | Lire le distant et résoudre les écarts | Recréer une publication inconnue |
+| SocialChannelCapabilityService | Valider texte, média et options par canal | Utiliser des limites codées en dur dans Vue |
+| SocialMediaDeliveryUrlService | Produire, tester, retenir et révoquer les URL | Utiliser une URL courte durée |
+| BufferErrorMapper | Classer les erreurs et actions utilisateur | Stocker la réponse complète sans filtrage |
+| BufferQuotaBudget | Suivre les trois fenêtres et arbitrer les appels | Affamer un tenant au profit d’un autre |
+
+### 7.2 Contrat métier interne
+
+Le contrat exact sera figé pendant WP2. Il doit couvrir au minimum :
+
+- synchroniser les organisations ;
+- synchroniser les canaux ;
+- créer une publication immédiate ;
+- créer une publication programmée ;
+- modifier ou replanifier ;
+- annuler ou supprimer ;
+- lire un post distant ;
+- lire un ensemble de statuts ;
+- normaliser les capacités ;
+- retourner un résultat typé sans dépendance GraphQL dans le domaine.
+
+Une seule implémentation de production est prévue : Buffer.
+
+## 8. Modèle de données cible
+
+Toutes les migrations sont additives. Les migrations historiques déjà exécutées ne sont jamais réécrites.
+
+### 8.1 social_provider_connections
+
+Dans le modèle MVP confirmé, une ligne représente le grant du compte Buffer détenu et payé par le tenant client. La grille officielle et le minimum `Essentials` recommandé sont documentés en section 5.10. Le plan observé, les limites effectives, la capacité de l'app client OAuth et la validation du parcours restent soumis à `BUF-P0-10`.
+
+Champs minimaux :
+
+- id ;
+- user_id ;
+- provider, fixé à buffer ;
+- external_account_id ;
+- external_organization_id sélectionné ;
+- display_name ;
+- credentials chiffrés ;
+- granted_scopes ;
+- credential_version ;
+- status ;
+- token_expires_at ;
+- connected_at ;
+- last_synced_at ;
+- last_error_code ;
+- last_error_message expurgé ;
+- metadata en liste blanche ;
+- timestamps.
+
+Contraintes :
+
+- index par user_id et status ;
+- unicité du grant actif selon la politique V1 ;
+- aucun canal ne duplique les credentials ;
+- un refresh compare credential_version avant sauvegarde.
+
+### 8.2 social_posts
+
+La table actuelle possède un status unique. La migration additive introduit :
+
+- editorial_status ;
+- delivery_status agrégé ;
+- sync_status agrégé ;
+- current_editorial_revision ;
+- approved_revision_id nullable ;
+- scheduled_timezone, identifiant IANA ;
+- scheduled_local_time nullable ;
+- payload_hash de la révision courante ;
+- dernière date de calcul des agrégats.
+
+Le champ status historique reste temporairement alimenté pendant une période de compatibilité, puis devient lecture seule avant retrait. Le backfill doit distinguer ce qui est connu de ce qui est seulement déduit.
+
+### 8.3 social_post_revisions
+
+Une révision approuvée doit être un snapshot immuable réel, pas seulement un entier sur le post.
+
+Champs minimaux :
+
+- id ;
+- user_id ;
+- social_post_id ;
+- revision_number ;
+- base_content ;
+- source_snapshot ;
+- media_snapshot versionné ;
+- scheduled_for ;
+- scheduled_timezone ;
+- scheduled_local_time ;
+- payload_hash ;
+- created_by_user_id ;
+- approved_by_user_id nullable ;
+- approved_at nullable ;
+- timestamps.
+
+L’approbation, les variantes et l’outbox référencent cette révision. Un objet média d’une révision approuvée ne peut pas être remplacé en place.
+
+La cible reste stable par post et destination ; elle pointe seulement vers sa révision courante. L’association historique immuable entre une opération et une révision est portée par l’outbox.
+
+La table social_approval_requests reçoit aussi social_post_revision_id. La migration suit quatre temps :
+
+1. ajouter les FK nullables ;
+2. créer une révision synthétique pour chaque post existant concerné ;
+3. rattacher chaque demande d’approbation à la révision synthétique ou reconstruite appropriée ;
+4. valider les orphelins avant de rendre la FK obligatoire pour les nouvelles approbations.
+
+### 8.4 social_account_connections
+
+Les lignes legacy ne sont pas converties en place. Elles restent lisibles pour l’historique et le drain.
+
+De nouvelles lignes représentent les canaux Buffer et reçoivent :
+
+- social_provider_connection_id ;
+- delivery_provider ;
+- transport_generation ;
+- logical_destination_key ;
+- external_account_id, identifiant du canal Buffer ;
+- platform, réseau réel ;
+- channel_type ;
+- avatar_url ;
+- timezone ;
+- capabilities normalisées ;
+- provider_status ;
+- is_disconnected ;
+- is_locked ;
+- is_queue_paused ;
+- last_synced_at ;
+- metadata filtrée.
+
+La stratégie d’unicité distingue les générations legacy et Buffer. Une barrière de cutover empêche aussi deux transports actifs vers la même logical_destination_key.
+
+### 8.5 social_post_variants
+
+Une variante facultative surcharge le contenu de base pour un réseau ou un canal :
+
+- social_post_revision_id ;
+- social_account_connection_id nullable ;
+- platform nullable ;
+- text ;
+- hashtags ;
+- media_snapshot ;
+- link ;
+- channel_options ;
+- capability_validation ;
+- payload_hash ;
+- timestamps.
+
+Contraintes :
+
+- exactement un scope entre canal et plateforme ;
+- unicité par révision et scope ;
+- précédence canal, puis plateforme, puis contenu de base ;
+- aucun changement en place après approbation.
+
+Sans variante, la cible hérite du contenu de base de la révision.
+
+### 8.6 social_post_targets
+
+Une cible représente une destination éditoriale stable pour le couple post/canal. Elle n’est pas recréée pour chaque révision.
+
+Ajouts minimaux :
+
+- current_revision_id ;
+- last_submitted_revision_id nullable ;
+- delivery_provider ;
+- transport_generation ;
+- logical_destination_key ;
+- current_editorial_revision ;
+- provider_post_id ;
+- provider_status ;
+- delivery_status ;
+- sync_status ;
+- submitted_at ;
+- remote_scheduled_for ;
+- last_synced_at ;
+- provider_error_code ;
+- provider_error_message expurgé ;
+- payload_hash ;
+- timestamps.
+
+L’unicité actuelle post/canal reste une règle métier. Changer de révision déplace le pointeur courant sans modifier les révisions ou outbox historiques. Une contrainte de cutover interdit aussi deux cibles actives de transports différents pour le même post et la même destination logique. Les opérations et leur association immuable à une révision sont portées par l’outbox.
+
+### 8.7 social_delivery_outbox
+
+L’outbox est une table, pas seulement un service.
+
+Champs minimaux :
+
+- id ;
+- user_id ;
+- social_post_target_id ;
+- social_post_revision_id ;
+- social_provider_connection_id ;
+- operation : create, update ou cancel ;
+- delivery_provider ;
+- transport_generation ;
+- logical_destination_key ;
+- external_organization_id_snapshot ;
+- external_channel_id_snapshot ;
+- editorial_revision ;
+- recovery_generation ;
+- supersedes_outbox_id nullable ;
+- idempotency_key ;
+- correlation_key nullable ;
+- payload_hash ;
+- payload chiffré ou strictement filtré ;
+- status ;
+- attempts ;
+- available_at ;
+- claimed_at ;
+- claim_expires_at ;
+- claimed_by ;
+- claim_token ;
+- claim_version ;
+- request_started_at ;
+- submitted_at ;
+- processed_at ;
+- aggregate_repaired_at nullable ;
+- last_error_category ;
+- last_error_code ;
+- last_error_message expurgé ;
+- timestamps.
+
+Contraintes et indexes :
+
+- unicité sur idempotency_key ;
+- unicité logique cible, opération, révision et recovery_generation ;
+- index de claim sur status et available_at ;
+- index de récupération sur claim_expires_at ;
+- index de réparation sur status et aggregate_repaired_at ;
+- index tenant et cible ;
+- chaque écriture du worker compare claim_token et claim_version ;
+- FK restrictives ou stratégie explicite de conservation d’audit.
+
+États d’outbox :
+
+- pending ;
+- claimed ;
+- submitting ;
+- retryable ;
+- unknown ;
+- completed ;
+- dead.
+
+Transitions :
+
+| Depuis | Vers | Condition |
+| --- | --- | --- |
+| pending ou retryable | claimed | Claim atomique et lease obtenue |
+| claimed | submitting | request_started_at persisté avant l’appel |
+| claimed | retryable | Échec certain avant le début de l’appel |
+| submitting | retryable | Rejet fournisseur prouvant explicitement qu’aucun effet distant n’est possible |
+| submitting | completed | Mutation reconnue, résultat et provider_post_id persistés atomiquement |
+| submitting | unknown | Effet distant possible mais résultat non prouvé, y compris un `429` de création sans garantie d’absence d’effet |
+| retryable | dead | Nombre maximal de tentatives atteint |
+| claimed | pending | Lease expirée et request_started_at absent |
+| claimed ou submitting | unknown | Lease expirée après début possible de l’appel |
+
+L’état completed clôt l’opération d’outbox. La cible porte ensuite submitted, scheduled, sending ou published. Unknown exige une réconciliation ou une décision opérateur.
+
+Les identités d’organisation, canal, destination logique et transport sont snapshotées sur l’outbox. Les credentials restent référencés par la connexion provider afin de pouvoir être rafraîchis sans modifier le routage de l’opération.
+
+EV-PULSE-081 implémente cette fondation pour le transport local `direct_v1`. Le mutex de connexion séquence l’appel fournisseur avec une déconnexion ou la suppression complète du tenant. Le sweeper reprend les leases expirées et les agrégats terminaux non marqués ; aucun callback d’échec non fenced ne peut reprendre la claim d’un autre worker. Une suppression ordinaire de connexion possédant un historique est refusée au profit d’une déconnexion, tandis que la suppression complète du compte purge explicitement les lignes outbox appartenant au tenant avant les parents protégés par FK. À cette frontière, les snapshots d’organisation et de canal fournisseur peuvent rester nuls, car aucune identité Buffer ne doit être inférée depuis un identifiant direct legacy. Ils deviendront obligatoires pour une opération Buffer au moment où le gateway et le mapping canonique seront autorisés. Le schéma réserve `create`, `update` et `cancel`, mais la frontière publique locale refuse actuellement toute opération autre que `create` afin qu’aucune ligne non exécutable ne puisse être persistée.
+
+### 8.8 Registre de cutover
+
+Un registre persistant doit indiquer, par tenant :
+
+- génération de transport active ;
+- date du cutover ;
+- mapping legacy vers canal Buffer ;
+- dernière cible legacy autorisée ;
+- posts delayed encore en drain ;
+- statut du pilote ;
+- rollback demandé ou interdit ;
+- opérateur et preuve.
+
+Ce registre est distinct de l’entitlement commercial social.
+
+## 9. Machines d’état
+
+### 9.1 Éditorial
+
+États du post :
+
+- draft ;
+- pending_approval ;
+- approved ;
+- rejected ;
+- archived.
+
+Une modification d’un contenu approved crée une nouvelle révision et revient à draft ou pending_approval selon le workflow.
+
+### 9.2 Livraison d’une cible
+
+États locaux :
+
+- not_submitted ;
+- queued ;
+- submitted ;
+- scheduled ;
+- remote_approval_required ;
+- sending ;
+- published ;
+- failed ;
+- unknown ;
+- canceled.
+
+Une cible ne prend jamais partial_failed.
+
+### 9.3 Agrégat du post
+
+L’état de livraison du post est dérivé des cibles :
+
+- not_submitted ;
+- queued ;
+- submitted ;
+- scheduled ;
+- remote_approval_required ;
+- publishing ;
+- published ;
+- partial_failed ;
+- failed ;
+- unknown ;
+- canceled.
+
+Ordre de calcul :
+
+1. unknown si une cible possède un résultat distant ambigu ;
+2. partial_failed si au moins une cible est failed et une autre reste active ou a réussi ;
+3. failed si toutes les cibles non annulées ont échoué ;
+4. publishing si une cible est sending ;
+5. remote_approval_required si une cible attend une approbation Buffer supportée ;
+6. scheduled si une cible est programmée et aucune règle supérieure ne s’applique ;
+7. submitted si une cible est soumise ;
+8. queued si une cible attend la soumission ;
+9. published si toutes les cibles non annulées sont publiées ;
+10. canceled si toutes les cibles sont annulées ;
+11. not_submitted sinon.
+
+Une cible annulée volontairement est exclue du calcul du succès des autres cibles. Published avec une cible canceled reste donc published si toutes les destinations encore actives ont réussi.
+
+### 9.4 Synchronisation
+
+États :
+
+- pending ;
+- synced ;
+- error ;
+- reconnect_required.
+
+### 9.5 Dates et fuseaux
+
+- scheduled_for conserve l’instant de l’intention Pulse ;
+- scheduled_timezone conserve explicitement le fuseau IANA ;
+- scheduled_local_time conserve, si nécessaire, la valeur locale présentée à l’utilisateur ;
+- dueAt est envoyé en UTC ;
+- remote_scheduled_for conserve la date acceptée par Buffer ;
+- tout écart est visible dans l’UI et l’audit ;
+- les changements DST sont testés.
+
+## 10. Algorithme de livraison fiable
+
+### 10.1 Primitive unique de gel et outbox
+
+Les quatre chemins suivants utilisent la même primitive transactionnelle :
+
+- approbation explicite ;
+- publication directe par un acteur autorisé ;
+- programmation directe par un acteur autorisé ;
+- publication Autopilot autorisée par une politique.
+
+Une publication directe matérialise une approbation implicite auditée de la révision par l’acteur autorisé. Autopilot matérialise une approbation de politique avec sa règle, sa version et son audit. Aucun de ces chemins ne contourne le gel de révision ou l’outbox.
+
+Dans une transaction :
+
+1. Verrouiller le post et la demande ou politique applicable.
+2. Revalider permissions, tenant, règle Autopilot et révision affichée.
+3. Marquer la révision approved avec le type d’approbation.
+4. Geler le snapshot de contenu et de média.
+5. Créer ou mettre à jour les cibles.
+6. Persister delivery_provider et transport_generation.
+7. Insérer une entrée d’outbox par cible.
+8. Enregistrer l’audit.
+9. Commit.
+
+Après commit seulement :
+
+10. Réveiller le traitement de l’outbox par un signal best effort.
+11. Laisser un dispatcher périodique durable balayer pending et retryable si ce signal est perdu.
+12. Laisser un reaper traiter les leases expirées : claimed sans request_started_at revient à pending ; claimed ou submitting après début possible de l’appel passe à unknown.
+
+Deux approbateurs ou deux déclencheurs concurrents doivent aboutir à une seule résolution et une seule opération create automatique par cible et génération.
+
+### 10.2 Claim et soumission
+
+Le worker :
+
+1. réclame une entrée par compare-and-swap ;
+2. attribue une lease bornée, un claim_token et une claim_version ;
+3. vérifie tenant, provider, organisation, canal et révision ;
+4. vérifie la capacité et le média ;
+5. obtient un token valide via le service verrouillé ;
+6. persiste submitting et request_started_at avant l’appel ;
+7. appelle le gateway ;
+8. persiste atomiquement provider_post_id, le résultat cible et completed en comparant le fencing token ;
+9. termine ou reprogramme l’entrée ;
+10. déclenche la réconciliation appropriée.
+
+Une lease expirée est reprise automatiquement seulement si request_started_at est absent. Si l’appel a commencé ou a pu commencer, l’entrée passe en unknown. Une opération completed ne peut jamais être réclamée de nouveau. Les écritures tardives d’un ancien worker sont refusées par claim_token et claim_version.
+
+### 10.3 Timeout ambigu
+
+Si la requête a pu atteindre Buffer mais qu’aucune réponse exploitable n’est reçue :
+
+1. marquer l’outbox et la cible unknown ;
+2. conserver idempotency_key, correlation_key et payload_hash ;
+3. ne pas rappeler create ;
+4. tenter une recherche ou réconciliation supportée par Buffer ;
+5. si aucune corrélation fiable n’existe, créer une tâche opérateur ;
+6. autoriser une nouvelle création uniquement après décision explicite et auditée ;
+7. créer alors une recovery_generation ou une révision supérieure avec supersedes_outbox_id.
+
+Le système ne promet pas exactly-once distant tant que Buffer ne fournit pas de preuve contractuelle ou de mécanisme de corrélation suffisant.
+
+### 10.4 Taxonomie des erreurs
+
+| Catégorie | Exemples | Action |
+| --- | --- | --- |
+| validation | format, capacité, média | Failed, correction utilisateur, aucun retry |
+| authentication | 401, grant révoqué | reconnect_required, pause des livraisons |
+| authorization | scope ou organisation refusée | Failed ou reconnexion selon diagnostic |
+| rate_limit | 429 | Lecture : retry après `Retry-After` et budget ; création : retry seulement avec preuve explicite d’absence d’effet, sinon `unknown` |
+| retryable | échec prouvé avant émission ou rejet garanti sans effet | Backoff borné |
+| ambiguous | timeout, 5xx ou erreur système après un create possiblement accepté | Unknown et réconciliation, aucun create aveugle |
+| permanent | canal supprimé, mutation refusée | Failed, action utilisateur |
+| unexpected | erreur GraphQL système | Lecture retryable ; create unknown si l’effet distant reste possible |
+
+La classification dépend de l’opération. Un 5xx peut être retryable pour une lecture et ambigu pour un create. Les erreurs réellement retryables remontent au worker ; elles ne sont jamais absorbées comme un échec terminal silencieux.
+
+### 10.5 Quotas et équité
+
+Le budget doit :
+
+- lire les trois fenêtres documentées ;
+- identifier chaque fenêtre par sa durée ;
+- réserver une marge pour OAuth, reconnexion et actions manuelles ;
+- répartir les appels entre tenants ;
+- ralentir le polling avant le 429 ;
+- respecter Retry-After ;
+- exposer les seuils 20 % et 10 % ;
+- empêcher un tenant bruyant de consommer tout le bucket ;
+- conserver la création et l’approbation locales lorsque Buffer est limité.
+
+### 10.6 Réconciliation
+
+La réconciliation est :
+
+- immédiate après une soumission lorsque nécessaire ;
+- plus fréquente pour submitted, sending et unknown ;
+- plus lente pour scheduled lointain ;
+- arrêtée pour les états terminaux stables ;
+- déclenchable manuellement ;
+- budgetée selon les quotas ;
+- tolérante aux événements hors ordre et aux réponses obsolètes.
+
+Décision MVP formellement acceptée pour `BUF-P0-03` :
+
+- un scheduler fréquent ne scanne jamais Buffer en masse ; il réclame uniquement les cibles dont `next_reconcile_at` est arrivé, avec scope tenant obligatoire, lease et ordre équitable entre tenants ;
+- une cible `scheduled` à plus de 24 heures de son échéance est relue au maximum une fois par 24 heures ; entre 2 et 24 heures, au maximum une fois toutes les 2 heures ; dans les 2 heures précédant l’échéance, au maximum toutes les 15 minutes ;
+- après l’échéance, une cible encore `scheduled` est relue toutes les 5 minutes pendant 30 minutes au maximum, puis devient une alerte opérateur sans nouvelle création ;
+- une cible `sending` est relue toutes les 2 minutes, cinq fois au maximum, puis devient une alerte opérateur ;
+- une opération `unknown` avec `provider_post_id` est relue directement par identifiant toutes les 5 minutes, trois fois au maximum ; si ces trois lectures ne produisent aucun état certain, le polling s’arrête, une tâche opérateur est créée et toute nouvelle création reste interdite ; sans identifiant distant fiable, la tâche opérateur est créée immédiatement et aucun polling par heuristique de texte, date ou hash ne prétend lever l’ambiguïté ;
+- `sent` et `error` sont terminaux pour le polling automatique ; `draft` ou `needs_approval` reçus pour un contenu déjà approuvé dans Pulse sont signalés comme divergence et ne déclenchent ni approbation Buffer, ni nouvelle création ;
+- à 20 % de quota restant, les lectures lointaines et intermédiaires sont suspendues ; à 10 %, tout polling automatique est suspendu, l’état dégradé est exposé et la réserve est conservée pour OAuth, reconnexion et actions opérateur ; un `429` respecte strictement `Retry-After` ;
+- la synchronisation manuelle appelle exactement le même service tenant-scopé et idempotent, ne contourne ni les quotas ni les locks, et ne peut jamais invoquer `createPost` ;
+- si Buffer publie ultérieurement un webhook officiel, il alimentera le même normalizer provider-neutral ; ADR-PULSE-007 sera alors réévaluée, sans supprimer le polling avant preuve de fiabilité et procédure de repli.
+
+Ces valeurs sont les défauts de conception du MVP, désactivés tant que le runtime reste NO-GO. `BUF-P0-02` et `BUF-P0-10` doivent encore confirmer que le budget réel permet de les activer ; leur réglage ne peut jamais augmenter la fréquence au-delà du quota effectif observé.
+
+## 11. Parcours métier et critères d’acceptation
+
+| Parcours | Critère d’acceptation |
+| --- | --- |
+| Connexion OAuth | State consommé une seule fois, PKCE serveur, aucun secret dans le DTO |
+| Multi-organisation | L’owner choisit explicitement une organisation et ne voit que ses canaux autorisés |
+| Synchronisation | Ajout, mise à jour, déconnexion et tombstone sont idempotents |
+| Canal avec approbation Buffer | Refus explicite ou état remote_approval_required supporté et visible |
+| Création | Le brouillon ne produit aucun appel Buffer |
+| Approbation | Une seule révision gelée et une seule outbox sous concurrence |
+| Publication directe ou Autopilot | Approbation implicite ou de politique auditée dans la même transaction |
+| Publication immédiate | La cible devient submitted, puis published seulement après statut sent |
+| Programmation exacte | dueAt UTC est envoyé immédiatement et remote_scheduled_for est persisté |
+| Prochaine plage | addToQueue est une action séparée et explicite |
+| Modification | Une nouvelle révision est auditée et la mutation distante dépend du statut |
+| Annulation | L’état local ne devient canceled qu’après résultat distant ou résolution explicite |
+| Timeout ambigu | Unknown, aucun deuxième create automatique |
+| 401 | Reconnexion visible, brouillons conservés, livraisons en pause |
+| 429 | `Retry-After` respecté ; aucune deuxième création sans preuve explicite que la première n’a eu aucun effet |
+| Média inaccessible | Échec avant soumission lorsque détectable, action corrective visible |
+| Canal supprimé | Canal désactivé localement, historique conservé |
+| Mode dégradé | Création et approbation locales continuent, outbox visible |
+| Signal après commit perdu | Le sweeper reprend l’outbox sans action utilisateur |
+
+## 12. Sécurité, confidentialité et médias
+
+### 12.1 OAuth
+
+- Authorization Code + PKCE pour le client OAuth ;
+- state fort, unique, expirant et consommé atomiquement ;
+- verifier stocké uniquement côté serveur ;
+- redirect URI en liste blanche ;
+- scopes minimaux validés par le spike ;
+- access et refresh tokens chiffrés ;
+- refresh sous verrou distribué ;
+- transaction et credential_version pour éviter l’écrasement ;
+- révocation et reconnexion auditables.
+
+### 12.2 Isolation tenant
+
+Chaque action serveur et chaque worker vérifie :
+
+- user_id du post ;
+- user_id du canal ;
+- user_id de la connexion provider ;
+- organisation Buffer sélectionnée ;
+- transport_generation ;
+- permissions de l’acteur pour les actions interactives.
+
+Une corruption de FK ou un import invalide doit échouer avant tout appel Buffer.
+
+### 12.3 DTO et logs
+
+- DTO en liste blanche ;
+- aucun credentials ou metadata brut ;
+- aucune réponse provider complète persistée par défaut ;
+- redaction des tokens, URLs sensibles, contenu et identifiants inutiles ;
+- codes d’erreur structurés ;
+- logs corrélés par IDs internes et provider_post_id ;
+- audit séparé des logs techniques.
+
+### 12.4 Médias
+
+Le service de livraison média doit fournir :
+
+- URL opaque et non devinable ;
+- HTTPS public sans cookie ni authentification ;
+- type MIME et longueur cohérents ;
+- probe avant soumission ;
+- disponibilité jusqu’à remote_scheduled_for plus une période de grâce ;
+- suppression différée ;
+- révocation et purge auditables ;
+- politique explicite de rétention et d’export.
+
+### 12.5 Juridique et fournisseur
+
+Avant GO lancement pilote :
+
+- usage SaaS multi-tenant confirmé ;
+- DPA et registre de sous-traitants mis à jour ;
+- politique de confidentialité mise à jour ;
+- suppression et export documentés ;
+- clauses de disponibilité et changement d’API comprises ;
+- règles de marque validées ;
+- runbook d’incident fournisseur approuvé.
+
+## 13. Expérience utilisateur cible
+
+### 13.1 Six surfaces
+
+1. **Aperçu** — santé Buffer, planning, validations, erreurs et quotas utiles.
+2. **Publications** — brouillons, à valider, programmées, publiées et erreurs.
+3. **Créer** — contenu de base et variantes facultatives.
+4. **Calendrier** — intention Pulse, date distante et conflits.
+5. **Bibliothèque** — médias, modèles et voix de marque.
+6. **Canaux & Buffer** — connexion, organisation, canaux et diagnostic.
+
+Campagnes et Autopilot deviennent des modes ou entrées contextuelles, pas nécessairement des destinations principales.
+
+### 13.2 Contrat frontend de canal
+
+Le serveur expose un DTO stable :
+
+| Champ | Usage |
+| --- | --- |
+| id | Identifiant local |
+| network | Réseau affiché |
+| name et handle | Identité du canal |
+| avatar_url | Présentation |
+| timezone | Programmation |
+| capabilities | Validation du composeur |
+| active | Choix Pulse |
+| connection_status | Santé du canal |
+| sync_status | État local/distant |
+| last_synced_at | Diagnostic |
+
+Aucun champ GraphQL brut ou secret OAuth n’est exposé.
+
+### 13.3 Corrections impératives
+
+- Ajouter disabled à DropzoneInput et verrouiller tout média pending_approval.
+- Afficher la révision approuvée et détecter une révision obsolète.
+- Afficher status, failure_reason et action par cible dans l’historique.
+- Afficher séparément statut éditorial, livraison et synchronisation.
+- Afficher scheduled_for, remote_scheduled_for et le fuseau.
+- Alimenter les capacités depuis le serveur.
+- Remplacer la grille mobile de 42 cellules par une vue agenda.
+- Remplacer window.confirm par la modale commune.
+- Ajouter aria-live, aria-busy, focus restauré et navigation clavier.
+- Ne jamais imbriquer bouton et lien interactifs.
+
+### 13.4 Découpage frontend
+
+Les composants monolithiques sont séparés au minimum en :
+
+- PulseComposerForm ;
+- PulseChannelPicker ;
+- PulseVariantEditor ;
+- PulseSchedulePanel ;
+- PulseComposerActions ;
+- PulsePostPreview ;
+- PulseDeliveryStatus ;
+- BufferConnectionCard ;
+- BufferOrganizationPicker ;
+- BufferChannelList ;
+- PulseRecoveryAction.
+
+Un client/composable Pulse unique centralise les appels, erreurs, refresh et normalisations.
+
+## 14. Migration et cutover
+
+### 14.1 Principes
+
+- Ne jamais convertir les connexions directes en place.
+- Créer de nouvelles lignes de canaux Buffer.
+- Conserver les connexions legacy en lecture seule pour l’historique et le drain.
+- Persister le transport sur chaque cible et outbox.
+- Ne jamais faire partir une même cible par deux transports.
+- Ne jamais réactiver automatiquement le direct pendant un rollback.
+
+### 14.2 Références à remapper
+
+Le mapping owner-validé doit couvrir :
+
+- social_automation_rules.target_connection_ids ;
+- social_post_templates.metadata.selected_target_connection_ids ;
+- brouillons actifs ;
+- posts futurs ;
+- snapshots actifs ou futurs de brouillons et modèles ;
+- données déterministes de démo.
+
+Les snapshots historiques publiés restent inchangés.
+
+Les jobs delayed déjà sérialisés ne sont jamais remappés. Ils sont inventoriés puis drainés, ou annulés et recréés explicitement après réconciliation. Les identités de routage de leurs cibles et connexions restent immuables tant que le code direct nécessaire au drain existe. Les credentials, token_expires_at et statuts de connexion restent toutefois rafraîchissables.
+
+### 14.3 Séquence technique interne aux trois macro-étapes
+
+Cette liste ne constitue pas 25 phases de validation : les points 1 à 10 appartiennent à l’Étape 1, les points 11 à 16 à l’Étape 2 et les points 17 à 25 à l’Étape 3. Seuls H1, H2 et H3 sont des validations humaines.
+
+1. WP2-A terminé localement : port métier provider-neutral, DTO/résultat minimal et fake déterministe de test, sans trafic Buffer ni binding runtime.
+2. Préparer, tester et exécuter l'inventaire agrégé sur la base locale courante — terminé ; aucun credential ou identifiant distant n'est exposé.
+3. Si Pulse possède déjà des données ou workers de production, exécuter le même format sur un clone MySQL représentatif et qualifier les queues externes ou renommées. Pour la préproduction actuelle sans aucun usage Pulse, cette exigence est explicitement non applicable par EV-PULSE-072 et doit seulement être rejouée si cet état change.
+4. Propriétaire/payeur confirmé par EV-PULSE-048 et base commerciale documentée par EV-PULSE-053 ; `GO_WP2B_SCHEMA_LOCAL_ONLY` est accordé sur le périmètre local accepté par Jules. Le quota OAuth multi-client, la charge réelle et le parcours pilote restent ouverts dans `BUF-P0-10` pour les phases distantes.
+5. Préparer et tester localement les colonnes et FK nouvelles comme nullables, sans les déployer ni changer le transport.
+6. Créer les révisions synthétiques, rattacher les approbations et initialiser le pointeur courant des cibles dans des tests de migration réversibles.
+7. Préparer le backfill `delivery_provider=direct`, `transport_generation=direct_v1` et `logical_destination_key` sur les connexions et cibles legacy.
+8. Valider les orphelins et incohérences, puis préparer les contraintes applicables aux nouvelles données.
+9. Figer les identités de routage déjà en queue, garder leurs credentials rafraîchissables et conserver le handler `direct_v1` derrière l’outbox pendant le futur drain — fondation locale acquise par EV-PULSE-081.
+10. Fermer les gates P0 applicables avant toute activation ou intégration Buffer distante.
+11. Construire puis déployer le client HTTP, le mapper GraphQL et le gateway Buffer concret uniquement après le GO d'intégration distante ; le fake reste local aux tests.
+12. Activer OAuth et synchronisation en lecture seule.
+13. Découpler le service de suppression de données Facebook de Facebook Login, du transport direct et du futur canal Buffer ; prouver qu'une demande Meta ciblée ne supprime jamais une ligne Buffer.
+14. Après le GO d’intégration distante, créer les lignes canal Buffer inertes ; aucune d’elles ne reçoit de cible livrable avant H2.
+15. Faire valider le mapping exact par l’owner ; seuls l’owner ou un superadmin peuvent enregistrer cette preuve, et le mapping devient immuable avant H2.
+16. Exécuter la validation de capacités en shadow, sans publication, puis figer le dossier owner/shadow remis à l’autorité H2.
+17. Consommer le contrat de canary déjà approuvé à H2 — minimum 10 livraisons sur 168 heures, zéro `unknown`, RTO au plus 300 secondes — sans créer une seconde validation humaine de lancement.
+18. Choisir un tenant pilote et persister son transport Buffer par nouvelle cible.
+19. Publier un scénario contrôlé.
+20. Réconcilier et observer.
+21. Drainer ou annuler/recréer explicitement les posts legacy delayed.
+22. Étendre le canary puis réunir les preuves du GO général.
+23. Fermer la création de connexions directes.
+24. Révoquer les secrets directs seulement après drain et fenêtre de retour.
+25. Retirer le transport direct.
+
+### 14.4 Feature flags et kill switches
+
+Séparer :
+
+- entitlement commercial social ;
+- disponibilité globale de la connexion Buffer ;
+- synchronisation de canaux ;
+- livraison Buffer ;
+- réconciliation ;
+- connexions directes en lecture seule ;
+- livraison directe interdite ;
+- état de cutover par tenant.
+
+Le flag mutable ne remplace jamais delivery_provider et transport_generation persistés.
+
+### 14.5 Rollback
+
+Le rollback :
+
+- suspend les nouvelles soumissions Buffer ;
+- conserve brouillons, approbations et outbox ;
+- laisse les opérations inconnues en réconciliation ;
+- empêche toute duplication sur le direct ;
+- ne change pas le transport des cibles existantes ;
+- exige une décision opérateur pour chaque opération ambiguë.
+
+## 15. Stratégie de tests
+
+### 15.1 Suites à préserver
+
+Conserver les tests du :
+
+- composeur ;
+- historique ;
+- calendrier ;
+- approbations ;
+- modèles ;
+- préremplissage ;
+- suggestions ;
+- voix de marque ;
+- médiathèque ;
+- campagnes ;
+- Autopilot ;
+- permissions et feature tenant.
+
+Les tests Auth/Social liés à la connexion utilisateur Malikia restent hors scope.
+
+Les tests du transport et OAuth directs sont remplacés progressivement par les contrats Buffer.
+
+### 15.2 Tests unitaires
+
+- sérialisation GraphQL ;
+- parsing data, errors et unions ;
+- mapping des statuts ;
+- mapping des capacités ;
+- calcul des clés d’idempotence ;
+- transitions d’outbox ;
+- classification des erreurs ;
+- lecture des trois fenêtres de quota ;
+- conversion fuseau vers UTC ;
+- payload hash et révision ;
+- précédence des variantes canal, plateforme et contenu de base ;
+- ordre de calcul de l’agrégat de livraison ;
+- rétention média.
+
+### 15.3 Tests Feature et concurrence
+
+- outbox insérée dans la même transaction que l’approbation ;
+- aucun dispatch avant commit ;
+- deux approbateurs concurrents ;
+- deux workers réclamant la même entrée ;
+- ancien worker refusé par le fencing token après expiration de lease ;
+- lease expirée et reprise ;
+- crash avant l’appel ;
+- crash après acceptation Buffer ;
+- timeout ambigu sans retry create ;
+- 5xx ambigu pendant create ;
+- retry interne avec même clé ;
+- récupération manuelle avec recovery_generation et supersession ;
+- commit réussi mais signal after-commit perdu, puis reprise par sweeper ;
+- worker tué après claim ou request_started_at, puis réparation par le reaper ;
+- post et canal de tenants différents ;
+- OAuth state expiré, rejoué et concurrent ;
+- deux refreshs concurrents ;
+- erreurs GraphQL sous HTTP 200 ;
+- 401, 429, Retry-After et 5xx ;
+- événements distants hors ordre ;
+- modification et annulation par statut ;
+- URL média inaccessible ou expirée ;
+- transport stable malgré un toggle ;
+- barrière anti-double sur une destination logique legacy/Buffer ;
+- migration JSON des règles et modèles ;
+- backfill des trois axes de social_posts et du fuseau IANA ;
+- révisions synthétiques et rattachement des approval requests sans orphelin ;
+- routage snapshoté malgré un changement ultérieur d’organisation sélectionnée ;
+- drain d’un delayed job legacy ;
+- rollback sans dual delivery ;
+- aucune requête réseau non simulée.
+
+### 15.4 Tests de contrat Buffer
+
+La suite de conformance finale du gateway devra couvrir :
+
+- deux organisations ;
+- plusieurs canaux ;
+- texte et média ;
+- shareNow ;
+- customScheduled et dueAt ;
+- addToQueue séparé ;
+- transitions draft à error ;
+- canal produisant needs_approval et politique remote_approval_required ;
+- edit et delete selon statut ;
+- révocation ;
+- quotas et 429 ;
+- timeout après acceptation ;
+- absence ou présence réelle d’un mécanisme de corrélation.
+
+Dans WP2-A, le fake prouve uniquement que le contrat local peut représenter une soumission ou un résultat inconnu et enregistrer un appel déterministe. Il ne prouve aucune capacité Buffer, ne ferme aucun BUF-P0 et n'émule pas des comportements fournisseur non observés.
+
+### 15.5 Frontend et E2E
+
+- média immuable pendant approbation ;
+- erreur visible par cible ;
+- trois axes de statut ;
+- action reconnecter, resynchroniser ou corriger ;
+- capacités serveur ;
+- fuseaux et DST ;
+- agenda mobile ;
+- clavier, focus et lecteurs d’écran ;
+- parcours connecter, choisir organisation, synchroniser, créer, approuver, programmer et réconcilier ;
+- mode dégradé et rollback visible.
+
+### 15.6 Démos
+
+- fake Buffer déterministe ;
+- aucune credential réelle ;
+- aucun appel réseau ;
+- organisations, canaux, quotas et statuts reproductibles ;
+- au moins un succès, un échec récupérable et un unknown ;
+- mapping de démo vérifié.
+
+## 16. Observabilité et exploitation
+
+### 16.1 Métriques
+
+- connexion active ou reconnexion requise ;
+- canaux actifs, supprimés, verrouillés ou en pause ;
+- taille et âge maximal de l’outbox ;
+- nombre de claims expirés ;
+- cibles submitted et remote_approval_required ;
+- outbox submitting, unknown, completed et dead ;
+- temps approbation vers acceptation Buffer ;
+- temps acceptation vers sent ;
+- taux d’échec par mutation, réseau et code ;
+- quotas restants sur trois fenêtres ;
+- retries et réconciliations ;
+- écarts entre scheduled_for et remote_scheduled_for ;
+- doublons évités ou suspectés ;
+- médias inaccessibles.
+
+### 16.2 Alertes
+
+- quota sous 20 %, puis 10 % ;
+- plusieurs 401 ;
+- plusieurs 429 ;
+- unknown au-delà du SLA ;
+- outbox trop ancienne ;
+- claim expiré répété ;
+- réconciliation en retard ;
+- hausse des erreurs unexpected ;
+- média inaccessible ;
+- post distant sans mapping local ou inversement ;
+- suspicion de double publication.
+
+### 16.3 Runbooks
+
+- Buffer indisponible ;
+- quota épuisé ;
+- refresh token révoqué ;
+- timeout ambigu ;
+- média inaccessible ;
+- post bloqué ou suspecté dupliqué ;
+- organisation ou canal supprimé ;
+- événement distant hors ordre ;
+- drain legacy ;
+- rollback du cutover ;
+- incident de sécurité fournisseur.
+
+## 17. Lots d’implémentation
+
+Le tableau WP ci-dessous reste la décomposition technique et la Definition of Done. Le pilotage opérationnel courant est celui des trois macro-étapes de la section 0.2 ; un WP ne crée pas une quatrième étape.
+
+| Lot | Dépendances | Livrables | Definition of Done |
+| --- | --- | --- | --- |
+| WP0 — stabilisation legacy | Aucune | Approval lock, afterCommit, erreurs retryables, invariant tenant, média verrouillé, erreurs par cible visibles | Régressions actuelles couvertes, aucun changement Buffer |
+| WP1 — spike Buffer | Accès fournisseur | OAuth réel, organisations, mutations, quotas, timeout, matrice edit/delete | Les BUF-P0 reçoivent leurs preuves avant la phase distante qu'ils bloquent, ou cette phase passe NO-GO |
+| WP2-A — contrat/fake local | `GO_WP2A_CONTRACT_FAKE_LOCAL_ONLY` | Port métier provider-neutral, DTO/résultat minimal et fake déterministe dans les tests | Contrat unitaire testé ; aucun credential, client ou appel HTTP, persistance DB, config, route, job ou binding runtime |
+| Pré-WP2-B — inventaire legacy | WP2-A | Outil CLI agrégé read-only, base locale puis clone représentatif | Couverture bornée documentée ; aucun credential exposé, migration ou backfill ; anomalies et limites consignées |
+| WP2-B — fondation de données | WP2-A + `GO_WP2B_SCHEMA_LOCAL_ONLY` | Migrations, backfill et modèles de routage | Migrations réversibles, isolation tenant et stratégie de rollback prouvées |
+| WP2-C — transport Buffer | WP2-A + GO runtime Buffer | Client HTTP, mapper GraphQL et gateway concret | Suite de conformance et erreurs distantes réelles couvertes ; activation toujours explicite |
+| WP3 — connexion et canaux | WP2-B + WP2-C + GO runtime Buffer | OAuth, refresh lock, organisations, sync et capacités | Deux organisations testées, aucun secret frontend |
+| WP4 — livraison fiable | WP2-B + WP2-C + WP3 + gates de mutation/média | Outbox, claim, média, quotas, soumission et réconciliation | Tests concurrence, ambiguous et cross-tenant verts |
+| WP5 — UX | DTO WP2-A + statuts WP4 | Six surfaces, composeur scindé, agenda et récupération | E2E, responsive et accessibilité verts |
+| WP6 — pilote et migration | GO lancement pilote + WP1 à WP5 | Mapping, shadow, canary, drain et rollback | Preuves réunies pour le GO général |
+| WP7 — retrait direct | GO général + drain terminé | Routes, providers, config et secrets retirés | Aucun tenant/post actif sur le direct |
+
+Chaque lot possède :
+
+- une stratégie de rollback et, lorsqu'il persiste des données, une migration réversible ;
+- des tests ciblés ;
+- une preuve attachée ;
+- un propriétaire ;
+- un statut dans le journal de décision.
+
+## 18. Gates GO / NO-GO
+
+### 18.1 GO WP2-A contract/fake local
+
+Le GO accordé couvre uniquement la construction locale de WP2-A si toutes les conditions suivantes restent vraies :
+
+- travail limité à la branche feature ;
+- WP2-A ne lit, n'accepte et ne transmet aucun credential et n'effectue aucun appel Buffer réel ;
+- port métier provider-neutral, DTO de création, résultat typé et fake déterministe seulement ;
+- fake conservé dans les tests et aucun client HTTP, mapper GraphQL, gateway concret, migration, modèle, config, route, job, événement ou binding runtime ;
+- état `unknown` explicite, sans donnée affirmant un succès ; le futur worker devra interdire tout retry automatique d'une création ambiguë ;
+- aucun pilote, cutover, retrait du direct ou activation de WP2-B/WP2-C/WP3/WP4 distante.
+
+### 18.2 Gate local WP2-B schéma
+
+Le passage à `GO_WP2B_SCHEMA_LOCAL_ONLY` exige :
+
+- la confirmation produit explicite du modèle propriétaire/payeur du compte client — acquise par EV-PULSE-048 ;
+- si des données Pulse de production existent, le même inventaire exécuté sur un clone MySQL représentatif, avec résultat archivé sous forme agrégée et sans donnée sensible ; exigence non applicable au périmètre local actuel attesté sans production ;
+- zéro référence manquante, invalide, dupliquée ou cross-tenant non expliquée, ou un plan de correction testé avant backfill ;
+- si des workers Pulse de production existent, l'inventaire explicite de toute queue non database, des anciennes queues susceptibles de contenir un job social delayed et des `failed_jobs` sociaux encore rejouables, avec politique de drain, archivage ou interdiction de retry ; exigence non applicable au périmètre actuel sans runtime Pulse ;
+- un design de première migration limité aux champs de transport legacy qui seront consommés immédiatement par les sélecteurs et le worker existants, incluant le contrat exact de dérivation, longueur, normalisation et immutabilité de `logical_destination_key` ;
+- un plan de backfill et rollback `direct` / `direct_v1`, avec matrice de tests SQLite/MySQL et sans grant, canal ou credential Buffer dormant ;
+- aucun client HTTP, appel Buffer, binding de gateway concret, changement de transport, déploiement, pilote ou cutover.
+
+La confirmation propriétaire/payeur, le runner MySQL réel, le contrat final de `logical_destination_key`, l'historique Git suivi des classes/queues et le manifeste multi-scopes v2 couvrant les deux workloads Pulse connus sont acquis. Jules atteste qu’aucun usage Pulse de production n’existe et accepte la base locale comme périmètre représentatif de cette préproduction ; `GO_WP2B_SCHEMA_LOCAL_ONLY` est donc accordé sans fermer les preuves commerciales de `BUF-P0-10`. La migration, le backfill, le rejeu, le rollback et `up → down → up` passent sur SQLite et MySQL. La base locale est migrée avec 1 connexion et 18 cibles canoniques, zéro anomalie et zéro écriture au rejeu. Ce GO ne couvre aucun runtime Buffer, pilote ou production. Si Pulse entre en production avant le pilote, le clone, les queues et la topologie déployée redeviennent obligatoires.
+
+### 18.3 GO intégration Buffer distante
+
+- OAuth et refresh validés sur deux organisations ;
+- scopes et rôles compris ;
+- mutations et erreurs réelles comprises pour le périmètre Facebook retenu ;
+- quota partagé connu et capacité estimée avec marge ;
+- plan client accepté pour le pilote, prix présenté comme externe et capacité effective contrôlée par headers ;
+- stratégie de timeout ambigu acceptée ;
+- webhook prouvé ou stratégie de polling formellement acceptée ;
+- stratégie de corrélation/idempotence distante acceptée ;
+- `FacebookDataDeletionService` découplé de Facebook Login, du transport direct et des futurs canaux Buffer avant toute création de ligne Buffer Facebook ;
+- usage SaaS, DPA et modèle commercial compatibles.
+
+La précondition Facebook Data Deletion est acquise localement par EV-PULSE-076 : une suppression ciblée par l’identité Facebook Login ne touche aucun transport de diffusion, tandis que la suppression complète explicitement configurée reste globale. Elle ne ferme aucun autre gate fournisseur.
+
+Tous les BUF-P0 dont la phase bloquée contient le runtime distant doivent être fermés pour le périmètre activé. Toute phase dont un gate reste ouvert demeure explicitement NO-GO.
+
+### 18.4 GO lancement pilote
+
+- outbox transactionnelle et réconciliation opérationnelles ;
+- concurrence approval, claim et refresh testée ;
+- aucune seconde création automatique après timeout ambigu ;
+- invariant tenant démontré ;
+- URL média stable démontrée ;
+- quotas et polling mesurés ;
+- observabilité et runbooks disponibles ;
+- rollback testé ;
+- aucun dual delivery ;
+- durée minimale du canary et seuils d’incident fixés avant la première publication.
+
+### 18.5 GO général
+
+- quotas contractuellement suffisants ;
+- canary sans incident critique pendant la durée décidée ;
+- support et diagnostics validés ;
+- migration des références actives terminée ;
+- aucun post legacy à risque ;
+- sécurité, DPA, confidentialité et rétention approuvées ;
+- changelog et contract tests intégrés au processus.
+
+### 18.6 NO-GO
+
+Le projet s’arrête ou change de fournisseur si :
+
+- OAuth tiers ou usage SaaS est refusé ;
+- les quotas sont insuffisants sans accord possible ;
+- le risque de timeout ambigu est jugé inacceptable et aucune corrélation n’est possible ;
+- le refresh rotatif ne peut pas être sécurisé ;
+- aucune URL média stable ne peut être garantie ;
+- les conditions juridiques sont incompatibles ;
+- l’isolation tenant ou le rollback ne peut pas être démontré ;
+- le modèle commercial ne peut pas être rendu transparent au client.
+
+### 18.7 Statut courant
+
+**PULSE_LOCAL_ACCEPTANCE_READY · GO_BUFFER_LOCAL_DISCOVERY · BUFFER_LOCAL_CATALOG_LIVE_GREEN · BUFFER_CHANNEL_IMPORT_LOCAL_GREEN · BUFFER_DELIVERY_DISABLED · MACRO_STEP_1_COMPLETE · MACRO_STEP_2_LOCAL_COMPLETE · MACRO_STEP_3_LOCAL_COMPLETE · MACRO_STEP_3_OPERATIONAL_NO_GO · LOCAL_TRANSACTIONAL_OUTBOX_FOUNDATION_GREEN · DIRECT_DELIVERY_OUTBOX_BRIDGED · P0_GATES_OPEN · NO_GO_BUFFER_PILOT · NO_GO_BUFFER_PRODUCTION** : les Étapes 2 et 3 sont clôturées sur leur périmètre local. Le propriétaire peut interroger le compte Buffer réel avec le credential serveur, voir ses organisations et canaux, ouvrir Buffer pour ajouter un canal, resynchroniser puis importer une cible saine dans Pulse. L’import reste inactif et séparé du gestionnaire direct ; aucun handler de création Buffer n’est lié. Le parcours éditorial, la livraison simulée `direct_v1` et le control-plane fail-closed restent testables. OAuth Buffer multi-utilisateur, le gateway de livraison, H2, le pilote, le drain et H3 restent à prouver selon leurs gates propres.
+
+Mise à jour EV-PULSE-082 : `MACRO_STEP_2_LOCAL_IMPLEMENTATION_COMPLETE`, `PROVIDER_NEUTRAL_RECONCILIATION_LOCAL_GREEN`, `PULSE_STATUS_AXES_UX_GREEN`, `PULSE_SCHEDULING_TIMEZONE_GREEN` et `PULSE_DELIVERY_OBSERVABILITY_GREEN` remplacent les formulations antérieures qui disaient la réconciliation locale ou l’UX encore absentes. À cette révision, le runtime Buffer restait entièrement absent. EV-PULSE-088 remplace depuis ce blocage générique par un GO borné à la découverte/import locale ; les gates pilote et production restent inchangés.
+
+Mise à jour EV-PULSE-083 : le GO local est reconfirmé après fermeture contradictoire des courses de lease, des contournements de plafond, des outbox absentes ou supersédées et des fenêtres de crash d’agrégat. Cette preuve ne transforme pas le port provider-neutral en intégration Buffer : aucun client, OAuth, canal, credential, binding ou trafic distant n’est ajouté, et la macro-étape 2 reste canoniquement en cours jusqu’aux gates fournisseur et à H2.
+
+Mise à jour EV-PULSE-084 : la fondation locale fail-closed de l’Étape 3 est terminée. Elle protège l’isolation tenant, l’immuabilité et l’intégrité causale du manifeste de mapping signé à H2, les seuils du canary, la chronologie, les courses hold/reprise/outbox, l’audit à acteur durable et la preuve de drain sans rendre le runtime Buffer atteignable. Toute référence inconnue, cross-tenant, dupliquée, incomplète ou Buffer non mappée bloque la readiness. Le code direct n’est pas supprimé puisqu’il reste le seul transport exécutable et nécessaire au futur drain.
+
+Mise à jour EV-PULSE-085 : le hold candidat et sa reprise exacte sont désormais implémentés localement sans fallback direct. La décision H2/H3 conserve l’autorité au moment de l’approbation au lieu de dépendre du rôle mutable de l’acteur plusieurs jours plus tard. Les états `draining_legacy`, `awaiting_h3` et `cutover_complete` exigent respectivement les observations canary, la preuve de drain et la décision H3 ; ils ne sont toujours atteignables par aucun faux writer. Le diagnostic exhaustif confirme qu’aucun runtime Buffer Facebook n’existe encore : les seules lignes `buffer_v1` sont des fixtures de sécurité/control-plane, le handler de soumission reste direct-only et les gates P0 applicables restent ouvertes. Ce verdict est un NO-GO opérationnel explicite, pas un blocage de travail local caché.
+
+Mise à jour EV-PULSE-086 : l’incident MySQL `1059` est fermé sur la base applicative et sur une base de test isolée. Les artefacts vides auto-commités par l’échec ont été retirés sans toucher aux autres données ; les deux migrations sont enregistrées et leur schéma réel correspond aux contraintes courtes attendues. Toute nouvelle exécution partielle échoue désormais avant écriture et son rollback direct refuse de supprimer la moindre table du control-plane contenant des données.
+
+Mise à jour EV-PULSE-087 : la plateforme locale est prête pour la recette humaine du parcours Pulse complet avec une connexion Facebook simulée. Cette ouverture ne change aucune autorité : Malikia conserve l’approbation, l’outbox ne reçoit que le snapshot approuvé et le transport local reste `direct_v1`. Elle ne constitue ni un runtime de livraison Buffer, ni un test Facebook réel, ni H2, ni un pilote fournisseur ; les gates pilote et production restent donc actifs.
+
+Mise à jour EV-PULSE-088 : le blocage générique du runtime local est remplacé par `GO_BUFFER_LOCAL_DISCOVERY`. Un client GraphQL Laravel à requêtes fixes utilise la clé personnelle uniquement côté serveur, sous garde `local/testing`, pour lire le compte, ses organisations et ses canaux. L’écran Comptes expose les états Buffer utiles, ouvre l’ajout de canal dans Buffer, resynchronise et importe un canal sain de façon idempotente dans `social_account_connections` sans lui attribuer d’identité de transport. Le secret n’est ni transmis à Vue ni dupliqué dans chaque canal. Les imports restent `is_active=false`, absents du gestionnaire direct et marqués `catalog_only` : aucune publication Buffer ne devient atteignable. La preuve live du client Laravel retourne une organisation et trois canaux sains Instagram, LinkedIn et Facebook ; les tests owner-only, revalidation distante, verrouillage, redaction, idempotence et build frontend sont verts. Les gates pilote et production restent distincts et actifs.
+
+Mise à jour EV-PULSE-089 : Jules donne explicitement son GO le 29 août 2026 pour clôturer l’Étape 2 sur son périmètre local. `MACRO_STEP_2_LOCAL_COMPLETE` remplace le statut local intermédiaire. Cette décision clôt la recette locale de connexion, découverte, ajout dans Buffer, resynchronisation et import catalogue ; elle ne fabrique ni preuve distante, ni H2 opérationnel, ni autorisation de pilote ou de production.
+
+Mise à jour EV-PULSE-090 : Jules donne explicitement son GO le 29 août 2026 pour clôturer l’Étape 3 sur son périmètre local. `MACRO_STEP_3_LOCAL_COMPLETE` remplace le statut local intermédiaire. Cette décision accepte le control-plane, le hold et sa reprise exacte, la readiness fail-closed et les preuves de migration locales ; elle ne constitue ni H2, ni pilote, ni cutover, ni drain, ni H3, ni autorisation de retirer le direct ou de passer en production.
+
+## 19. Risques résiduels
+
+| Risque | Impact | Mitigation |
+| --- | --- | --- |
+| Buffer point unique de panne | Retard de livraison | Outbox, mode dégradé et réconciliation |
+| Quotas partagés trop faibles | Blocage multi-tenant | Gate fournisseur, budget et équité |
+| Timeout ambigu | Double publication ou opération bloquée | Unknown, corrélation et décision opérateur |
+| API récente et changeante | Régression | Client isolé, contract tests et veille changelog |
+| Aucun webhook confirmé | Polling coûteux | Polling adaptatif et sync manuelle |
+| Refresh à usage unique | Grant révoqué | Lock, transaction et version |
+| Média public requis | Risque de confidentialité ou expiration | URL opaque, rétention et purge |
+| Mauvais mapping legacy | Publication sur le mauvais canal | Validation owner, shadow et audit |
+| Feature flag mutable | Changement de transport inattendu | Provider persisté sur cible et outbox |
+| Confusion avec le social login | Régression d’authentification | Périmètre et tests séparés |
+| Analytics incomplets | Promesse produit non tenue | KPIs opérationnels seulement |
+| Dépendance fournisseur | Coût de sortie | Gateway, données et historique locaux |
+
+## 20. Gouvernance documentaire
+
+Ce document est la référence active pour le transport Buffer-first.
+
+Il remplace les sections de connexion, providers et publication directs de :
+
+- [Documentation technique Pulse](MALIKIA_PULSE_DOCUMENTATION_TECHNIQUE_2026-04-25.md) ;
+- [Backlog Pulse](MALIKIA_PULSE_DEV_BACKLOG_2026-04-22.md) ;
+- [User story Pulse](MALIKIA_PULSE_USER_STORY_2026-04-22.md).
+
+Il précise aussi la portée des documents encore à classer :
+
+- [Spécification Autopilot](MALIKIA_PULSE_AUTOPILOT_SPEC_2026-04-25.md) : intentions métier conservées, handoff vers PublishSocialPostTargetJob supersédé ;
+- [Plan AI Creative et Autopilot](MALIKIA_PULSE_AI_CREATIVE_AUTOPILOT_PLAN_2026-04-26.md) : génération et gouvernance conservées, transport direct supersédé ;
+- [Roadmap Pulse](MALIKIA_PULSE_ROADMAP_8_AMELIORATIONS_3_ETAPES_2026-04-26.md) : intentions produit à remapper sur les lots WP0 à WP7.
+
+Le document [Social Auth + onboarding](SOCIAL_AUTH_ONBOARDING_USER_STORY_2026-04-23.md) reste hors scope.
+
+Leur classement effectif doit être enregistré dans document-status.json puis vérifié par le générateur d’index. Le fichier 00_INDEX.md ne doit jamais être édité à la main.
+
+Toute nouvelle modification Pulse doit respecter :
+
+- aucun publisher direct supplémentaire ;
+- aucune réécriture des migrations historiques ;
+- aucun couplage du domaine au schéma GraphQL ;
+- aucun statut de livraison inventé dans le frontend ;
+- aucune garantie exactly-once sans preuve ;
+- aucune suppression du social login ou de la suppression de données Facebook sans découplage explicite.
+
+### 20.1 Validation proportionnée au risque
+
+Pour chaque lot cohérent, répondre OUI ou NON aux six déclencheurs :
+
+1. migration, backfill, suppression ou transformation persistée ;
+2. effet réseau, mutation distante, communication externe, déploiement ou activation runtime ;
+3. authentification, permissions, tenant, token, secret, PKCE ou redaction ;
+4. queue, concurrence, retry, idempotence, scheduler ou transition d’état ;
+5. API ou DTO public, contrat machine, ADR, GO/NO-GO ou BUF-P0 ;
+6. suppression legacy ou affaiblissement/suppression d’un test.
+
+La règle d’exécution est binaire :
+
+- six réponses NON : voie rapide, sans contre-revue dédiée, avec tous les gates automatisés applicables ;
+- au moins une réponse OUI : une revue ciblée par le profil du risque identifié ;
+- effet externe ou irréversible, ou changement de gate : deux revues contradictoires et décision explicite de Jules.
+
+Les validations ciblées s’exécutent pendant le lot ; la suite intégrée et la CI complète s’exécutent une fois au checkpoint cohérent. Sans revue ne signifie jamais sans tests, sans `composer qa:format`, sans `git diff --check` ou avec contournement des checks de PR.
+
+## 21. Journal de décisions
+
+| ID | Décision | Statut | Preuve | Responsable | Date |
+| --- | --- | --- | --- | --- | --- |
+| ADR-PULSE-001 | Buffer devient l’unique transport cible | Acceptée sous gates P0 | Ce document | À assigner | 2026-08-26 |
+| ADR-PULSE-002 | Pulse conserve contenu, approbation et historique | Acceptée | Audit du domaine | À assigner | 2026-08-26 |
+| ADR-PULSE-003 | Aucun fallback direct automatique | Acceptée | Invariant 16 | À assigner | 2026-08-26 |
+| ADR-PULSE-004 | Outbox insérée dans la transaction métier | Acceptée | Invariant 3 | À assigner | 2026-08-26 |
+| ADR-PULSE-005 | Timeout ambigu sans retry create | Acceptée | Section 10.3 | À assigner | 2026-08-26 |
+| ADR-PULSE-006 | Chaque client détient et paie son propre compte Buffer pour le MVP | Acceptée pour le MVP ; référence commerciale documentée ; capacité OAuth et parcours pilote ouverts | EV-PULSE-048 + EV-PULSE-053 + BUF-P0-10 | Produit | 2026-08-27 |
+| ADR-PULSE-007 | Polling adaptatif tenant-scopé et synchronisation manuelle tant qu’aucun webhook officiel n’est confirmé ; aucune réconciliation ne peut créer un nouveau post | Acceptée pour le MVP Facebook ; mesure des quotas avant pilote toujours requise via `BUF-P0-02/10` | EV-PULSE-078 + EV-PULSE-080 + BUF-P0-03 + section 10.6 | Jules + backend | 2026-08-28 |
+| ADR-PULSE-008 | Analytics avancés hors MVP | Acceptée | Contrat public Buffer | Produit | 2026-08-26 |
+| ADR-PULSE-009 | WP0-S se déploie atomiquement sous maintenance ; le rolling exige un pont en trois phases | Acceptée pour le lot courant | Gate 0.1 et EV-PULSE-006 | DevOps | 2026-08-27 |
+| ADR-PULSE-010 | Les capacités Buffer sont bornées par statut/opération/canal ; `move@draft/bottom` reste une frontière négative provisoire et ne vaut ni replanification ni incapacité globale | Acceptée pour WP1 ; à reconfirmer sur un post réellement en file | WP1-I, BUF-P0-06/07 | Backend + produit | 2026-08-27 |
+| ADR-PULSE-011 | Découpler WP2-A contract/fake local des gates du runtime Buffer et du lancement | Acceptée ; périmètre `CONTRACT_FAKE_LOCAL_ONLY` obligatoire | EV-PULSE-042 et section 18.1 | Jules + backend | 2026-08-27 |
+| ADR-PULSE-012 | Recommander `Essentials` comme minimum client de production Facebook-only ; réserver `Free` au pilote borné ; garder `Team` comme option de collaboration client ou de capacité fournisseur | Acceptée comme politique de plan ; capacité effective et parcours pilote toujours soumis à BUF-P0-02/10 | EV-PULSE-053 + EV-PULSE-064 + BUF-P0-02/10 | Jules + produit | 2026-08-28 |
+| ADR-PULSE-013 | Le pilotage actif utilise exactement trois macro-étapes ; WP, EV-PULSE et BUF-P0 restent la traçabilité | Acceptée | EV-PULSE-064 et section 0.2 | Jules + architecture | 2026-08-28 |
+| ADR-PULSE-014 | La profondeur de revue dépend de six déclencheurs binaires de risque | Acceptée | EV-PULSE-064 et section 20.1 | Jules + engineering | 2026-08-28 |
+| ADR-PULSE-015 | Une demande Meta ciblée par l’identité Facebook Login supprime uniquement cette liaison ; elle ne supprime aucun transport de diffusion. Seule la suppression complète explicitement configurée reste globale. | Acceptée et validée localement | EV-PULSE-059 + EV-PULSE-076 | Backend + sécurité | 2026-08-28 |
+
+## 22. Conclusion
+
+La valeur de Pulse n’est pas le transport social. Sa valeur est de transformer les données réelles d’une entreprise en contenu cohérent, validé, planifié et traçable.
+
+Buffer peut retirer à Malikia la maintenance des intégrations réseau, mais seulement si la livraison est traitée comme un système distribué soumis aux quotas, aux erreurs ambiguës, à la rotation de tokens et à la réconciliation.
+
+La règle finale est :
+
+> **Pulse décide quoi publier, sur quels canaux, quand et après quelle validation. Buffer exécute la livraison. L’outbox et la réconciliation rendent l’incertitude visible, bloquent le retry automatique ambigu et réduisent le risque de double publication, sans garantir l’exactly-once distant.**
+
+WP0-S est fermé sur le plan du code et des validations locales. Son gate de déploiement production reste ouvert jusqu’à l’approbation opérationnelle, la répétition MySQL et l’exécution de la procédure atomique retenue par ADR-PULSE-009. Si le rolling devient une exigence, cette décision devra être rouverte et le pont en trois phases implémenté. ADR-PULSE-011 a permis de terminer WP2-A contract/fake ; EV-PULSE-072, EV-PULSE-073 et EV-PULSE-075 ferment l’Étape 1 locale avec l’identité de transport et la fondation éditoriale exigée par les points 5, 6 et 8. EV-PULSE-084, EV-PULSE-085 et EV-PULSE-086 ferment la préparation locale fail-closed de l’Étape 3 et sa preuve MySQL ; EV-PULSE-090 en clôture l’acceptation locale sans accorder H2, runtime candidat, pilote, drain ou H3. Le runtime Buffer, le pilote, le cutover opérationnel et la production restent interdits jusqu'à la fermeture documentée de leurs gates propres.

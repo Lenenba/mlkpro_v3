@@ -3,6 +3,7 @@
 return [
     'auth' => [
         'account_suspended' => 'Cuenta suspendida. Ponte en contacto con soporte.',
+        'portal_access_disabled' => 'Tu acceso al portal de clientes ha sido desactivado. Ponte en contacto con la empresa.',
         'two_factor_delivery_failed' => 'No se pudo enviar el codigo de verificacion. Intentalo de nuevo.',
         'update_temporary_password' => 'Actualiza tu contrasena temporal.',
         'social' => [
@@ -41,5 +42,11 @@ return [
         'billing_not_configured' => 'La facturacion todavia no esta configurada.',
         'checkout_requires_stripe' => 'El pago de onboarding solo esta disponible con Stripe.',
         'checkout_start_failed' => 'No se pudo iniciar el pago.',
+    ],
+    'announcements' => [
+        'media_only_requires_media' => 'El modo «Medio a ancho completo» requiere una imagen o un vídeo.',
+    ],
+    'portal' => [
+        'capability_unavailable' => 'Esta función no está disponible en tu portal de clientes.',
     ],
 ];

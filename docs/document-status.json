@@ -1,0 +1,756 @@
+{
+    "version": 1,
+    "documents": {
+        "docs/MALIKIA_PULSE_AVANCEMENT_VISUEL.md": {
+            "document_status": "complete",
+            "delivery_status": "in_progress",
+            "created_at": "2026-08-27",
+            "updated_at": "2026-08-28",
+      "note": "Vue visuelle synthétique du pilotage actif en exactement trois macro-étapes. L'Étape 1 est en cours et regroupe la preuve représentative puis, après son GO unique, la fondation WP2-B additive et réversible. Le canonicaliseur de destination logique et la topologie Pulse issue de la configuration Laravel effective sont désormais consommés par l'inventaire read-only et validés localement sur SQLite/MySQL sans exposer de clé, nom de profil ou nom brut de queue dans cette projection; les deux workloads et leurs failed_jobs restent couverts. L'historique suivi des classes et valeurs de queues est fermé localement; la stratégie de clone, l'envoi expurgé de la question quota à Buffer et le checkpoint 42c2ef94 sur quality #412 sont acquis. Le clone, les processus et overrides réellement déployés, les preuves externes, la qualification du budget mémoire O(N), la politique de chaque job/anomalie et le plan final de backfill/rollback restent requis avant toute migration."
+        },
+        "docs/MALIKIA_PULSE_BUFFER_FIRST_REFONTE_GLOBALE_2026-08-26.md": {
+            "document_status": "complete",
+            "delivery_status": "in_progress",
+            "created_at": "2026-08-26",
+            "updated_at": "2026-08-28",
+      "note": "Référence active Buffer-first, pilotée en exactement trois macro-étapes avec validation proportionnée au risque. L'Étape 1 regroupe la preuve représentative et la fondation WP2-B locale réversible. Le canonicaliseur de destination logique et la topologie Pulse issue de la configuration Laravel effective sont centralisés, consommés par le préflight read-only et validés localement sur SQLite/MySQL; l'inventaire couvre social-automation, social-publish et leurs failed_jobs sans exposer de clé, identifiant distant, nom de profil ou nom brut de queue dans la projection configurée. L'historique suivi ne montre aucun renommage des classes ou valeurs par défaut; la CI de la PR #140 sur 42c2ef94 via quality #412, la stratégie de clone et l'envoi expurgé de la question quota à Buffer sont acquis. Le clone, les processus et overrides réellement déployés, les queues externes/anciennes, la qualification du budget mémoire O(N), la politique des failed_jobs/anomalies et le plan final de backfill/rollback restent requis avant le GO unique autorisant les migrations et le backfill."
+        },
+        "docs/MALIKIA_PULSE_DOCUMENTATION_TECHNIQUE_2026-04-25.md": {
+            "document_status": "reference",
+            "delivery_status": "not_applicable",
+            "note": "Référence historique; les sections de connexion, providers et publication directs sont remplacées par la référence Buffer-first du 2026-08-26."
+        },
+        "docs/MALIKIA_PULSE_DEV_BACKLOG_2026-04-22.md": {
+            "document_status": "reference",
+            "delivery_status": "not_applicable",
+            "note": "Backlog historique; les tâches de publication sociale directe sont remplacées par la référence Buffer-first du 2026-08-26."
+        },
+        "docs/MALIKIA_PULSE_USER_STORY_2026-04-22.md": {
+            "document_status": "reference",
+            "delivery_status": "not_applicable",
+            "note": "Référence produit historique; les parcours de publication sociale directe sont remplacés par la référence Buffer-first du 2026-08-26."
+        },
+        "docs/DEMO_GUIDE.md": {
+            "document_status": "reference",
+            "delivery_status": "not_applicable",
+            "note": "Guide actif du provisioning de demo; le workflow legacy n'est plus recommande."
+        },
+        "docs/demo/scenario-engine.md": {
+            "document_status": "reference",
+            "delivery_status": "done",
+            "created_at": "2026-08-20",
+            "updated_at": "2026-08-20",
+            "note": "Architecture et runbook actifs du moteur de scenarios de demonstration reproductibles."
+        },
+        "docs/DEMO_VIDEO_SALON_COIFFURE.md": {
+            "document_status": "complete",
+            "delivery_status": "in_progress",
+            "created_at": "2026-08-06",
+            "updated_at": "2026-08-11",
+            "note": "Reference metier Salon Eclat; les validations Stripe et integrations externes restent ouvertes."
+        },
+        "docs/MOBILE_API_PHASE_0_DISCOVERY_FREEZE.md": {
+            "document_status": "complete",
+            "delivery_status": "planned",
+            "note": "Document de decouverte fige; implementation produit encore a planifier."
+        },
+        "docs/PLAN_PERSONNALISATION_MARQUE_ENTREPRISE_2026-08-18.md": {
+            "document_status": "complete",
+            "delivery_status": "done",
+            "created_at": "2026-08-18",
+            "updated_at": "2026-08-18",
+            "note": "Lots prioritaire et historique du branding entreprise implémentés et validés, y compris les scénarios Playwright complémentaires."
+        },
+        "docs/MODULE_VISIBILITY_AUDIT_RUNBOOK.md": {
+            "document_status": "reference",
+            "delivery_status": "not_applicable",
+            "note": "Procedure durable d'audit des 21 modules."
+        },
+        "docs/PLATFORM_BULK_ACTIONS_USER_STORY.md": {
+            "document_status": "complete",
+            "delivery_status": "in_progress",
+            "note": "Socle partiellement livre; generalisation multi-modules encore incomplete."
+        },
+        "docs/PROSPECTS_MODULE_DEV_BACKLOG_2026-04-24.md": {
+            "document_status": "complete",
+            "delivery_status": "in_progress",
+            "note": "PROSPECT-702 et plusieurs flux de fermeture restent partiels."
+        },
+        "docs/PRICING_STRUCTURE_REDESIGN_USER_STORY.md": {
+            "document_status": "complete",
+            "delivery_status": "planned",
+            "note": "Conception figee pour implementation; livraison produit non terminee."
+        },
+        "docs/RESERVATION_KIOSK_QUEUE_USER_STORIES.md": {
+            "document_status": "complete",
+            "delivery_status": "in_progress",
+            "note": "Phase 1 partiellement livree; le parcours complet reste a valider."
+        },
+        "docs/SOLO_PRICING_USER_STORY.md": {
+            "document_status": "complete",
+            "delivery_status": "in_progress",
+            "note": "Phase 1 figee, mais le perimetre d'implementation global reste en cours."
+        },
+        "docs/TRADUCTIONS_STATUS_ET_DEPLOIEMENT_2026-04-11.md": {
+            "document_status": "complete",
+            "delivery_status": "in_progress",
+            "note": "Etat de deploiement documente; backlog de traductions encore ouvert."
+        },
+        "docs/audits/module-visibility/2026-08-07-initial-risk-register.md": {
+            "document_status": "complete",
+            "delivery_status": "in_progress",
+            "note": "Registre actif: 10 risques sont encore a verifier."
+        },
+        "docs/audits/demo-salon/2026-08-07-salon-eclat-demo-coverage.md": {
+            "document_status": "complete",
+            "delivery_status": "in_progress",
+            "created_at": "2026-08-07",
+            "updated_at": "2026-08-07",
+            "note": "Infrastructure robuste, mais couverture metier Salon Eclat encore partielle."
+        },
+        "docs/audits/customers/2026-08-21-customer-experience-step-1.md": {
+            "document_status": "complete",
+            "delivery_status": "done",
+            "created_at": "2026-08-21",
+            "updated_at": "2026-08-21",
+            "note": "Audit et contrat UX/donnees executes; les trois etapes du chantier Clients sont livrees."
+        },
+        "docs/audits/customers/2026-08-21-customer-experience-step-2.md": {
+            "document_status": "complete",
+            "delivery_status": "done",
+            "created_at": "2026-08-21",
+            "updated_at": "2026-08-21",
+            "note": "Index Clients livre: KPI stables, filtres rapides ET/OU, dialogue avance, URL/segments, liste, etats et accessibilite."
+        },
+        "docs/audits/customers/2026-08-21-customer-experience-step-3.md": {
+            "document_status": "complete",
+            "delivery_status": "done",
+            "created_at": "2026-08-21",
+            "updated_at": "2026-08-21",
+            "note": "Fiche Client livree: historique unifie, filtres periode/type, curseur stable, permissions par source et audit avant/apres."
+        },
+        "docs/audits/mlkpro-benchmark-2026-07-16/execution/PHASE_0_SECURITY_AND_BASELINE.md": {
+            "document_status": "complete",
+            "delivery_status": "done",
+            "note": "Phase 0 cloturee sous derogation MLK-DEC-010."
+        },
+        "docs/audits/mlkpro-benchmark-2026-07-16/evidence.md": {
+            "document_status": "reference",
+            "delivery_status": "not_applicable",
+            "note": "Dossier de preuves du benchmark."
+        },
+        "docs/audits/mlkpro-benchmark-2026-07-16/execution/PHASE_1_QUICK_PERFORMANCE_WINS.md": {
+            "document_status": "complete",
+            "delivery_status": "in_progress",
+            "note": "Phase 1 ouverte; validations humaines restantes."
+        },
+        "docs/audits/mlkpro-benchmark-2026-07-16/execution/PHASE_1_VALIDATION_RUNBOOK.md": {
+            "document_status": "complete",
+            "delivery_status": "in_progress",
+            "note": "Validation humaine Phase 1 en cours."
+        },
+        "docs/audits/mlkpro-benchmark-2026-07-16/execution/PHASE_2_DATA_AND_RUNTIME_PERFORMANCE.md": {
+            "document_status": "complete",
+            "delivery_status": "planned",
+            "note": "Phase 2 planifiee, non ouverte."
+        },
+        "docs/audits/mlkpro-benchmark-2026-07-16/execution/PHASE_2_EXECUTION_RUNBOOK.md": {
+            "document_status": "complete",
+            "delivery_status": "planned",
+            "note": "Runbook prepare; Phase 2 non ouverte."
+        },
+        "docs/audits/mlkpro-benchmark-2026-07-16/execution/PHASE_3_PREMIUM_USER_EXPERIENCE.md": {
+            "document_status": "complete",
+            "delivery_status": "planned",
+            "note": "Phase 3 en attente."
+        },
+        "docs/audits/mlkpro-benchmark-2026-07-16/execution/PHASE_4_PRODUCT_DIFFERENTIATION.md": {
+            "document_status": "complete",
+            "delivery_status": "planned",
+            "note": "Phase 4 en attente."
+        },
+        "docs/audits/mlkpro-benchmark-2026-07-16/execution/README.md": {
+            "document_status": "reference",
+            "delivery_status": "in_progress",
+            "note": "Cockpit actif du programme d'amelioration."
+        },
+        "docs/audits/mlkpro-benchmark-2026-07-16/execution/DECISIONS.md": {
+            "document_status": "reference",
+            "delivery_status": "in_progress",
+            "note": "Journal de decisions actif du programme."
+        },
+        "docs/audits/mlkpro-benchmark-2026-07-16/execution/P0_006_RUNNER.md": {
+            "document_status": "reference",
+            "delivery_status": "not_applicable",
+            "note": "Guide de reference du runner de capacite P0-006."
+        },
+        "docs/audits/mlkpro-benchmark-2026-07-16/execution/SUIVI_GLOBAL.md": {
+            "document_status": "reference",
+            "delivery_status": "in_progress",
+            "note": "Vue maitre active: Phase 1 ouverte."
+        },
+        "docs/audits/mlkpro-benchmark-2026-07-16/execution/VALIDATION_LOG.md": {
+            "document_status": "reference",
+            "delivery_status": "in_progress",
+            "note": "Journal de validation actif du programme."
+        },
+        "docs/audits/mlkpro-benchmark-2026-07-16/execution/QUALITY_GATES.md": {
+            "document_status": "reference",
+            "delivery_status": "not_applicable",
+            "note": "Referentiel actif des controles qualite."
+        },
+        "docs/demo/module-client-demo-20min.md": {
+            "document_status": "reference",
+            "delivery_status": "not_applicable",
+            "note": "Scenario de demonstration actif."
+        },
+        "docs/demo/module-invoices-paiements-demo-20min.md": {
+            "document_status": "reference",
+            "delivery_status": "not_applicable",
+            "note": "Scenario de demonstration actif."
+        },
+        "docs/demo/module-jobs-demo-20min.md": {
+            "document_status": "reference",
+            "delivery_status": "not_applicable",
+            "note": "Scenario de demonstration actif."
+        },
+        "docs/demo/module-produits-demo-20min.md": {
+            "document_status": "reference",
+            "delivery_status": "not_applicable",
+            "note": "Scenario de demonstration actif."
+        },
+        "docs/demo/module-quotes-demo-20min.md": {
+            "document_status": "reference",
+            "delivery_status": "not_applicable",
+            "note": "Scenario de demonstration actif."
+        },
+        "docs/demo/module-requests-demo-20min.md": {
+            "document_status": "reference",
+            "delivery_status": "not_applicable",
+            "note": "Scenario de demonstration actif."
+        },
+        "docs/demo/video-library/README.md": {
+            "document_status": "reference",
+            "delivery_status": "not_applicable",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11",
+            "note": "Point d entree de la bibliotheque de capsules reutilisables."
+        },
+        "docs/demo/video-library/capture-plan.csv": {
+            "document_status": "draft",
+            "delivery_status": "in_progress",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11",
+            "note": "Plan canonique de 131 captures: 129 etats G01 a G08 et 2 plans fondateur; tous les PNG restent a produire et valider."
+        },
+        "docs/demo/video-library/captures/README.md": {
+            "document_status": "reference",
+            "delivery_status": "not_applicable",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11",
+            "note": "Mode d emploi du dossier des captures selectionnees."
+        },
+        "docs/demo/video-library/captures/G03/README.md": {
+            "document_status": "draft",
+            "delivery_status": "in_progress",
+            "note": "Galerie explicite de G03; tous les PNG restent a produire et valider.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/captures/G03/capture-session.md": {
+            "document_status": "complete",
+            "delivery_status": "planned",
+            "note": "Runbook reproductible pour transformer les 16 cibles G03 en PNG valides.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/00-intro-fondateur.md": {
+            "document_status": "draft",
+            "delivery_status": "planned",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11",
+            "note": "Script pret; histoire personnelle et autorisation du nom a confirmer avant tournage."
+        },
+        "docs/demo/video-library/episodes/01-onboarding.md": {
+            "document_status": "complete",
+            "delivery_status": "in_progress",
+            "note": "Dossier pedagogique detaille et audite; PNG, video, sous-titres et QA media restent a produire.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/02-reperes-interface.md": {
+            "document_status": "complete",
+            "delivery_status": "in_progress",
+            "note": "Dossier pedagogique detaille et audite; PNG, video, sous-titres et QA media restent a produire.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/03-creer-client.md": {
+            "document_status": "complete",
+            "delivery_status": "in_progress",
+            "note": "Dossier pedagogique detaille et audite; PNG, video, sous-titres et QA media restent a produire.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/03-creer-client/guide-champs.md": {
+            "document_status": "complete",
+            "delivery_status": "not_applicable",
+            "note": "Reference pedagogique auditee pour ce parcours et ses variantes.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/03-creer-client/qa.md": {
+            "document_status": "draft",
+            "delivery_status": "in_progress",
+            "note": "Checklist prete; controles media en attente des captures et exports.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/03-creer-client/scenario-detaille.md": {
+            "document_status": "complete",
+            "delivery_status": "planned",
+            "note": "Master et capsule courte prets pour tournage; medias a produire.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/03-creer-client/shot-list.csv": {
+            "document_status": "draft",
+            "delivery_status": "in_progress",
+            "note": "16 etats pedagogiques definis; fichiers PNG a produire.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/03-creer-client/variantes-erreurs.md": {
+            "document_status": "complete",
+            "delivery_status": "not_applicable",
+            "note": "Reference pedagogique auditee pour ce parcours et ses variantes.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/04-creer-prestation.md": {
+            "document_status": "complete",
+            "delivery_status": "in_progress",
+            "note": "Dossier pedagogique detaille et audite; PNG, video, sous-titres et QA media restent a produire.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/05-creer-reservation.md": {
+            "document_status": "complete",
+            "delivery_status": "in_progress",
+            "note": "Dossier pedagogique detaille et audite; PNG, video, sous-titres et QA media restent a produire.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/06-creer-promotion.md": {
+            "document_status": "complete",
+            "delivery_status": "in_progress",
+            "note": "Dossier pedagogique detaille et audite; PNG, video, sous-titres et QA media restent a produire.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/07-ajouter-membre-equipe.md": {
+            "document_status": "complete",
+            "delivery_status": "in_progress",
+            "note": "Dossier pedagogique detaille et audite; PNG, video, sous-titres et QA media restent a produire.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/08-facturer-encaisser.md": {
+            "document_status": "complete",
+            "delivery_status": "in_progress",
+            "note": "Dossier pedagogique detaille et audite; PNG, video, sous-titres et QA media restent a produire.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/production-checklist.md": {
+            "document_status": "reference",
+            "delivery_status": "not_applicable",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11",
+            "note": "Checklist durable de preparation tournage QA et publication."
+        },
+        "docs/demo/video-library/production-standard.md": {
+            "document_status": "reference",
+            "delivery_status": "not_applicable",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11",
+            "note": "Convention commune de narration capture confidentialite et nommage."
+        },
+        "docs/demo/video-library/publishing-plan.md": {
+            "document_status": "reference",
+            "delivery_status": "not_applicable",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11",
+            "note": "Titres descriptions CTA chapitres et matrice de liens croises."
+        },
+        "docs/demo/video-library/series-catalog.csv": {
+            "document_status": "reference",
+            "delivery_status": "not_applicable",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11",
+            "note": "Catalogue canonique; les dossiers G01 a G08 sont detailles et leurs medias restent en production."
+        },
+        "docs/demo/video-library/shared-data.md": {
+            "document_status": "reference",
+            "delivery_status": "not_applicable",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11",
+            "note": "Jeu de donnees commun aligne sur le preset Salon Eclat."
+        },
+        "docs/demo/video-library/templates/episode-template.md": {
+            "document_status": "reference",
+            "delivery_status": "not_applicable",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11",
+            "note": "Modele enrichi imposant donnees exactes, captures integrees, variantes, erreurs et QA separee."
+        },
+        "docs/superpowers/specs/2026-06-10-social-login-confirm-create-design.md": {
+            "document_status": "complete",
+            "delivery_status": "in_progress",
+            "note": "Design approuve, revue finale encore en attente."
+        },
+        "docs/demo/video-library/captures/G01/README.md": {
+            "document_status": "draft",
+            "delivery_status": "in_progress",
+            "note": "Galerie explicite de G01; tous les PNG restent a produire et valider.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/captures/G01/capture-session.md": {
+            "document_status": "complete",
+            "delivery_status": "planned",
+            "note": "Runbook reproductible pour transformer les 21 cibles G01 en PNG valides.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/captures/G02/README.md": {
+            "document_status": "draft",
+            "delivery_status": "in_progress",
+            "note": "Galerie explicite de G02; tous les PNG restent a produire et valider.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/captures/G02/capture-session.md": {
+            "document_status": "complete",
+            "delivery_status": "planned",
+            "note": "Runbook reproductible pour transformer les 12 cibles G02 en PNG valides.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/captures/G04/README.md": {
+            "document_status": "draft",
+            "delivery_status": "in_progress",
+            "note": "Galerie explicite de G04; tous les PNG restent a produire et valider.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/captures/G04/capture-session.md": {
+            "document_status": "complete",
+            "delivery_status": "planned",
+            "note": "Runbook reproductible pour transformer les 14 cibles G04 en PNG valides.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/captures/G05/README.md": {
+            "document_status": "draft",
+            "delivery_status": "in_progress",
+            "note": "Galerie explicite de G05; tous les PNG restent a produire et valider.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/captures/G05/capture-session.md": {
+            "document_status": "complete",
+            "delivery_status": "planned",
+            "note": "Runbook reproductible pour transformer les 18 cibles G05 en PNG valides.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/captures/G06/README.md": {
+            "document_status": "draft",
+            "delivery_status": "in_progress",
+            "note": "Galerie explicite de G06; tous les PNG restent a produire et valider.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/captures/G06/capture-session.md": {
+            "document_status": "complete",
+            "delivery_status": "planned",
+            "note": "Runbook reproductible pour transformer les 15 cibles G06 en PNG valides.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/captures/G07/README.md": {
+            "document_status": "draft",
+            "delivery_status": "in_progress",
+            "note": "Galerie explicite de G07; tous les PNG restent a produire et valider.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/captures/G07/capture-session.md": {
+            "document_status": "complete",
+            "delivery_status": "planned",
+            "note": "Runbook reproductible pour transformer les 15 cibles G07 en PNG valides.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/captures/G08/README.md": {
+            "document_status": "draft",
+            "delivery_status": "in_progress",
+            "note": "Galerie explicite de G08; tous les PNG restent a produire et valider.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/captures/G08/capture-session.md": {
+            "document_status": "complete",
+            "delivery_status": "planned",
+            "note": "Runbook reproductible pour transformer les 18 cibles G08 en PNG valides.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/01-onboarding/guide-etapes.md": {
+            "document_status": "complete",
+            "delivery_status": "not_applicable",
+            "note": "Reference pedagogique auditee pour ce parcours et ses variantes.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/01-onboarding/qa.md": {
+            "document_status": "draft",
+            "delivery_status": "in_progress",
+            "note": "Checklist prete; controles media en attente des captures et exports.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/01-onboarding/scenario-detaille.md": {
+            "document_status": "complete",
+            "delivery_status": "planned",
+            "note": "Master et capsule courte prets pour tournage; medias a produire.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/01-onboarding/shot-list.csv": {
+            "document_status": "draft",
+            "delivery_status": "in_progress",
+            "note": "21 etats pedagogiques definis; fichiers PNG a produire.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/01-onboarding/variantes-erreurs.md": {
+            "document_status": "complete",
+            "delivery_status": "not_applicable",
+            "note": "Reference pedagogique auditee pour ce parcours et ses variantes.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/02-reperes-interface/guide-reperes.md": {
+            "document_status": "complete",
+            "delivery_status": "not_applicable",
+            "note": "Reference pedagogique auditee pour ce parcours et ses variantes.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/02-reperes-interface/qa.md": {
+            "document_status": "draft",
+            "delivery_status": "in_progress",
+            "note": "Checklist prete; controles media en attente des captures et exports.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/02-reperes-interface/scenario-detaille.md": {
+            "document_status": "complete",
+            "delivery_status": "planned",
+            "note": "Master et capsule courte prets pour tournage; medias a produire.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/02-reperes-interface/shot-list.csv": {
+            "document_status": "draft",
+            "delivery_status": "in_progress",
+            "note": "12 etats pedagogiques definis; fichiers PNG a produire.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/02-reperes-interface/variantes-erreurs.md": {
+            "document_status": "complete",
+            "delivery_status": "not_applicable",
+            "note": "Reference pedagogique auditee pour ce parcours et ses variantes.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/04-creer-prestation/guide-champs.md": {
+            "document_status": "complete",
+            "delivery_status": "not_applicable",
+            "note": "Reference pedagogique auditee pour ce parcours et ses variantes.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/04-creer-prestation/qa.md": {
+            "document_status": "draft",
+            "delivery_status": "in_progress",
+            "note": "Checklist prete; controles media en attente des captures et exports.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/04-creer-prestation/scenario-detaille.md": {
+            "document_status": "complete",
+            "delivery_status": "planned",
+            "note": "Master et capsule courte prets pour tournage; medias a produire.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/04-creer-prestation/shot-list.csv": {
+            "document_status": "draft",
+            "delivery_status": "in_progress",
+            "note": "14 etats pedagogiques definis; fichiers PNG a produire.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/04-creer-prestation/variantes-erreurs.md": {
+            "document_status": "complete",
+            "delivery_status": "not_applicable",
+            "note": "Reference pedagogique auditee pour ce parcours et ses variantes.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/05-creer-reservation/guide-champs.md": {
+            "document_status": "complete",
+            "delivery_status": "not_applicable",
+            "note": "Reference pedagogique auditee pour ce parcours et ses variantes.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/05-creer-reservation/qa.md": {
+            "document_status": "draft",
+            "delivery_status": "in_progress",
+            "note": "Checklist prete; controles media en attente des captures et exports.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/05-creer-reservation/scenario-detaille.md": {
+            "document_status": "complete",
+            "delivery_status": "planned",
+            "note": "Master et capsule courte prets pour tournage; medias a produire.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/05-creer-reservation/shot-list.csv": {
+            "document_status": "draft",
+            "delivery_status": "in_progress",
+            "note": "18 etats pedagogiques definis; fichiers PNG a produire.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/05-creer-reservation/variantes-erreurs.md": {
+            "document_status": "complete",
+            "delivery_status": "not_applicable",
+            "note": "Reference pedagogique auditee pour ce parcours et ses variantes.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/06-creer-promotion/guide-champs.md": {
+            "document_status": "complete",
+            "delivery_status": "not_applicable",
+            "note": "Reference pedagogique auditee pour ce parcours et ses variantes.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/06-creer-promotion/qa.md": {
+            "document_status": "draft",
+            "delivery_status": "in_progress",
+            "note": "Checklist prete; controles media en attente des captures et exports.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/06-creer-promotion/scenario-detaille.md": {
+            "document_status": "complete",
+            "delivery_status": "planned",
+            "note": "Master et capsule courte prets pour tournage; medias a produire.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/06-creer-promotion/shot-list.csv": {
+            "document_status": "draft",
+            "delivery_status": "in_progress",
+            "note": "15 etats pedagogiques definis; fichiers PNG a produire.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/06-creer-promotion/variantes-erreurs.md": {
+            "document_status": "complete",
+            "delivery_status": "not_applicable",
+            "note": "Reference pedagogique auditee pour ce parcours et ses variantes.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/07-ajouter-membre-equipe/guide-champs.md": {
+            "document_status": "complete",
+            "delivery_status": "not_applicable",
+            "note": "Reference pedagogique auditee pour ce parcours et ses variantes.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/07-ajouter-membre-equipe/qa.md": {
+            "document_status": "draft",
+            "delivery_status": "in_progress",
+            "note": "Checklist prete; controles media en attente des captures et exports.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/07-ajouter-membre-equipe/scenario-detaille.md": {
+            "document_status": "complete",
+            "delivery_status": "planned",
+            "note": "Master et capsule courte prets pour tournage; medias a produire.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/07-ajouter-membre-equipe/shot-list.csv": {
+            "document_status": "draft",
+            "delivery_status": "in_progress",
+            "note": "15 etats pedagogiques definis; fichiers PNG a produire.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/07-ajouter-membre-equipe/variantes-erreurs.md": {
+            "document_status": "complete",
+            "delivery_status": "not_applicable",
+            "note": "Reference pedagogique auditee pour ce parcours et ses variantes.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/08-facturer-encaisser/guide-flux.md": {
+            "document_status": "complete",
+            "delivery_status": "not_applicable",
+            "note": "Reference pedagogique auditee pour ce parcours et ses variantes.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/08-facturer-encaisser/qa.md": {
+            "document_status": "draft",
+            "delivery_status": "in_progress",
+            "note": "Checklist prete; controles media en attente des captures et exports.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/08-facturer-encaisser/scenario-detaille.md": {
+            "document_status": "complete",
+            "delivery_status": "planned",
+            "note": "Master et capsule courte prets pour tournage; medias a produire.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/08-facturer-encaisser/shot-list.csv": {
+            "document_status": "draft",
+            "delivery_status": "in_progress",
+            "note": "18 etats pedagogiques definis; fichiers PNG a produire.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        },
+        "docs/demo/video-library/episodes/08-facturer-encaisser/variantes-erreurs.md": {
+            "document_status": "complete",
+            "delivery_status": "not_applicable",
+            "note": "Reference pedagogique auditee pour ce parcours et ses variantes.",
+            "created_at": "2026-08-11",
+            "updated_at": "2026-08-11"
+        }
+    }
+}

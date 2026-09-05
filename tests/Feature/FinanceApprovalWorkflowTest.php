@@ -378,6 +378,7 @@ test('invoice pending approvals notify the target role and appear in the finance
 
     $owner = financeApprovalOwner([
         'company_name' => 'Finance Inbox Workspace',
+        'company_logo' => 'https://assets.example.test/finance-inbox-workspace.png',
     ]);
     $submitter = financeApprovalTeamMember($owner, 'member', [
         'expenses.view',
@@ -416,8 +417,15 @@ test('invoice pending approvals notify the target role and appear in the finance
     $expense = Expense::query()->where('reference_number', 'INBOX-EXP-1')->latest('id')->firstOrFail();
 
     Notification::assertSentTo($approver, FinanceApprovalRequestedNotification::class, function (FinanceApprovalRequestedNotification $notification) use ($invoice, $approver) {
+        $notification = unserialize(serialize($notification));
+        $mail = $notification->toMail($approver);
+        $view = is_array($mail->view) ? $mail->view[0] : $mail->view;
+
         return $notification->invoice->is($invoice)
-            && data_get($notification->toArray($approver), 'action_url') === route('invoice.show', $invoice);
+            && data_get($notification->toArray($approver), 'action_url') === route('invoice.show', $invoice)
+            && $view === 'emails.notifications.action'
+            && data_get($mail->viewData, 'companyName') === 'Finance Inbox Workspace'
+            && data_get($mail->viewData, 'companyLogo') === 'https://assets.example.test/finance-inbox-workspace.png';
     });
 
     $this->actingAs($approver)

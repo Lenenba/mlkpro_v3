@@ -91,7 +91,7 @@ test('ai reservation orchestrator explains selected service naturally and asks c
     $reply = app(AiReservationOrchestrator::class)->handle($conversation, $settings, '2', 'fr');
 
     expect($reply)->toContain('Parfait, vous souhaitez réserver le service Pressure wash.')
-        ->and($reply)->toContain('Pour préparer la demande, j’ai besoin de votre nom complet et d’un numéro de téléphone.')
+        ->and($reply)->toContain('Pour préparer la demande, quel est votre nom complet?')
         ->and($reply)->not->toContain('Je comprends:')
         ->and($reply)->not->toContain('seulement le nom')
         ->and(AiAction::query()->count())->toBe(0)
@@ -120,7 +120,7 @@ test('ai reservation orchestrator uses first name context without pretending onl
     $reply = app(AiReservationOrchestrator::class)->handle($conversation, $settings, '2', 'fr');
 
     expect($reply)->toContain('Parfait, vous souhaitez réserver le service Pressure wash.')
-        ->and($reply)->toContain('J’ai déjà votre prénom, Jules. Pouvez-vous me donner votre nom complet et un numéro de téléphone?')
+        ->and($reply)->toContain('Merci Jules. Quel est votre nom de famille?')
         ->and($reply)->not->toContain('Il me manque seulement le nom');
 });
 
@@ -214,6 +214,100 @@ test('ai reservation orchestrator proposes real available slots', function () {
     Carbon::setTestNow();
 });
 
+test('ai reservation orchestrator proposes slots only for the preferred team member', function () {
+    Carbon::setTestNow(Carbon::parse('2026-05-13 08:00:00', 'UTC'));
+
+    $tenant = User::factory()->create([
+        'company_timezone' => 'UTC',
+    ]);
+    $service = createAiReservationService($tenant);
+    $targetDate = Carbon::now('UTC')->addDay();
+    createAiReservationTeamMember($tenant, $targetDate);
+    $preferredMember = createAiReservationTeamMember($tenant, $targetDate);
+    $settings = AiAssistantSetting::factory()->create([
+        'tenant_id' => $tenant->id,
+    ]);
+    $conversation = AiConversation::factory()->create([
+        'tenant_id' => $tenant->id,
+        'metadata' => [
+            'reservation_draft' => [
+                'service_id' => $service->id,
+                'service_name' => $service->name,
+                'contact_name' => 'Amina Diallo',
+                'contact_phone' => '5145550123',
+                'preferred_date' => $targetDate->toDateString(),
+                'preferred_team_member_id' => $preferredMember->id,
+            ],
+        ],
+    ]);
+
+    $reply = app(AiReservationOrchestrator::class)->handle(
+        $conversation,
+        $settings,
+        'Je souhaite voir les disponibilités.',
+        'fr'
+    );
+    $conversation->refresh();
+    $slots = data_get($conversation->metadata, 'reservation_draft.proposed_slots', []);
+
+    expect($reply)->toContain('Voici 3 creneaux disponibles')
+        ->and($slots)->toHaveCount(3)
+        ->and(collect($slots)->pluck('team_member_id')->unique()->values()->all())->toBe([$preferredMember->id]);
+
+    Carbon::setTestNow();
+});
+
+test('ai reservation orchestrator persists alternative slots and selects the requested option', function () {
+    Carbon::setTestNow(Carbon::parse('2026-05-13 08:00:00', 'UTC'));
+
+    $tenant = User::factory()->create([
+        'company_timezone' => 'UTC',
+    ]);
+    $service = createAiReservationService($tenant);
+    $targetDate = Carbon::now('UTC')->addDay();
+    createAiReservationTeamMember($tenant, $targetDate);
+    $settings = AiAssistantSetting::factory()->create([
+        'tenant_id' => $tenant->id,
+    ]);
+    $conversation = AiConversation::factory()->create([
+        'tenant_id' => $tenant->id,
+        'metadata' => [],
+    ]);
+
+    $alternativeReply = app(AiReservationOrchestrator::class)->handle(
+        $conversation,
+        $settings,
+        "Je m appelle Amina Diallo. Telephone +15145550123. Je veux reserver {$service->name} demain apres le travail.",
+        'fr'
+    );
+    $conversation->refresh();
+    $alternativeSlots = data_get($conversation->metadata, 'reservation_draft.proposed_slots', []);
+
+    expect($alternativeReply)->toContain('meilleures alternatives')
+        ->and($alternativeSlots)->toHaveCount(3)
+        ->and($alternativeSlots[1]['index'])->toBe(2);
+
+    $summaryReply = app(AiReservationOrchestrator::class)->handle(
+        $conversation,
+        $settings,
+        '2',
+        'fr'
+    );
+    $conversation->refresh();
+
+    expect($summaryReply)->toContain('Voici le résumé de votre demande')
+        ->and(data_get($conversation->metadata, 'reservation_draft.selected_slot'))->toMatchArray([
+            'index' => 2,
+            'starts_at' => $alternativeSlots[1]['starts_at'],
+            'team_member_id' => $alternativeSlots[1]['team_member_id'],
+        ])
+        ->and(data_get($conversation->metadata, 'booking_confirmation.awaiting_user_confirmation'))->toBeTrue()
+        ->and(AiAction::query()->where('conversation_id', $conversation->id)->count())->toBe(0)
+        ->and(Reservation::query()->count())->toBe(0);
+
+    Carbon::setTestNow();
+});
+
 test('ai reservation orchestrator shows a french summary before creating a reservation request', function () {
     Carbon::setTestNow(Carbon::parse('2026-05-13 08:00:00', 'UTC'));
 
@@ -285,6 +379,123 @@ test('ai reservation orchestrator shows a french summary before creating a reser
         ->and(Reservation::query()->first()?->status)->toBe(Reservation::STATUS_PENDING);
 
     Carbon::setTestNow();
+});
+
+test('ai reservation orchestrator accepts explicit french confirmation variants', function (string $confirmation) {
+    $tenant = User::factory()->create([
+        'company_timezone' => 'UTC',
+    ]);
+    $service = createAiReservationService($tenant, 'Consultation');
+    $member = TeamMember::factory()->create([
+        'account_id' => $tenant->id,
+        'role' => 'member',
+        'is_active' => true,
+    ]);
+    $settings = AiAssistantSetting::factory()->create([
+        'tenant_id' => $tenant->id,
+        'require_human_validation' => true,
+    ]);
+    $startsAt = Carbon::parse('2026-09-08 09:15:00', 'UTC');
+    $selectedSlot = [
+        'index' => 1,
+        'starts_at' => $startsAt->toIso8601String(),
+        'ends_at' => $startsAt->copy()->addHour()->toIso8601String(),
+        'date' => $startsAt->toDateString(),
+        'time' => $startsAt->format('H:i'),
+        'team_member_id' => $member->id,
+        'team_member_name' => $member->user?->name,
+        'duration_minutes' => 60,
+    ];
+    $conversation = AiConversation::factory()->create([
+        'tenant_id' => $tenant->id,
+        'metadata' => [
+            'reservation_draft' => [
+                'service_id' => $service->id,
+                'service_name' => $service->name,
+                'contact_name' => 'Pierre Jean',
+                'contact_phone' => '5145499697',
+                'selected_slot' => $selectedSlot,
+            ],
+            'booking_confirmation' => [
+                'summary_shown' => true,
+                'awaiting_user_confirmation' => true,
+                'confirmed_by_user' => false,
+            ],
+        ],
+    ]);
+
+    $reply = app(AiReservationOrchestrator::class)->handle(
+        $conversation,
+        $settings,
+        $confirmation,
+        'fr'
+    );
+    $conversation->refresh();
+
+    expect($reply)->toContain('Votre demande de réservation pour Consultation a été envoyée à l’équipe.')
+        ->and(data_get($conversation->metadata, 'booking_confirmation.confirmed_by_user'))->toBeTrue()
+        ->and(AiAction::query()->where('conversation_id', $conversation->id)->where('status', AiAction::STATUS_PENDING)->count())->toBe(2)
+        ->and(Reservation::query()->count())->toBe(0);
+})->with([
+    'imperative with hyphen' => 'vas-y',
+    'common confirm typo' => 'comfirme',
+    'confirmation with punctuation' => 'oui!',
+]);
+
+test('ai reservation orchestrator keeps waiting when the confirmation is ambiguous', function () {
+    $tenant = User::factory()->create([
+        'company_timezone' => 'UTC',
+    ]);
+    $service = createAiReservationService($tenant, 'Consultation');
+    $member = TeamMember::factory()->create([
+        'account_id' => $tenant->id,
+        'role' => 'member',
+        'is_active' => true,
+    ]);
+    $settings = AiAssistantSetting::factory()->create([
+        'tenant_id' => $tenant->id,
+        'require_human_validation' => true,
+    ]);
+    $startsAt = Carbon::parse('2026-09-08 09:15:00', 'UTC');
+    $conversation = AiConversation::factory()->create([
+        'tenant_id' => $tenant->id,
+        'metadata' => [
+            'reservation_draft' => [
+                'service_id' => $service->id,
+                'service_name' => $service->name,
+                'contact_name' => 'Pierre Jean',
+                'contact_phone' => '5145499697',
+                'selected_slot' => [
+                    'index' => 1,
+                    'starts_at' => $startsAt->toIso8601String(),
+                    'ends_at' => $startsAt->copy()->addHour()->toIso8601String(),
+                    'date' => $startsAt->toDateString(),
+                    'time' => $startsAt->format('H:i'),
+                    'team_member_id' => $member->id,
+                    'team_member_name' => $member->user?->name,
+                    'duration_minutes' => 60,
+                ],
+            ],
+            'booking_confirmation' => [
+                'summary_shown' => true,
+                'awaiting_user_confirmation' => true,
+                'confirmed_by_user' => false,
+            ],
+        ],
+    ]);
+
+    $reply = app(AiReservationOrchestrator::class)->handle(
+        $conversation,
+        $settings,
+        'je vais y penser',
+        'fr'
+    );
+    $conversation->refresh();
+
+    expect($reply)->toContain('dès que vous me confirmez')
+        ->and(data_get($conversation->metadata, 'booking_confirmation.confirmed_by_user'))->toBeFalse()
+        ->and(AiAction::query()->where('conversation_id', $conversation->id)->count())->toBe(0)
+        ->and(Reservation::query()->count())->toBe(0);
 });
 
 test('ai reservation orchestrator understands french weekday dates', function () {

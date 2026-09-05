@@ -2,10 +2,21 @@
   "client_dashboard": {
     "title": "Client dashboard",
     "welcome": "Welcome back, {name}. Here is what is waiting for your validation.",
+    "welcome_service": "Welcome back, {name}. Find your bookings, requests, and jobs in one place.",
+    "welcome_product": "Welcome back, {name}. Find your orders and purchases in one place.",
+    "welcome_hybrid": "Welcome back, {name}. Your services and purchases now share one client space.",
+    "welcome_minimal": "Welcome back, {name}. Find everything the business shares with you here.",
+    "portal_navigation": "Your client portal sections",
+    "experience": {
+      "service": "Services",
+      "product": "Purchases",
+      "hybrid": "Services and purchases",
+      "minimal": "Essential space"
+    },
     "profile_missing": "Your client profile is not linked yet. Please contact the business to connect your account.",
     "kpi": {
-      "quotes_pending": "Quotes awaiting validation",
-      "jobs_pending": "Jobs awaiting validation",
+      "quotes_pending": "Quotes to approve",
+      "jobs_pending": "Jobs to approve",
       "invoices_due": "Invoices to pay",
       "ratings_due": "Ratings to leave"
     },
@@ -18,6 +29,9 @@
       "ratings_due": "Ratings to leave",
       "recently_validated": "Recently validated",
       "schedule_preview": "Schedule preview",
+      "orders_overview": "Track your orders without leaving your service space.",
+      "reservations": "Reservations",
+      "reservations_overview": "View and manage your appointments from one clear entry point.",
       "quotes": "Quotes",
       "jobs": "Jobs"
     },
@@ -31,6 +45,10 @@
       "view_proofs": "View proofs",
       "pay_now": "Pay now",
       "pay_with_stripe": "Pay with Stripe",
+      "view_invoice_history": "View invoice history",
+      "view_orders": "View orders",
+      "view_reservations": "View my reservations",
+      "book_reservation": "Book",
       "submit": "Submit",
       "close": "Close",
       "request_changes": "Request changes",
@@ -50,6 +68,7 @@
       "completed_on": "Completed {date}",
       "issued_on": "Issued {date}",
       "amount": "Amount",
+      "payment_method": "Payment method",
       "partial_payment_help": "You can pay the full balance or choose a partial amount.",
       "pay_full_balance": "Pay full balance",
       "pay_half": "50%",
@@ -102,6 +121,7 @@
       "job_ratings": "No job ratings needed.",
       "validated_quotes": "No validated quotes yet.",
       "validated_jobs": "No validated jobs yet.",
+      "minimal": "No new journey is active right now. Shared documents and history will remain available here.",
       "schedule_details": "Schedule details are not available yet."
     },
     "frequency": {

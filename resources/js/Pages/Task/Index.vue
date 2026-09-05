@@ -1,6 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head } from '@inertiajs/vue3';
+import ModuleKpiSection from '@/Components/Dashboard/ModuleKpiSection.vue';
 import TaskStats from '@/Components/UI/TaskStats.vue';
 import TaskTable from '@/Pages/Task/UI/TaskTable.vue';
 
@@ -20,6 +21,10 @@ const props = defineProps({
     },
     stats: Object,
     count: Number,
+    taskWindow: {
+        type: Object,
+        default: () => ({}),
+    },
     canCreate: Boolean,
     canManage: Boolean,
     canDelete: Boolean,
@@ -35,7 +40,9 @@ const props = defineProps({
 <template>
     <Head :title="$t('tasks.title')" />
     <AuthenticatedLayout>
-        <TaskStats :stats="stats" />
+        <ModuleKpiSection module-key="tasks">
+            <TaskStats :stats="stats" />
+        </ModuleKpiSection>
         <div class="mt-3">
             <TaskTable
                 :tasks="tasks"
@@ -46,6 +53,7 @@ const props = defineProps({
                 :prospects="prospects"
                 :works="works"
                 :count="count"
+                :taskWindow="taskWindow"
                 :canCreate="canCreate"
                 :canManage="canManage"
                 :canDelete="canDelete"

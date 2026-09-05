@@ -19,6 +19,10 @@ const props = defineProps({
     type: String,
     default: 'product.search',
   },
+  searchScope: {
+    type: String,
+    default: null,
+  },
   itemType: {
     type: String,
     default: null,
@@ -46,8 +50,6 @@ const emits = defineEmits(['update:modelValue', 'update:subtotal']);
 
 const page = usePage();
 const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
-const companyName = computed(() => page.props.auth?.account?.company?.name || 'Entreprise');
-const companyLogo = computed(() => page.props.auth?.account?.company?.logo_url || null);
 const allowMixed = computed(() => props.allowMixedTypes || props.itemType === 'mixed');
 const defaultItemType = computed(() => {
   if (props.itemType && props.itemType !== 'mixed') {
@@ -229,6 +231,7 @@ const findCatalogMatch = async (index, query) => {
         params: {
           query,
           item_type: lineItemType,
+          scope: props.searchScope || undefined,
         },
       });
       results = response.data;
@@ -282,6 +285,7 @@ const searchProducts = async (query, index) => {
         params: {
           query,
           item_type: lineItemType,
+          scope: props.searchScope || undefined,
         },
       });
       searchResults.value[index] = response.data;

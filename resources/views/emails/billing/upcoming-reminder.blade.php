@@ -31,7 +31,7 @@
                     'heroSideTitle' => __('mail.common.billing_snapshot'),
                     'heroSideLogo' => $companyLogo ?? null,
                     'heroSideRows' => [
-                        ['label' => __('mail.common.company'), 'value' => $companyName ?? config('app.name')],
+                        ['label' => __('mail.common.company'), 'value' => $billingCompanyName ?? ($companyName ?? config('app.name'))],
                         ['label' => __('mail.common.plan'), 'value' => $planName ?? 'Malikia Pro'],
                         ['label' => __('mail.billing_upcoming.next_date'), 'value' => $billingDateLabel ?? ($billingDate ?? null)],
                         ['label' => __('mail.billing_upcoming.estimated_total'), 'value' => $formattedTotal ?? null],

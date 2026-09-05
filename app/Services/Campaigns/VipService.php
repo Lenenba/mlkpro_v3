@@ -2,12 +2,12 @@
 
 namespace App\Services\Campaigns;
 
-use App\Models\ActivityLog;
 use App\Models\Customer;
 use App\Models\Role;
 use App\Models\Sale;
 use App\Models\User;
 use App\Models\VipTier;
+use App\Services\Customers\CustomerActivityAudit;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
@@ -17,11 +17,11 @@ class VipService
 {
     public function __construct(
         private readonly MarketingSettingsService $marketingSettingsService,
-    ) {
-    }
+        private readonly CustomerActivityAudit $customerActivityAudit,
+    ) {}
 
     /**
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      * @return Collection<int, VipTier>
      */
     public function listTiers(User $accountOwner, array $filters = []): Collection
@@ -37,7 +37,7 @@ class VipService
     }
 
     /**
-     * @param array<string, mixed> $payload
+     * @param  array<string, mixed>  $payload
      */
     public function saveTier(User $accountOwner, User $actor, array $payload, ?VipTier $tier = null): VipTier
     {
@@ -67,7 +67,7 @@ class VipService
             ]);
         }
 
-        $model = $tier ?? new VipTier();
+        $model = $tier ?? new VipTier;
         $model->fill([
             'user_id' => $accountOwner->id,
             'created_by_user_id' => $model->created_by_user_id ?: $actor->id,
@@ -113,13 +113,19 @@ class VipService
                 ->where('is_active', true)
                 ->whereKey($vipTierId)
                 ->first();
-            if (!$tier) {
+            if (! $tier) {
                 throw ValidationException::withMessages([
                     'vip_tier_id' => 'Invalid VIP tier for this tenant.',
                 ]);
             }
         }
 
+        $before = [
+            'is_vip' => (bool) $customer->is_vip,
+            'vip_tier_id' => $customer->vip_tier_id,
+            'vip_tier_code' => $customer->vip_tier_code,
+            'vip_since_at' => $customer->vip_since_at,
+        ];
         $customer->fill([
             'is_vip' => $isVip,
             'vip_tier_id' => $tier?->id,
@@ -130,11 +136,19 @@ class VipService
         ]);
         $customer->save();
 
-        ActivityLog::record($actor, $customer, 'customer_vip_updated', [
-            'is_vip' => $customer->is_vip,
-            'vip_tier_id' => $customer->vip_tier_id,
-            'vip_tier_code' => $customer->vip_tier_code,
-        ], 'Customer VIP profile updated');
+        $this->customerActivityAudit->recordChanges(
+            $actor,
+            $customer,
+            'customer_vip_updated',
+            $before,
+            [
+                'is_vip' => (bool) $customer->is_vip,
+                'vip_tier_id' => $customer->vip_tier_id,
+                'vip_tier_code' => $customer->vip_tier_code,
+                'vip_since_at' => $customer->vip_since_at,
+            ],
+            'Customer VIP profile updated'
+        );
 
         return $customer->fresh('vipTier:id,user_id,code,name,perks,is_active');
     }
@@ -187,8 +201,9 @@ class VipService
             'skipped_reason' => null,
         ];
 
-        if (!$automation['enabled']) {
+        if (! $automation['enabled']) {
             $summary['skipped_reason'] = 'automation_disabled';
+
             return $summary;
         }
 
@@ -204,13 +219,14 @@ class VipService
 
         $hasGlobalThreshold = $automation['minimum_total_spend'] !== null
             || $automation['minimum_paid_orders'] !== null;
-        if (!$usesTierRules && !$hasGlobalThreshold) {
+        if (! $usesTierRules && ! $hasGlobalThreshold) {
             $summary['skipped_reason'] = 'missing_thresholds';
+
             return $summary;
         }
 
         $defaultTier = null;
-        if (!$usesTierRules && $automation['default_tier_code'] !== '') {
+        if (! $usesTierRules && $automation['default_tier_code'] !== '') {
             $defaultTier = VipTier::query()
                 ->forAccount($accountOwner->id)
                 ->where('is_active', true)
@@ -303,7 +319,7 @@ class VipService
                         if ($targetIsVip) {
                             $hasCurrentTier = $currentTierId !== null || $currentTierCode !== null;
                             $shouldAssignDefaultTier = $defaultTier
-                                && (!$automation['preserve_existing_tier'] || !$hasCurrentTier);
+                                && (! $automation['preserve_existing_tier'] || ! $hasCurrentTier);
 
                             if ($shouldAssignDefaultTier) {
                                 $targetTierId = (int) $defaultTier->id;
@@ -315,13 +331,13 @@ class VipService
                                 $targetTierId = null;
                                 $targetTierCode = null;
                             }
-                        } elseif (!$automation['preserve_existing_tier']) {
+                        } elseif (! $automation['preserve_existing_tier']) {
                             $targetTierId = null;
                             $targetTierCode = null;
                         }
                     }
 
-                    if (!$targetIsVip && !$automation['downgrade_when_not_eligible']) {
+                    if (! $targetIsVip && ! $automation['downgrade_when_not_eligible']) {
                         continue;
                     }
 
@@ -334,13 +350,13 @@ class VipService
                     $hasChanged = $currentIsVip !== $targetIsVip
                         || $tierChanged;
 
-                    if (!$hasChanged) {
+                    if (! $hasChanged) {
                         continue;
                     }
 
-                    if (!$currentIsVip && $targetIsVip) {
+                    if (! $currentIsVip && $targetIsVip) {
                         $summary['customers_promoted'] += 1;
-                    } elseif ($currentIsVip && !$targetIsVip) {
+                    } elseif ($currentIsVip && ! $targetIsVip) {
                         $summary['customers_downgraded'] += 1;
                     }
                     if ($tierChanged) {
@@ -361,20 +377,31 @@ class VipService
                     ]);
                     $customer->save();
 
-                    ActivityLog::record(null, $customer, 'customer_vip_auto_synced', [
-                        'was_vip' => $currentIsVip,
-                        'is_vip' => $targetIsVip,
-                        'previous_vip_tier_id' => $currentTierId,
-                        'vip_tier_id' => $targetTierId,
-                        'previous_vip_tier_code' => $currentTierCode,
-                        'vip_tier_code' => $targetTierCode,
-                        'automation_mode' => $summary['automation_mode'],
-                        'window_days' => $selectedWindowDays,
-                        'minimum_total_spend' => $selectedMinimumSpend,
-                        'minimum_paid_orders' => $selectedMinimumOrders,
-                        'total_spend' => $totalSpend,
-                        'paid_orders' => $paidOrders,
-                    ], 'Customer VIP profile synchronized automatically');
+                    $this->customerActivityAudit->recordChanges(
+                        null,
+                        $customer,
+                        'customer_vip_auto_synced',
+                        [
+                            'is_vip' => $currentIsVip,
+                            'vip_tier_id' => $currentTierId,
+                            'vip_tier_code' => $currentTierCode,
+                        ],
+                        [
+                            'is_vip' => $targetIsVip,
+                            'vip_tier_id' => $targetTierId,
+                            'vip_tier_code' => $targetTierCode,
+                        ],
+                        'Customer VIP profile synchronized automatically',
+                        [
+                            'source' => 'automation',
+                            'automation_mode' => $summary['automation_mode'],
+                            'window_days' => $selectedWindowDays,
+                            'minimum_total_spend' => $selectedMinimumSpend,
+                            'minimum_paid_orders' => $selectedMinimumOrders,
+                            'total_spend' => $totalSpend,
+                            'paid_orders' => $paidOrders,
+                        ]
+                    );
                 }
             }, 'customers.id', 'id');
 
@@ -418,16 +445,18 @@ class VipService
                 $summary['accounts_scanned'] += 1;
 
                 $campaignsEnabled = (bool) data_get($owner->company_features ?? [], 'campaigns', false);
-                if (!$campaignsEnabled) {
+                if (! $campaignsEnabled) {
                     $summary['accounts_skipped'] += 1;
+
                     continue;
                 }
 
                 $result = $this->runAutomationForAccount($owner, $dryRun);
                 $summary['results'][] = $result;
 
-                if (!empty($result['skipped_reason'])) {
+                if (! empty($result['skipped_reason'])) {
                     $summary['accounts_skipped'] += 1;
+
                     continue;
                 }
 
@@ -444,7 +473,7 @@ class VipService
     }
 
     /**
-     * @param array<string, mixed> $automation
+     * @param  array<string, mixed>  $automation
      */
     private function meetsAutomationThreshold(array $automation, float $totalSpend, int $paidOrders): bool
     {
@@ -458,7 +487,7 @@ class VipService
     }
 
     /**
-     * @param array<int, array<string, mixed>> $rules
+     * @param  array<int, array<string, mixed>>  $rules
      * @return array<int, array<string, mixed>>
      */
     private function resolveTierRulesForAccount(User $accountOwner, array $rules): array
@@ -476,7 +505,7 @@ class VipService
         return collect($rules)
             ->map(function (array $rule) use ($activeTiersByCode): ?array {
                 $code = strtoupper(trim((string) ($rule['tier_code'] ?? '')));
-                if ($code === '' || !$activeTiersByCode->has($code)) {
+                if ($code === '' || ! $activeTiersByCode->has($code)) {
                     return null;
                 }
 
@@ -500,7 +529,7 @@ class VipService
     }
 
     /**
-     * @param array<int, array<string, mixed>> $tierRules
+     * @param  array<int, array<string, mixed>>  $tierRules
      * @return array<string, mixed>|null
      */
     private function resolveTierRuleAssignment(
@@ -512,7 +541,7 @@ class VipService
 
         foreach ($tierRules as $rule) {
             $metrics = $this->metricsForWindow($customer, (int) $rule['evaluation_window_days']);
-            if (!$this->meetsAutomationThreshold(
+            if (! $this->meetsAutomationThreshold(
                 $rule,
                 (float) $metrics['total_spend'],
                 (int) $metrics['paid_orders']
@@ -544,7 +573,7 @@ class VipService
     }
 
     /**
-     * @param array<int, int> $windowDays
+     * @param  array<int, int>  $windowDays
      * @return \Illuminate\Database\Eloquent\Builder<\App\Models\Sale>
      */
     private function buildSalesStatsQuery(int $accountOwnerId, array $windowDays): Builder
@@ -576,7 +605,7 @@ class VipService
     }
 
     /**
-     * @param array<int, int> $windowDays
+     * @param  array<int, int>  $windowDays
      * @return array<int, mixed>
      */
     private function customerSelectFields(array $windowDays): array
@@ -617,12 +646,12 @@ class VipService
 
     private function spendAlias(int $windowDays): string
     {
-        return 'auto_total_spend_' . max(1, $windowDays);
+        return 'auto_total_spend_'.max(1, $windowDays);
     }
 
     private function ordersAlias(int $windowDays): string
     {
-        return 'auto_paid_orders_' . max(1, $windowDays);
+        return 'auto_paid_orders_'.max(1, $windowDays);
     }
 
     /**
@@ -657,7 +686,7 @@ class VipService
 
         $normalizedTierRules = collect($config['tier_rules'] ?? [])
             ->map(function ($rule, int $index) use ($baseWindowDays): ?array {
-                if (!is_array($rule)) {
+                if (! is_array($rule)) {
                     return null;
                 }
 
@@ -718,6 +747,7 @@ class VipService
             ->values()
             ->map(function (array $rule): array {
                 unset($rule['sequence']);
+
                 return $rule;
             })
             ->all();

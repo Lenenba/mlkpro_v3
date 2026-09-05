@@ -1,20 +1,27 @@
 <template>
-    <div ref="containerRef" class="relative w-full">
+    <div ref="containerRef" class="relative w-full min-w-0">
         <input
             :id="inputId"
             type="text"
             readonly
             :disabled="disabled"
+            :required="required"
             :value="displayValue || ''"
             @click="togglePicker"
+            @keydown.enter.prevent="togglePicker"
+            @keydown.space.prevent="togglePicker"
+            @keydown.esc.prevent="showPicker = false"
             placeholder=" "
             :class="inputClasses"
+            aria-haspopup="dialog"
+            :aria-expanded="showPicker ? 'true' : 'false'"
+            :aria-required="required ? 'true' : undefined"
         />
         <button
             v-if="showClear"
             type="button"
             @click.stop="clearDateTime"
-            class="absolute inset-y-0 end-0 flex items-center pe-3 text-stone-400 hover:text-stone-600 dark:text-neutral-400 dark:hover:text-neutral-200"
+            class="absolute inset-y-0 end-0 z-10 flex w-11 items-center justify-center text-stone-400 hover:text-stone-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-green-600 dark:text-neutral-400 dark:hover:text-neutral-200"
             :aria-label="clearLabel"
         >
             <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -23,27 +30,26 @@
         </button>
         <label
             :for="inputId"
-            class="absolute top-0 left-0 p-4 h-full text-sm truncate pointer-events-none transition ease-in-out duration-100 origin-[0_0] dark:text-white peer-disabled:opacity-50 peer-disabled:pointer-events-none
+            :title="label"
+            class="app-floating-label pe-10
                 scale-90
                 translate-x-0.5
                 -translate-y-1.5
-                text-stone-500 dark:text-neutral-500
                 peer-placeholder-shown:scale-100
                 peer-placeholder-shown:translate-x-0
                 peer-placeholder-shown:translate-y-0
-                peer-placeholder-shown:text-stone-500 dark:peer-placeholder-shown:text-neutral-500
                 peer-focus:scale-90
                 peer-focus:translate-x-0.5
-                peer-focus:-translate-y-1.5
-                peer-focus:text-stone-500 dark:peer-focus:text-neutral-500"
+                peer-focus:-translate-y-1.5"
         >
-            <span>{{ label }}</span>
-            <span v-if="required" class="text-red-500 dark:text-red-400"> *</span>
+            <span class="app-floating-label-content">
+                {{ label }}<span v-if="required" class="text-red-500 dark:text-red-400"> *</span>
+            </span>
         </label>
 
         <div
             v-if="showPicker"
-            class="absolute left-0 mt-2 w-80 rounded-sm border border-stone-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-900 z-50"
+            class="absolute start-0 z-50 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-sm border border-stone-200 bg-white shadow-lg dark:border-neutral-700 dark:bg-neutral-900"
         >
             <div class="flex items-center justify-between border-b border-stone-200 p-3 dark:border-neutral-700">
                 <button
@@ -253,13 +259,7 @@ const clearLabel = computed(() => {
 const showClear = computed(() => !props.required && Boolean(dateValue.value || timeValue.value));
 
 const inputClasses = computed(() => ([
-    'peer p-4 block w-full border border-stone-300 rounded-sm text-sm text-stone-700 bg-white shadow-sm',
-    'focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500',
-    'dark:bg-neutral-800 dark:border-neutral-700 dark:text-white dark:focus:ring-green-500',
-    'placeholder-transparent',
-    'focus:pt-6 focus:pb-2',
-    '[&:not(:placeholder-shown)]:pt-6 [&:not(:placeholder-shown)]:pb-2',
-    props.disabled ? 'opacity-60 pointer-events-none' : '',
+    'app-field-control peer cursor-pointer truncate',
     showClear.value ? 'pe-10' : '',
 ]));
 

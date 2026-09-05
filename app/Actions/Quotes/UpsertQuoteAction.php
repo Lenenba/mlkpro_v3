@@ -53,12 +53,14 @@ class UpsertQuoteAction
             ]);
         }
 
+        $existingOfferPackageSources = $this->existingOfferPackageSources($quote);
         $items = collect($this->buildQuoteItems->execute(
             $validated['product'],
             $itemType,
             $accountId,
             $accountId,
-            (int) $actor->id
+            (int) $actor->id,
+            $existingOfferPackageSources
         ));
 
         $subtotal = (float) $items->sum('total');
@@ -124,6 +126,37 @@ class UpsertQuoteAction
             'customer' => $customer,
             'previous_status' => $previousStatus,
         ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function existingOfferPackageSources(?Quote $quote): array
+    {
+        if (! $quote) {
+            return [];
+        }
+
+        $quote->loadMissing('products');
+
+        return $quote->products->reduce(function (array $sources, Product $product): array {
+            $sourceDetails = $product->pivot?->source_details;
+            if (is_string($sourceDetails)) {
+                $decoded = json_decode($sourceDetails, true);
+                $sourceDetails = is_array($decoded) ? $decoded : null;
+            }
+
+            if (! is_array($sourceDetails) || ($sourceDetails['source'] ?? null) !== 'offer_package') {
+                return $sources;
+            }
+
+            $offerPackageId = (int) ($sourceDetails['offer_package_id'] ?? 0);
+            if ($offerPackageId > 0) {
+                $sources[$offerPackageId] = $sourceDetails;
+            }
+
+            return $sources;
+        }, []);
     }
 
     private function buildTaxLines(float $subtotal, array $taxIds)

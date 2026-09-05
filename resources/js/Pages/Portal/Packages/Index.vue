@@ -3,6 +3,8 @@ import { computed, ref, watch } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
+import ClientPortalNotice from '@/Components/Portal/ClientPortalNotice.vue';
 import { humanizeDate } from '@/utils/date';
 import { useCurrencyFormatter } from '@/utils/currency';
 
@@ -21,6 +23,12 @@ const { formatCurrency } = useCurrencyFormatter(computed(() => props.company?.cu
 
 const packageRows = computed(() => Array.isArray(props.packages) ? props.packages : []);
 const selectedPackage = computed(() => packageRows.value.find((item) => item.id === selectedPackageId.value) || packageRows.value[0] || null);
+const requestErrors = computed(() => Array.from(new Set(
+    Object.values(requestForm.errors)
+        .flatMap((value) => Array.isArray(value) ? value : [value])
+        .map((value) => String(value || '').trim())
+        .filter(Boolean)
+)));
 
 watch(
     () => props.packages,
@@ -47,6 +55,14 @@ const translateValue = (group, value, fallback = '-') => {
 const formatDate = (value) => humanizeDate(value) || '-';
 
 const formatQuantity = (value) => Number(value || 0).toLocaleString();
+const packageMetrics = computed(() => [
+    { key: 'total', label: t('client_packages.stats.total'), value: formatQuantity(props.stats.total), tone: 'stone' },
+    { key: 'active', label: t('client_packages.stats.active'), value: formatQuantity(props.stats.active), tone: 'emerald' },
+    { key: 'remaining', label: t('client_packages.stats.remaining'), value: formatQuantity(props.stats.remaining_quantity), tone: 'teal' },
+    { key: 'recurring', label: t('client_packages.stats.recurring'), value: formatQuantity(props.stats.recurring), tone: 'violet' },
+    { key: 'payment-due', label: t('client_packages.stats.payment_due'), value: formatQuantity(props.stats.payment_due), tone: 'amber' },
+    { key: 'carried-over', label: t('client_packages.stats.carried_over'), value: formatQuantity(props.stats.carried_over_quantity), tone: 'sky' },
+]);
 
 const balancePercent = (item) => {
     const initial = Math.max(0, Number(item?.initial_quantity || 0));
@@ -108,7 +124,7 @@ const submitRequest = () => {
     <Head :title="$t('client_packages.title')" />
 
     <AuthenticatedLayout>
-        <div class="space-y-3 package-client-enter">
+        <div class="w-full min-w-0 max-w-full space-y-3 package-client-enter">
             <section class="rounded-sm border border-stone-200 border-t-4 border-t-emerald-600 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <div>
@@ -126,32 +142,7 @@ const submitRequest = () => {
                 </div>
             </section>
 
-            <section class="grid grid-cols-2 gap-3 lg:grid-cols-6">
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('client_packages.stats.total') }}</div>
-                    <div class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">{{ formatQuantity(stats.total) }}</div>
-                </div>
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('client_packages.stats.active') }}</div>
-                    <div class="mt-1 text-2xl font-semibold text-emerald-700 dark:text-emerald-400">{{ formatQuantity(stats.active) }}</div>
-                </div>
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('client_packages.stats.remaining') }}</div>
-                    <div class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">{{ formatQuantity(stats.remaining_quantity) }}</div>
-                </div>
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('client_packages.stats.recurring') }}</div>
-                    <div class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">{{ formatQuantity(stats.recurring) }}</div>
-                </div>
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('client_packages.stats.payment_due') }}</div>
-                    <div class="mt-1 text-2xl font-semibold text-amber-700 dark:text-amber-400">{{ formatQuantity(stats.payment_due) }}</div>
-                </div>
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('client_packages.stats.carried_over') }}</div>
-                    <div class="mt-1 text-2xl font-semibold text-sky-700 dark:text-sky-400">{{ formatQuantity(stats.carried_over_quantity) }}</div>
-                </div>
-            </section>
+            <KpiMetricGrid class="[&>*]:!rounded-sm" :metrics="packageMetrics" :aria-label="$t('client_packages.title')" />
 
             <section v-if="packageRows.length" class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(320px,420px),minmax(0,1fr)]">
                 <aside class="space-y-3">
@@ -161,6 +152,7 @@ const submitRequest = () => {
                         type="button"
                         class="w-full rounded-sm border bg-white p-4 text-left shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50/40 dark:bg-neutral-900 dark:hover:border-emerald-500/40 dark:hover:bg-emerald-500/5"
                         :class="selectedPackage?.id === item.id ? 'border-emerald-500 ring-1 ring-emerald-500/20 dark:border-emerald-500' : 'border-stone-200 dark:border-neutral-700'"
+                        :aria-pressed="selectedPackage?.id === item.id"
                         @click="selectedPackageId = item.id"
                     >
                         <div class="flex items-start justify-between gap-3">
@@ -175,7 +167,14 @@ const submitRequest = () => {
                                 {{ translateValue('statuses', item.status) }}
                             </span>
                         </div>
-                        <div class="mt-3 h-2 overflow-hidden rounded-sm bg-stone-100 dark:bg-neutral-800">
+                        <div
+                            class="mt-3 h-2 overflow-hidden rounded-sm bg-stone-100 dark:bg-neutral-800"
+                            role="progressbar"
+                            :aria-label="$t('client_packages.labels.balance_progress', { name: item.name })"
+                            :aria-valuenow="balancePercent(item)"
+                            aria-valuemin="0"
+                            aria-valuemax="100"
+                        >
                             <div class="h-full rounded-sm bg-emerald-600" :style="{ width: `${balancePercent(item)}%` }"></div>
                         </div>
                         <div class="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-stone-500 dark:text-neutral-400">
@@ -282,7 +281,12 @@ const submitRequest = () => {
                                 {{ $t('client_packages.requests.cancellation_sent') }} {{ formatDate(lastRequest(selectedPackage, 'cancellation').requested_at) }}
                             </p>
 
-                            <form v-if="requestType" class="mt-4 space-y-3" @submit.prevent="submitRequest">
+                            <form
+                                v-if="requestType"
+                                class="mt-4 space-y-3"
+                                :aria-busy="requestForm.processing"
+                                @submit.prevent="submitRequest"
+                            >
                                 <div>
                                     <label class="text-xs font-medium text-stone-600 dark:text-neutral-300">{{ requestLabel }}</label>
                                     <textarea
@@ -290,16 +294,20 @@ const submitRequest = () => {
                                         rows="3"
                                         class="mt-1 block w-full rounded-sm border border-stone-200 bg-white px-3 py-2 text-sm text-stone-800 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-100"
                                         :placeholder="$t('client_packages.requests.note_placeholder')"
+                                        :disabled="requestForm.processing"
                                     ></textarea>
-                                    <p v-if="requestForm.errors.note" class="mt-1 text-xs text-rose-600">{{ requestForm.errors.note }}</p>
-                                    <p v-if="requestForm.errors.customer_package_id" class="mt-1 text-xs text-rose-600">{{ requestForm.errors.customer_package_id }}</p>
+                                    <ClientPortalNotice v-if="requestErrors.length" class="mt-2" tone="error" compact>
+                                        <ul class="list-disc space-y-1 ps-4">
+                                            <li v-for="message in requestErrors" :key="message">{{ message }}</li>
+                                        </ul>
+                                    </ClientPortalNotice>
                                 </div>
                                 <div class="flex flex-wrap justify-end gap-2">
-                                    <button type="button" class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200" @click="closeRequest">
+                                    <button type="button" class="rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-700 hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200" :disabled="requestForm.processing" @click="closeRequest">
                                         {{ $t('client_packages.actions.cancel') }}
                                     </button>
                                     <button type="submit" class="rounded-sm border border-transparent bg-emerald-600 px-3 py-2 text-xs font-medium text-white hover:bg-emerald-700 disabled:opacity-50" :disabled="requestForm.processing">
-                                        {{ $t('client_packages.actions.submit_request') }}
+                                        {{ requestForm.processing ? $t('client_packages.actions.submitting_request') : $t('client_packages.actions.submit_request') }}
                                     </button>
                                 </div>
                             </form>

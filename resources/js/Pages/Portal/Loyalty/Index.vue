@@ -1,9 +1,11 @@
 <script setup>
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
+import { Head, router, useForm } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
+import ClientPortalNotice from '@/Components/Portal/ClientPortalNotice.vue';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
@@ -21,6 +23,7 @@ const props = defineProps({
 
 const { t } = useI18n();
 const isLoading = ref(false);
+const loadError = ref('');
 const showAdvanced = ref(Boolean(props.filters?.period === 'custom' || props.filters?.from || props.filters?.to));
 let filterTimeout;
 
@@ -76,12 +79,27 @@ const filterPayload = () => {
 };
 
 const applyFilters = () => {
+    if (isLoading.value) {
+        return;
+    }
+
+    if (filterTimeout) {
+        clearTimeout(filterTimeout);
+        filterTimeout = undefined;
+    }
+
     isLoading.value = true;
     router.get(route('portal.loyalty.index'), filterPayload(), {
         only: ['filters', 'entries', 'eventOptions', 'program', 'stats', 'customer'],
         preserveState: true,
         preserveScroll: true,
         replace: true,
+        onSuccess: () => {
+            loadError.value = '';
+        },
+        onError: () => {
+            loadError.value = t('client_loyalty.feedback.load_error');
+        },
         onFinish: () => {
             isLoading.value = false;
         },
@@ -108,6 +126,10 @@ watch(
 );
 
 const clearFilters = () => {
+    if (isLoading.value) {
+        return;
+    }
+
     filterForm.period = '30d';
     filterForm.from = '';
     filterForm.to = '';
@@ -115,10 +137,14 @@ const clearFilters = () => {
     filterForm.sort = 'processed_at';
     filterForm.direction = 'desc';
     showAdvanced.value = false;
-    applyFilters();
+    nextTick(applyFilters);
 };
 
 const toggleSort = (column) => {
+    if (isLoading.value) {
+        return;
+    }
+
     if (filterForm.sort === column) {
         filterForm.direction = filterForm.direction === 'asc' ? 'desc' : 'asc';
         return;
@@ -143,6 +169,39 @@ const entryPageIndicator = computed(() => t('datatable.shared.page_indicator', {
     total: totalPages.value,
 }));
 const formatNumber = (value) => Number(value || 0).toLocaleString();
+const loyaltyMetrics = computed(() => [
+    {
+        key: 'balance',
+        label: t('client_loyalty.kpi.balance'),
+        value: `${formatNumber(props.stats.balance)} ${pointLabel.value}`,
+        tone: 'amber',
+        loading: isLoading.value,
+    },
+    {
+        key: 'earned-period',
+        label: t('client_loyalty.kpi.earned_period'),
+        value: `+${formatNumber(props.stats.points_earned_period)}`,
+        context: `${t('client_loyalty.kpi.earned_lifetime')}: +${formatNumber(props.stats.points_earned_lifetime)}`,
+        tone: 'emerald',
+        loading: isLoading.value,
+    },
+    {
+        key: 'spent-period',
+        label: t('client_loyalty.kpi.spent_period'),
+        value: `-${formatNumber(props.stats.points_spent_period)}`,
+        context: `${t('client_loyalty.kpi.spent_lifetime')}: -${formatNumber(props.stats.points_spent_lifetime)}`,
+        tone: 'rose',
+        loading: isLoading.value,
+    },
+    {
+        key: 'movements',
+        label: t('client_loyalty.kpi.movements'),
+        value: formatNumber(props.stats.movements_count_period),
+        context: `${t('client_loyalty.kpi.movements_lifetime')}: ${formatNumber(props.stats.movements_count_lifetime)}`,
+        tone: 'sky',
+        loading: isLoading.value,
+    },
+]);
 const { formatCurrency } = useCurrencyFormatter();
 const formatDateTime = (value) => humanizeDate(value) || '-';
 
@@ -173,8 +232,11 @@ onBeforeUnmount(() => {
     <Head :title="$t('client_loyalty.title')" />
 
     <AuthenticatedLayout>
-        <div class="space-y-3 loyalty-client-enter">
-            <section class="rounded-sm border border-stone-200 border-t-4 border-t-amber-500 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
+        <div class="w-full min-w-0 max-w-full space-y-3 loyalty-client-enter">
+            <section
+                class="rounded-sm border border-stone-200 border-t-4 border-t-amber-500 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
+                :aria-busy="isLoading"
+            >
                 <div class="flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <h1 class="text-xl font-semibold text-stone-800 dark:text-neutral-100">{{ $t('client_loyalty.title') }}</h1>
@@ -186,54 +248,52 @@ onBeforeUnmount(() => {
                 </div>
 
                 <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-5">
-                    <FloatingSelect v-model="filterForm.period" :options="periodOptions" :label="$t('loyalty_module.filters.period')" />
-                    <FloatingSelect v-model="filterForm.event" :options="eventFilterOptions" :label="$t('loyalty_module.filters.event')" />
-                    <FloatingInput v-if="showAdvanced || filterForm.period === 'custom'" v-model="filterForm.from" type="date" :label="$t('loyalty_module.filters.from')" />
-                    <FloatingInput v-if="showAdvanced || filterForm.period === 'custom'" v-model="filterForm.to" type="date" :label="$t('loyalty_module.filters.to')" />
+                    <FloatingSelect v-model="filterForm.period" :options="periodOptions" :label="$t('loyalty_module.filters.period')" :disabled="isLoading" />
+                    <FloatingSelect v-model="filterForm.event" :options="eventFilterOptions" :label="$t('loyalty_module.filters.event')" :disabled="isLoading" />
+                    <FloatingInput v-if="showAdvanced || filterForm.period === 'custom'" v-model="filterForm.from" type="date" :label="$t('loyalty_module.filters.from')" :disabled="isLoading" />
+                    <FloatingInput v-if="showAdvanced || filterForm.period === 'custom'" v-model="filterForm.to" type="date" :label="$t('loyalty_module.filters.to')" :disabled="isLoading" />
                 </div>
 
                 <div class="mt-3 flex flex-wrap items-center justify-end gap-2">
                     <button
                         type="button"
-                        class="inline-flex items-center rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                        class="inline-flex items-center rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-700 hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                        :disabled="isLoading"
                         @click="showAdvanced = !showAdvanced"
                     >
                         {{ showAdvanced ? $t('loyalty_module.actions.hide_advanced') : $t('loyalty_module.actions.show_advanced') }}
                     </button>
-                    <button type="button" class="inline-flex items-center rounded-sm border border-transparent bg-green-600 px-3 py-2 text-xs font-medium text-white hover:bg-green-700" @click="applyFilters">
-                        {{ $t('loyalty_module.actions.apply_filters') }}
+                    <button
+                        type="button"
+                        class="inline-flex items-center rounded-sm border border-transparent bg-green-600 px-3 py-2 text-xs font-medium text-white hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        :disabled="isLoading"
+                        :aria-busy="isLoading"
+                        @click="applyFilters"
+                    >
+                        {{ isLoading ? $t('client_loyalty.feedback.loading') : $t('loyalty_module.actions.apply_filters') }}
                     </button>
-                    <button type="button" class="inline-flex items-center rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700" @click="clearFilters">
+                    <button type="button" class="inline-flex items-center rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-medium text-stone-700 hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700" :disabled="isLoading" @click="clearFilters">
                         {{ $t('loyalty_module.actions.clear_filters') }}
                     </button>
                 </div>
             </section>
 
-            <section class="grid grid-cols-2 gap-3 md:grid-cols-4">
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('client_loyalty.kpi.balance') }}</div>
-                    <div v-if="isLoading" class="mt-2 h-7 w-28 animate-pulse rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                    <div v-else class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">{{ formatNumber(stats.balance) }} {{ pointLabel }}</div>
+            <ClientPortalNotice v-if="loadError" tone="error">
+                <div class="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+                    <span>{{ loadError }}</span>
+                    <button
+                        type="button"
+                        class="shrink-0 rounded-sm border border-rose-300 bg-white px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-rose-500/40 dark:bg-neutral-900 dark:text-rose-200 dark:hover:bg-rose-500/10"
+                        :disabled="isLoading"
+                        :aria-busy="isLoading"
+                        @click="applyFilters"
+                    >
+                        {{ isLoading ? $t('client_loyalty.feedback.retrying') : $t('client_loyalty.feedback.retry') }}
+                    </button>
                 </div>
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('client_loyalty.kpi.earned_period') }}</div>
-                    <div v-if="isLoading" class="mt-2 h-7 w-20 animate-pulse rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                    <div v-else class="mt-1 text-2xl font-semibold text-emerald-700 dark:text-emerald-400">+{{ formatNumber(stats.points_earned_period) }}</div>
-                    <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ $t('client_loyalty.kpi.earned_lifetime') }}: +{{ formatNumber(stats.points_earned_lifetime) }}</div>
-                </div>
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('client_loyalty.kpi.spent_period') }}</div>
-                    <div v-if="isLoading" class="mt-2 h-7 w-20 animate-pulse rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                    <div v-else class="mt-1 text-2xl font-semibold text-rose-700 dark:text-rose-400">-{{ formatNumber(stats.points_spent_period) }}</div>
-                    <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ $t('client_loyalty.kpi.spent_lifetime') }}: -{{ formatNumber(stats.points_spent_lifetime) }}</div>
-                </div>
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('client_loyalty.kpi.movements') }}</div>
-                    <div v-if="isLoading" class="mt-2 h-7 w-16 animate-pulse rounded-sm bg-stone-200 dark:bg-neutral-700"></div>
-                    <div v-else class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">{{ formatNumber(stats.movements_count_period) }}</div>
-                    <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ $t('client_loyalty.kpi.movements_lifetime') }}: {{ formatNumber(stats.movements_count_lifetime) }}</div>
-                </div>
-            </section>
+            </ClientPortalNotice>
+
+            <KpiMetricGrid class="[&>*]:!rounded-sm" :metrics="loyaltyMetrics" :aria-label="$t('client_loyalty.title')" />
 
             <section class="grid grid-cols-1 gap-4 xl:h-[calc(100vh-25.5rem)] xl:min-h-[420px] xl:grid-cols-[320px,minmax(0,1fr)]">
                 <aside class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
@@ -253,6 +313,7 @@ onBeforeUnmount(() => {
 
                     <AdminDataTable
                         embedded
+                        :aria-busy="isLoading"
                         :rows="entryTableRows"
                         :links="entryLinks"
                         :show-pagination="entryRows.length > 0"
@@ -263,7 +324,7 @@ onBeforeUnmount(() => {
                         <template #head>
                             <tr>
                                 <th scope="col" class="min-w-40">
-                                    <button type="button" class="flex w-full items-center gap-x-1 px-5 py-2.5 text-start text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300" @click="toggleSort('processed_at')">
+                                    <button type="button" class="flex w-full items-center gap-x-1 px-5 py-2.5 text-start text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 dark:text-neutral-500 dark:hover:text-neutral-300" :disabled="isLoading" @click="toggleSort('processed_at')">
                                         {{ $t('loyalty_module.ledger.date') }}
                                         <svg v-if="filterForm.sort === 'processed_at'" class="size-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
                                             <path d="m6 9 6 6 6-6" />
@@ -271,7 +332,7 @@ onBeforeUnmount(() => {
                                     </button>
                                 </th>
                                 <th scope="col" class="min-w-32">
-                                    <button type="button" class="flex w-full items-center gap-x-1 px-5 py-2.5 text-start text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300" @click="toggleSort('event')">
+                                    <button type="button" class="flex w-full items-center gap-x-1 px-5 py-2.5 text-start text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 dark:text-neutral-500 dark:hover:text-neutral-300" :disabled="isLoading" @click="toggleSort('event')">
                                         {{ $t('loyalty_module.ledger.event') }}
                                         <svg v-if="filterForm.sort === 'event'" class="size-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
                                             <path d="m6 9 6 6 6-6" />
@@ -282,7 +343,7 @@ onBeforeUnmount(() => {
                                     {{ $t('loyalty_module.ledger.reference') }}
                                 </th>
                                 <th scope="col" class="min-w-20">
-                                    <button type="button" class="flex w-full items-center justify-end gap-x-1 px-5 py-2.5 text-end text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300" @click="toggleSort('points')">
+                                    <button type="button" class="flex w-full items-center justify-end gap-x-1 px-5 py-2.5 text-end text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 dark:text-neutral-500 dark:hover:text-neutral-300" :disabled="isLoading" @click="toggleSort('points')">
                                         {{ $t('loyalty_module.ledger.points') }}
                                         <svg v-if="filterForm.sort === 'points'" class="size-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
                                             <path d="m6 9 6 6 6-6" />
@@ -290,7 +351,7 @@ onBeforeUnmount(() => {
                                     </button>
                                 </th>
                                 <th scope="col" class="min-w-20">
-                                    <button type="button" class="flex w-full items-center justify-end gap-x-1 px-5 py-2.5 text-end text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none dark:text-neutral-500 dark:hover:text-neutral-300" @click="toggleSort('amount')">
+                                    <button type="button" class="flex w-full items-center justify-end gap-x-1 px-5 py-2.5 text-end text-sm font-normal text-stone-500 hover:text-stone-700 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 dark:text-neutral-500 dark:hover:text-neutral-300" :disabled="isLoading" @click="toggleSort('amount')">
                                         {{ $t('loyalty_module.ledger.amount') }}
                                         <svg v-if="filterForm.sort === 'amount'" class="size-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="filterForm.direction === 'asc' ? 'rotate-180' : ''">
                                             <path d="m6 9 6 6 6-6" />

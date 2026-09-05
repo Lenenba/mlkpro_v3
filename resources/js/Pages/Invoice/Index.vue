@@ -1,6 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head } from '@inertiajs/vue3';
+import ModuleKpiSection from '@/Components/Dashboard/ModuleKpiSection.vue';
 import InvoiceStats from '@/Components/UI/InvoiceStats.vue';
 import InvoiceTable from '@/Pages/Invoice/UI/InvoiceTable.vue';
 
@@ -17,7 +18,9 @@ const props = defineProps({
     <Head :title="$t('invoices.title')" />
     <AuthenticatedLayout>
         <div class="space-y-3">
-            <InvoiceStats :stats="stats" />
+            <ModuleKpiSection module-key="invoices">
+                <InvoiceStats :stats="stats" />
+            </ModuleKpiSection>
         </div>
         <div class="mt-3">
             <InvoiceTable :invoices="invoices" :filters="filters" :customers="customers" />

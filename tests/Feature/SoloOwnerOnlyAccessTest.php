@@ -6,6 +6,7 @@ use App\Models\Customer;
 use App\Models\Plan;
 use App\Models\PlanPrice;
 use App\Models\PlatformSetting;
+use App\Models\Reservation;
 use App\Models\ReservationResource;
 use App\Models\ReservationSetting;
 use App\Models\Role;
@@ -779,6 +780,19 @@ test('owner-only solo growth plans expose reservations in a limited mode and hid
         'is_active' => true,
     ]);
 
+    $startsAt = now('UTC')->addDay()->startOfHour();
+    Reservation::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $member->id,
+        'status' => Reservation::STATUS_CONFIRMED,
+        'source' => Reservation::SOURCE_STAFF,
+        'timezone' => 'UTC',
+        'starts_at' => $startsAt,
+        'ends_at' => $startsAt->copy()->addHour(),
+        'duration_minutes' => 60,
+        'buffer_minutes' => 0,
+    ]);
+
     $this->actingAs($owner)
         ->withSession(['two_factor_passed' => true])
         ->get(route('reservation.index'))
@@ -788,6 +802,12 @@ test('owner-only solo growth plans expose reservations in a limited mode and hid
             ->where('settings.owner_only_mode', true)
             ->where('settings.slot_booking_enabled', false)
             ->where('settings.queue_mode_enabled', false)
+            ->where('reservations.data.0.permissions.can_view', true)
+            ->where('reservations.data.0.permissions.can_edit', false)
+            ->where('reservations.data.0.permissions.can_delete', false)
+            ->where('reservations.data.0.permissions.can_update_status', false)
+            ->where('reservations.data.0.permissions.can_convert', false)
+            ->where('reservations.data.0.permissions.allowed_status_transitions', [])
         );
 
     $this->actingAs($owner)
@@ -803,6 +823,114 @@ test('owner-only solo growth plans expose reservations in a limited mode and hid
             ->where('accountSettings.allow_client_reschedule', false)
             ->where('resources.0.team_member_id', null)
         );
+});
+
+test('owner-only solo plans deny residual members access to reservation PII', function () {
+    $owner = createOwnerOnlySoloTenant([
+        'company_type' => 'services',
+        'company_sector' => 'salon',
+        'email' => 'owner-only-reservations@example.test',
+    ]);
+    assignSoloSubscription($owner, 'solo_growth');
+
+    $memberUser = User::factory()->create([
+        'name' => 'Residual reservation admin',
+        'email' => 'residual-reservation-admin@example.test',
+    ]);
+    $member = TeamMember::factory()->create([
+        'account_id' => $owner->id,
+        'user_id' => $memberUser->id,
+        'role' => 'admin',
+        'permissions' => ['view_all_reservations', 'reservations.manage'],
+        'is_active' => true,
+    ]);
+
+    $privateCustomer = Customer::factory()->create([
+        'user_id' => $owner->id,
+        'first_name' => 'Private',
+        'last_name' => 'Customer',
+        'company_name' => 'Private Customer',
+        'email' => 'owner-only-private-customer@example.test',
+    ]);
+    $startsAt = now('UTC')->addDay()->startOfHour();
+    $reservation = Reservation::query()->create([
+        'account_id' => $owner->id,
+        'team_member_id' => $member->id,
+        'client_id' => $privateCustomer->id,
+        'status' => Reservation::STATUS_CONFIRMED,
+        'source' => Reservation::SOURCE_STAFF,
+        'timezone' => 'UTC',
+        'starts_at' => $startsAt,
+        'ends_at' => $startsAt->copy()->addHour(),
+        'duration_minutes' => 60,
+        'buffer_minutes' => 0,
+        'internal_notes' => 'Owner-only private internal note',
+        'client_notes' => 'Owner-only private client note',
+    ]);
+
+    $foreignOwner = createOwnerOnlySoloTenant([
+        'email' => 'foreign-owner-only@example.test',
+    ]);
+    $foreignCustomer = Customer::factory()->create([
+        'user_id' => $foreignOwner->id,
+        'first_name' => 'Foreign',
+        'last_name' => 'Secret',
+        'email' => 'foreign-owner-only-secret@example.test',
+    ]);
+    $foreignMember = TeamMember::factory()->create([
+        'account_id' => $foreignOwner->id,
+        'is_active' => true,
+    ]);
+    Reservation::query()->create([
+        'account_id' => $foreignOwner->id,
+        'team_member_id' => $foreignMember->id,
+        'client_id' => $foreignCustomer->id,
+        'status' => Reservation::STATUS_CONFIRMED,
+        'source' => Reservation::SOURCE_STAFF,
+        'timezone' => 'UTC',
+        'starts_at' => $startsAt,
+        'ends_at' => $startsAt->copy()->addHour(),
+        'duration_minutes' => 60,
+        'buffer_minutes' => 0,
+    ]);
+
+    $ownerPayload = $this->actingAs($owner)
+        ->withSession(['two_factor_passed' => true])
+        ->getJson(route('reservation.index', ['scope' => 'all']))
+        ->assertOk()
+        ->assertJsonPath('reservations.total', 1)
+        ->assertJsonPath('reservations.data.0.client.display_name', 'Private Customer')
+        ->json();
+
+    expect(json_encode($ownerPayload))
+        ->not->toContain('owner-only-private-customer@example.test')
+        ->not->toContain('foreign-owner-only-secret@example.test');
+
+    $range = [
+        'start' => now('UTC')->subDay()->toIso8601String(),
+        'end' => now('UTC')->addDays(3)->toIso8601String(),
+        'scope' => 'all',
+    ];
+    $memberResponses = [
+        $this->actingAs($memberUser)
+            ->withSession(['two_factor_passed' => true])
+            ->getJson(route('reservation.index', ['scope' => 'all'])),
+        $this->actingAs($memberUser)
+            ->withSession(['two_factor_passed' => true])
+            ->getJson(route('reservation.events', $range)),
+        $this->actingAs($memberUser)
+            ->withSession(['two_factor_passed' => true])
+            ->getJson(route('reservation.show', $reservation)),
+    ];
+
+    foreach ($memberResponses as $response) {
+        $response->assertForbidden();
+        expect($response->getContent())
+            ->not->toContain('Private Customer')
+            ->not->toContain('owner-only-private-customer@example.test')
+            ->not->toContain('Owner-only private internal note')
+            ->not->toContain('foreign-owner-only-secret@example.test');
+    }
 });
 
 test('owner-only solo growth plans block staff reservation booking flows and queue screens', function () {

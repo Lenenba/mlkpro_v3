@@ -459,13 +459,13 @@
           "lost_note": "Prospects closed as lost.",
           "conversion_rate": "{days}d conversion",
           "conversion_rate_note": "{converted} converted / {created} created",
-          "avg_conversion_days": "Avg conversion time",
+          "avg_conversion_days": "Avg. conversion time",
           "avg_conversion_days_note": "Based on prospects converted to customers in the current window."
         }
       },
-      "first_response": "Avg first response",
+      "first_response": "Avg. first response",
       "first_response_note": "Based on first action after prospect creation.",
-      "time_to_intake": "Avg time to intake",
+      "time_to_intake": "Avg. intake time",
       "time_to_intake_note": "Measures how long a prospect stays untouched before real handling starts.",
       "conversion_rate": "Conversion rate",
       "conversion_note": "Won prospects vs total created.",

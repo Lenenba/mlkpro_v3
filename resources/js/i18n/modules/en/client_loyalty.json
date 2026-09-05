@@ -5,7 +5,7 @@
     "kpi": {
       "balance": "Available balance",
       "earned_period": "Points earned (period)",
-      "spent_period": "Points redeemed (period)",
+      "spent_period": "Points redeemed",
       "movements": "Movements (period)",
       "earned_lifetime": "Total earned",
       "spent_lifetime": "Total redeemed",
@@ -20,6 +20,12 @@
     },
     "ledger": {
       "title": "Points history"
+    },
+    "feedback": {
+      "load_error": "Unable to refresh your points. Please try again.",
+      "loading": "Refreshing...",
+      "retry": "Try again",
+      "retrying": "Retrying..."
     }
   }
 }

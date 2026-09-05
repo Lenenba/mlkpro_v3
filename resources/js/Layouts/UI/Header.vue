@@ -1,14 +1,17 @@
 <script setup>
 import { computed } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
+import { useI18n } from 'vue-i18n';
 import GlobalSearch from '@/Components/UI/GlobalSearch.vue';
 import NotificationBell from '@/Components/UI/NotificationBell.vue';
 import SidebarMessagesMenu from '@/Components/UI/SidebarMessagesMenu.vue';
 import SidebarAccountMenu from '@/Components/UI/SidebarAccountMenu.vue';
 
 const page = usePage();
+const { t } = useI18n();
 
 const isClient = computed(() => Boolean(page.props.auth?.account?.is_client));
+const companyName = computed(() => page.props.auth?.account?.company?.name || '');
 const isOwner = computed(() => Boolean(page.props.auth?.account?.is_owner));
 const isSuperadmin = computed(() => Boolean(page.props.auth?.account?.is_superadmin));
 const isPlatformAdmin = computed(() => Boolean(page.props.auth?.account?.is_platform_admin));
@@ -34,7 +37,7 @@ const settingsRouteName = computed(() => {
 
     return 'settings.company.edit';
 });
-const topbarIconButtonClass = 'relative inline-flex size-9 items-center justify-center rounded-full bg-transparent text-stone-600 transition hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-stone-300 dark:text-neutral-200 dark:hover:bg-neutral-800 dark:focus:ring-neutral-600';
+const topbarIconButtonClass = 'relative inline-flex size-11 items-center justify-center rounded-full bg-transparent text-stone-600 transition hover:bg-stone-100 focus:outline-none focus:ring-2 focus:ring-stone-300 sm:size-9 dark:text-neutral-200 dark:hover:bg-neutral-800 dark:focus:ring-neutral-600';
 const messagesButtonClass = `${topbarIconButtonClass} text-stone-600 dark:text-neutral-200`;
 const notificationButtonClass = `${topbarIconButtonClass} text-amber-600 dark:text-amber-400`;
 const settingsButtonClass = `${topbarIconButtonClass} text-slate-600 dark:text-neutral-200`;
@@ -44,13 +47,15 @@ const settingsButtonClass = `${topbarIconButtonClass} text-slate-600 dark:text-n
     <!-- ========== HEADER ========== -->
     <header
         class="fixed top-0 left-0 right-0 lg:left-16 flex flex-wrap md:justify-start md:flex-nowrap z-50 bg-white border-b border-stone-200 dark:bg-neutral-900 dark:border-neutral-700">
-        <div class="flex w-full items-center gap-3 py-2.5 px-2 sm:px-5">
+        <div class="flex w-full items-center gap-3 px-2 py-1.5 sm:px-5 sm:py-2.5">
             <div class="flex min-w-0 flex-1 items-center gap-3">
                 <!-- Sidebar Toggle -->
                 <button type="button"
-                    class="w-7 h-[38px] inline-flex justify-center items-center gap-x-2 text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700 lg:hidden"
+                    class="inline-flex size-11 items-center justify-center gap-x-2 rounded-sm border border-stone-200 bg-white text-sm font-medium text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-100 disabled:pointer-events-none disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-700 dark:focus:bg-neutral-700 lg:hidden"
                     aria-haspopup="dialog" aria-expanded="false" aria-controls="hs-pro-sidebar"
-                    aria-label="Toggle navigation" data-hs-overlay="#hs-pro-sidebar">
+                    :aria-label="t('account.client_portal.open_navigation')"
+                    data-testid="sidebar-toggle"
+                    data-hs-overlay="#hs-pro-sidebar">
                     <svg class="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                         viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
                         stroke-linejoin="round">
@@ -59,12 +64,25 @@ const settingsButtonClass = `${topbarIconButtonClass} text-slate-600 dark:text-n
                 </button>
                 <!-- End Sidebar Toggle -->
 
-                <div class="min-w-0 flex-1">
+                <Link
+                    v-if="isClient"
+                    :href="route('dashboard')"
+                    class="min-w-0 flex-1 rounded-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 dark:focus:ring-offset-neutral-900"
+                    data-testid="client-portal-identity"
+                >
+                    <p class="truncate text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-700 dark:text-emerald-300">
+                        {{ t('account.client_portal.title') }}
+                    </p>
+                    <p class="truncate text-sm font-medium text-stone-700 dark:text-neutral-200">
+                        {{ companyName || t('account.client_portal.company_fallback') }}
+                    </p>
+                </Link>
+                <div v-else class="min-w-0 flex-1">
                     <GlobalSearch />
                 </div>
             </div>
 
-            <div class="flex shrink-0 items-center justify-end gap-4 pr-1">
+            <div class="flex shrink-0 items-center justify-end gap-1 pr-1 sm:gap-4">
                 <SidebarMessagesMenu
                     v-if="showMessagesMenu"
                     :button-class="messagesButtonClass"
@@ -83,7 +101,7 @@ const settingsButtonClass = `${topbarIconButtonClass} text-slate-600 dark:text-n
                     v-if="showSettingsIcon"
                     :href="route(settingsRouteName)"
                     :class="settingsButtonClass"
-                    aria-label="Settings"
+                    :aria-label="t('account.open_settings')"
                 >
                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-cog-icon lucide-cog"><path d="M11 10.27 7 3.34"/><path d="m11 13.73-4 6.93"/><path d="M12 22v-2"/><path d="M12 2v2"/><path d="M14 12h8"/><path d="m17 20.66-1-1.73"/><path d="m17 3.34-1 1.73"/><path d="M2 12h2"/><path d="m20.66 17-1.73-1"/><path d="m20.66 7-1.73 1"/><path d="m3.34 17 1.73-1"/><path d="m3.34 7 1.73 1"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="12" r="8"/></svg>
                 </Link>

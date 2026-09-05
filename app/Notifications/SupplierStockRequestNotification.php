@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\Product;
 use App\Models\User;
+use App\Services\TenantBrandingResolver;
 use App\Support\LocalePreference;
 use App\Support\QueueWorkload;
 use Illuminate\Bus\Queueable;
@@ -35,7 +36,10 @@ class SupplierStockRequestNotification extends Notification implements ShouldQue
 
     public function toMail(object $notifiable): MailMessage
     {
-        $locale = LocalePreference::forNotifiable($notifiable, $this->owner);
+        $brandingResolver = app(TenantBrandingResolver::class);
+        $accountOwner = $brandingResolver->resolveAccountOwner($this->owner) ?: $this->owner;
+        $branding = $brandingResolver->forAccountOwner($accountOwner);
+        $locale = LocalePreference::forNotifiable($notifiable, $accountOwner);
         $isFr = str_starts_with($locale, 'fr');
         $productName = $this->product->name ?? 'Produit';
         $subject = $isFr ? "Demande stock - {$productName}" : "Stock request - {$productName}";
@@ -43,8 +47,8 @@ class SupplierStockRequestNotification extends Notification implements ShouldQue
         $message = (new MailMessage)
             ->subject($subject)
             ->view('emails.notifications.action', [
-                'companyName' => $this->owner->company_name ?: config('app.name'),
-                'companyLogo' => null,
+                'companyName' => $branding['name'],
+                'companyLogo' => $branding['custom_logo_url'],
                 'title' => $subject,
                 'intro' => $isFr
                     ? "Nous sommes en stock bas pour {$productName}. Pouvez-vous confirmer la disponibilite et le delai de reapprovisionnement ?"
@@ -53,7 +57,7 @@ class SupplierStockRequestNotification extends Notification implements ShouldQue
                     ['label' => 'SKU', 'value' => $this->product->sku ?? '-'],
                     ['label' => $isFr ? 'Stock actuel' : 'Current stock', 'value' => (string) ((int) $this->product->stock)],
                     ['label' => $isFr ? 'Stock minimum' : 'Minimum stock', 'value' => (string) ((int) $this->product->minimum_stock)],
-                    ['label' => $isFr ? 'Entreprise' : 'Company', 'value' => $this->owner->company_name ?: $this->owner->name],
+                    ['label' => $isFr ? 'Entreprise' : 'Company', 'value' => $branding['name']],
                 ],
                 'note' => $this->customMessage
                     ? (($isFr ? 'Message complementaire : ' : 'Additional message: ').$this->customMessage)
@@ -63,8 +67,8 @@ class SupplierStockRequestNotification extends Notification implements ShouldQue
                 'actionUrl' => null,
             ]);
 
-        if (! empty($this->owner->email)) {
-            $message->replyTo($this->owner->email, $this->owner->company_name ?: $this->owner->name);
+        if (! empty($accountOwner->email)) {
+            $message->replyTo($accountOwner->email, $branding['name']);
         }
 
         return $message;

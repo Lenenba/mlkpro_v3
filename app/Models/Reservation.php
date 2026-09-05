@@ -51,6 +51,32 @@ class Reservation extends Model
 
     public const SOURCE_PUBLIC_BOOKING = 'public_booking';
 
+    public const STATUS_CHANGE_SOURCE_LEGACY_UNKNOWN = 'legacy_unknown';
+
+    public const STATUS_CHANGE_SOURCE_STAFF_UI = 'staff_ui';
+
+    public const STATUS_CHANGE_SOURCE_CLIENT_PORTAL = 'client_portal';
+
+    public const STATUS_CHANGE_SOURCE_PUBLIC_BOOKING = 'public_booking';
+
+    public const STATUS_CHANGE_SOURCE_API = 'api';
+
+    public const STATUS_CHANGE_SOURCE_AI_ASSISTANT = 'ai_assistant';
+
+    public const STATUS_CHANGE_SOURCE_QUEUE_STAFF = 'queue_staff';
+
+    public const STATUS_CHANGE_SOURCE_STRIPE_WEBHOOK = 'stripe_webhook';
+
+    public const STATUS_CHANGE_SOURCE_QUEUE_GRACE = 'queue_grace';
+
+    public const STATUS_CHANGE_SOURCE_SCHEDULED_RECONCILIATION = 'scheduled_reconciliation';
+
+    public const HUMAN_STATUS_CHANGE_SOURCES = [
+        self::STATUS_CHANGE_SOURCE_STAFF_UI,
+        self::STATUS_CHANGE_SOURCE_CLIENT_PORTAL,
+        self::STATUS_CHANGE_SOURCE_QUEUE_STAFF,
+    ];
+
     protected $fillable = [
         'account_id',
         'team_member_id',
@@ -60,6 +86,14 @@ class Reservation extends Model
         'public_booking_link_id',
         'service_id',
         'status',
+        'status_version',
+        'schedule_version',
+        'mutation_version',
+        'status_changed_at',
+        'status_changed_by_user_id',
+        'status_change_source',
+        'outcome_review_required_at',
+        'outcome_review_reason_code',
         'source',
         'timezone',
         'starts_at',
@@ -83,6 +117,11 @@ class Reservation extends Model
         'ends_at' => 'datetime',
         'duration_minutes' => 'integer',
         'buffer_minutes' => 'integer',
+        'status_version' => 'integer',
+        'schedule_version' => 'integer',
+        'mutation_version' => 'integer',
+        'status_changed_at' => 'datetime',
+        'outcome_review_required_at' => 'datetime',
         'cancelled_at' => 'datetime',
         'auto_closed_at' => 'datetime',
         'metadata' => 'array',
@@ -133,6 +172,11 @@ class Reservation extends Model
         return $this->belongsTo(User::class, 'cancelled_by_user_id');
     }
 
+    public function statusChangedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'status_changed_by_user_id');
+    }
+
     public function rescheduledFrom(): BelongsTo
     {
         return $this->belongsTo(self::class, 'rescheduled_from_id');
@@ -166,6 +210,11 @@ class Reservation extends Model
     public function checkIns(): HasMany
     {
         return $this->hasMany(ReservationCheckIn::class);
+    }
+
+    public function statusTransitions(): HasMany
+    {
+        return $this->hasMany(ReservationStatusTransition::class);
     }
 
     public function customerPackageUsages(): HasMany

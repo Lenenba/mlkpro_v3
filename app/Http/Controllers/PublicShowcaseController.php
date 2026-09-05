@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\User;
 use App\Services\CompanyFeatureService;
+use App\Services\TenantBrandingResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
@@ -13,6 +14,10 @@ use Inertia\Response;
 
 class PublicShowcaseController extends Controller
 {
+    public function __construct(
+        private readonly TenantBrandingResolver $tenantBrandingResolver,
+    ) {}
+
     private function resolveOwner(string $slug): User
     {
         return User::query()
@@ -66,12 +71,15 @@ class PublicShowcaseController extends Controller
         $requestUrl = $hasRequests
             ? URL::signedRoute('public.requests.form', ['user' => $owner->id])
             : null;
+        $tenantBranding = $this->tenantBrandingResolver->forAccountOwner($owner);
 
         return Inertia::render('Public/Showcase', [
             'company' => [
-                'name' => $owner->company_name ?: $owner->name,
+                'name' => $tenantBranding['name'],
                 'slug' => $owner->company_slug,
-                'logo_url' => $owner->company_logo_url,
+                'logo_url' => $tenantBranding['custom_logo_url'],
+                'custom_logo_url' => $tenantBranding['custom_logo_url'],
+                'has_custom_logo' => $tenantBranding['has_custom_logo'],
                 'description' => $owner->company_description,
                 'currency_code' => $owner->businessCurrencyCode(),
                 'city' => $owner->company_city,

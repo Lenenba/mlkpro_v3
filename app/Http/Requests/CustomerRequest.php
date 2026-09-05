@@ -23,14 +23,13 @@ class CustomerRequest extends FormRequest
     {
         $customer = $this->route('customer');
         $customerId = $customer ? $customer->id : null;
-        $portalUserId = $customer ? $customer->portal_user_id : null;
-        $portalAccess = $this->has('portal_access')
-            ? filter_var($this->input('portal_access'), FILTER_VALIDATE_BOOLEAN)
-            : (bool) ($customer?->portal_access ?? true);
         $clientType = CustomerClientType::infer(
             $this->input('client_type'),
             (string) ($this->input('company_name') ?? $customer?->company_name ?? '')
         );
+        $logoIconPresets = $clientType === CustomerClientType::COMPANY
+            ? config('icon_presets.company_icons', [])
+            : config('icon_presets.avatar_icons', []);
         $emailRules = [
             'required',
             'string',
@@ -38,15 +37,13 @@ class CustomerRequest extends FormRequest
             'max:255',
             Rule::unique('customers')->ignore($customerId),
         ];
-        if ($portalAccess) {
-            $emailRules[] = Rule::unique('users', 'email')->ignore($portalUserId);
-        }
 
         return [
             'client_type' => ['nullable', 'string', Rule::in(CustomerClientType::values())],
             'portal_access' => 'nullable|boolean',
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
+            'birth_date' => ['nullable', 'date', 'before_or_equal:today'],
             'email' => $emailRules,
             'phone' => 'nullable|string|max:25',
             'company_name' => [
@@ -58,12 +55,12 @@ class CustomerRequest extends FormRequest
             'registration_number' => 'nullable|string|max:255',
             'industry' => 'nullable|string|max:255',
             'description' => 'nullable|string|min:5|max:255',
-            'logo' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+            'logo' => 'nullable|image|mimes:jpg,jpeg,png,gif,bmp,webp|max:2048',
             'logo_icon' => [
                 'nullable',
                 'string',
                 'max:255',
-                Rule::in(config('icon_presets.company_icons', [])),
+                Rule::in($logoIconPresets),
             ],
             'header_image' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
             'billing_same_as_physical' => 'nullable|boolean',
@@ -113,19 +110,23 @@ class CustomerRequest extends FormRequest
         $customer = $this->route('customer');
         $email = $this->input('email');
         $companyName = trim((string) ($this->input('company_name') ?? ''));
+        $clientType = CustomerClientType::infer(
+            $this->input('client_type'),
+            $companyName !== '' ? $companyName : ($customer?->company_name ?? null)
+        );
         $salutation = trim((string) ($this->input('salutation') ?? ''))
             ?: (string) ($customer?->salutation ?? 'Mr');
 
         $this->merge([
-            'client_type' => CustomerClientType::infer(
-                $this->input('client_type'),
-                $companyName !== '' ? $companyName : ($customer?->company_name ?? null)
-            )->value,
+            'client_type' => $clientType->value,
+            'birth_date' => $clientType === CustomerClientType::INDIVIDUAL
+                ? $this->input('birth_date')
+                : null,
             'company_name' => $companyName !== '' ? $companyName : null,
             'registration_number' => trim((string) ($this->input('registration_number') ?? '')) ?: null,
             'industry' => trim((string) ($this->input('industry') ?? '')) ?: null,
             'salutation' => $salutation,
-            'email' => is_string($email) ? strtolower($email) : $email,
+            'email' => is_string($email) ? strtolower(trim($email)) : $email,
         ]);
     }
 }

@@ -10,6 +10,7 @@ import {
 } from '@/utils/subscriptionPricing';
 import GuestLayout from '@/Layouts/GuestLayout.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
+import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import InputError from '@/Components/InputError.vue';
 import DropzoneInput from '@/Components/DropzoneInput.vue';
@@ -154,12 +155,25 @@ form.company_sector_other = sectorPreset.other;
 
 const addressQuery = ref('');
 const addressSuggestions = ref([]);
+const activeAddressSuggestionIndex = ref(-1);
 const validatedAddress = ref(null);
 const isSearchingAddress = ref(false);
 const addressError = ref('');
 const showManualAddress = ref(false);
 let addressSearchTimeout = null;
 const geoapifyKey = import.meta.env.VITE_GEOAPIFY_KEY;
+const activeAddressSuggestionId = computed(() => (
+    activeAddressSuggestionIndex.value >= 0
+        ? `onboarding-company-address-option-${activeAddressSuggestionIndex.value}`
+        : undefined
+));
+const addressServerError = computed(() => (
+    form.errors.company_country || form.errors.company_province || form.errors.company_city || ''
+));
+const hasAddressError = computed(() => Boolean(
+    addressError.value || (!showManualAddress.value && addressServerError.value)
+));
+const hasAddressFeedback = computed(() => isSearchingAddress.value || hasAddressError.value);
 
 const clearValidatedAddress = () => {
     validatedAddress.value = null;
@@ -200,12 +214,14 @@ const fetchGeoapify = async (useFilter) => {
 const searchAddress = async () => {
     if (addressQuery.value.length < 2) {
         addressSuggestions.value = [];
+        activeAddressSuggestionIndex.value = -1;
         addressError.value = '';
         return;
     }
 
     if (!geoapifyKey) {
         addressSuggestions.value = [];
+        activeAddressSuggestionIndex.value = -1;
         setAddressError(t('onboarding.company.address_error_key'));
         return;
     }
@@ -226,9 +242,11 @@ const searchAddress = async () => {
             label: feature.properties?.formatted || feature.properties?.name || '',
             details: feature.properties || {},
         }));
+        activeAddressSuggestionIndex.value = -1;
     } catch (error) {
         console.error('Erreur lors de la recherche d\'adresse :', error);
         addressSuggestions.value = [];
+        activeAddressSuggestionIndex.value = -1;
         setAddressError(t('onboarding.company.address_error_failed'));
     } finally {
         isSearchingAddress.value = false;
@@ -236,6 +254,7 @@ const searchAddress = async () => {
 };
 
 const handleAddressInput = () => {
+    activeAddressSuggestionIndex.value = -1;
     if (validatedAddress.value) {
         clearValidatedAddress();
     }
@@ -245,6 +264,49 @@ const handleAddressInput = () => {
     addressSearchTimeout = setTimeout(() => {
         searchAddress();
     }, 350);
+};
+
+const moveAddressSuggestion = (direction) => {
+    const suggestionCount = addressSuggestions.value.length;
+    if (!suggestionCount) {
+        activeAddressSuggestionIndex.value = -1;
+        return;
+    }
+
+    if (activeAddressSuggestionIndex.value < 0) {
+        activeAddressSuggestionIndex.value = direction > 0 ? 0 : suggestionCount - 1;
+        return;
+    }
+
+    activeAddressSuggestionIndex.value = (
+        activeAddressSuggestionIndex.value + direction + suggestionCount
+    ) % suggestionCount;
+};
+
+const handleAddressKeydown = (event) => {
+    if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        moveAddressSuggestion(1);
+        return;
+    }
+
+    if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        moveAddressSuggestion(-1);
+        return;
+    }
+
+    if (event.key === 'Enter' && activeAddressSuggestionIndex.value >= 0) {
+        event.preventDefault();
+        selectAddressSuggestion(addressSuggestions.value[activeAddressSuggestionIndex.value]);
+        return;
+    }
+
+    if (event.key === 'Escape' && addressSuggestions.value.length) {
+        event.preventDefault();
+        addressSuggestions.value = [];
+        activeAddressSuggestionIndex.value = -1;
+    }
 };
 
 const selectAddressSuggestion = (suggestion) => {
@@ -273,6 +335,7 @@ const selectAddressSuggestion = (suggestion) => {
 
     addressQuery.value = formatted;
     addressSuggestions.value = [];
+    activeAddressSuggestionIndex.value = -1;
     addressError.value = '';
     showManualAddress.value = false;
     validatedAddress.value = {
@@ -787,9 +850,23 @@ const closeTerms = () => {
                         </form>
                     </div>
 
-                    <div v-else-if="step === stepIds.company" class="space-y-3">
-                        <FloatingInput v-model="form.company_name" :label="$t('onboarding.company.name')" />
-                        <InputError class="mt-1" :message="form.errors.company_name" />
+                    <div v-else-if="step === stepIds.company" class="space-y-4">
+                        <div>
+                            <FloatingInput
+                                id="onboarding-company-name"
+                                v-model="form.company_name"
+                                :label="$t('onboarding.company.name')"
+                                :aria-invalid="Boolean(form.errors.company_name)"
+                                :aria-describedby="form.errors.company_name ? 'onboarding-company-name-error' : undefined"
+                                required
+                            />
+                            <InputError
+                                id="onboarding-company-name-error"
+                                class="mt-1"
+                                role="alert"
+                                :message="form.errors.company_name"
+                            />
+                        </div>
 
                         <div class="space-y-2">
                             <p class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('onboarding.company.logo_optional') }}</p>
@@ -798,43 +875,56 @@ const closeTerms = () => {
                         </div>
 
                         <div>
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('onboarding.company.description_optional') }}</label>
-                            <textarea v-model="form.company_description"
-                                class="mt-1 block w-full rounded-sm border-stone-200 text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                                rows="3" />
-                            <InputError class="mt-1" :message="form.errors.company_description" />
+                            <FloatingTextarea
+                                id="onboarding-company-description"
+                                v-model="form.company_description"
+                                :label="$t('onboarding.company.description_optional')"
+                                :aria-invalid="Boolean(form.errors.company_description)"
+                                :aria-describedby="form.errors.company_description ? 'onboarding-company-description-error' : undefined"
+                                rows="3"
+                                maxlength="2000"
+                            />
+                            <InputError
+                                id="onboarding-company-description-error"
+                                class="mt-1"
+                                role="alert"
+                                :message="form.errors.company_description"
+                            />
                         </div>
 
                         <div class="space-y-3">
-                            <label class="block text-xs text-stone-500 dark:text-neutral-400">{{ $t('onboarding.company.address') }}</label>
                             <div class="relative w-full">
-                                <div class="relative">
-                                    <div class="absolute inset-y-0 start-0 flex items-center pointer-events-none z-20 ps-3.5">
-                                        <svg class="shrink-0 size-4 text-stone-400 dark:text-white/60"
-                                            xmlns="http://www.w3.org/2000/svg" width="24" height="24"
-                                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                            stroke-linecap="round" stroke-linejoin="round">
-                                            <circle cx="11" cy="11" r="8"></circle>
-                                            <path d="m21 21-4.3-4.3"></path>
-                                        </svg>
-                                    </div>
-                                    <input
-                                        v-model="addressQuery"
-                                        @input="handleAddressInput"
-                                        class="py-3 ps-10 pe-4 block w-full border-stone-200 rounded-sm text-sm focus:border-green-600 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
-                                        type="text"
-                                        role="combobox"
-                                        aria-expanded="false"
-                                        :placeholder="$t('onboarding.company.address_search_placeholder')"
-                                    />
-                                </div>
+                                <FloatingInput
+                                    id="onboarding-company-address"
+                                    v-model="addressQuery"
+                                    type="search"
+                                    :label="$t('onboarding.company.address_search_placeholder')"
+                                    role="combobox"
+                                    aria-autocomplete="list"
+                                    aria-controls="onboarding-company-address-suggestions"
+                                    :aria-expanded="addressSuggestions.length > 0"
+                                    :aria-activedescendant="activeAddressSuggestionId"
+                                    :aria-describedby="hasAddressFeedback ? 'onboarding-company-address-feedback' : undefined"
+                                    :aria-invalid="hasAddressError"
+                                    @input="handleAddressInput"
+                                    @keydown="handleAddressKeydown"
+                                />
 
                                 <div v-if="addressSuggestions.length"
+                                    id="onboarding-company-address-suggestions"
+                                    role="listbox"
                                     class="absolute z-50 w-full bg-white rounded-sm shadow-[0_10px_40px_10px_rgba(0,0,0,0.08)] dark:bg-neutral-800">
                                     <div
                                         class="max-h-[300px] p-2 overflow-y-auto overflow-hidden [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-stone-100 [&::-webkit-scrollbar-thumb]:bg-stone-300 dark:[&::-webkit-scrollbar-track]:bg-neutral-700 dark:[&::-webkit-scrollbar-thumb]:bg-neutral-500">
-                                        <div v-for="suggestion in addressSuggestions" :key="suggestion.id"
-                                            class="py-2 px-3 flex items-center gap-x-3 hover:bg-stone-100 rounded-sm dark:hover:bg-neutral-700 cursor-pointer"
+                                        <div v-for="(suggestion, index) in addressSuggestions" :key="suggestion.id"
+                                            :id="`onboarding-company-address-option-${index}`"
+                                            role="option"
+                                            :aria-selected="activeAddressSuggestionIndex === index"
+                                            class="py-2 px-3 flex items-center gap-x-3 rounded-sm cursor-pointer"
+                                            :class="activeAddressSuggestionIndex === index
+                                                ? 'bg-stone-100 dark:bg-neutral-700'
+                                                : 'hover:bg-stone-100 dark:hover:bg-neutral-700'"
+                                            @mouseenter="activeAddressSuggestionIndex = index"
                                             @click="selectAddressSuggestion(suggestion)">
                                             <span class="text-sm text-stone-800 dark:text-neutral-200">
                                                 {{ suggestion.label }}
@@ -844,64 +934,126 @@ const closeTerms = () => {
                                 </div>
                             </div>
 
-                            <div v-if="isSearchingAddress" class="text-xs text-stone-500 dark:text-neutral-400">
-                                {{ $t('onboarding.company.address_searching') }}
-                            </div>
-                            <div v-if="addressError" class="text-xs text-red-600 dark:text-red-400">
-                                {{ addressError }}
-                            </div>
-                            <InputError class="mt-1" :message="form.errors.company_country || form.errors.company_province || form.errors.company_city" />
-                        </div>
-
-                        <div v-if="validatedAddress" class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
-                            <p class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ $t('onboarding.company.address_validated') }}</p>
-                            <div class="mt-2 grid gap-2">
-                                <div v-if="validatedAddress.formatted">
-                                    <span class="font-medium">{{ $t('onboarding.company.address_label') }}:</span> {{ validatedAddress.formatted }}
-                                </div>
-                                <div v-if="validatedAddress.street">
-                                    <span class="font-medium">{{ $t('onboarding.company.street') }}:</span> {{ validatedAddress.street }}
-                                </div>
-                                <div>
-                                    <span class="font-medium">{{ $t('onboarding.company.city') }}:</span> {{ validatedAddress.city || '-' }}
-                                    <span class="mx-2">/</span>
-                                    <span class="font-medium">{{ $t('onboarding.company.province') }}:</span> {{ validatedAddress.province || '-' }}
-                                </div>
-                                <div>
-                                    <span class="font-medium">{{ $t('onboarding.company.country') }}:</span> {{ validatedAddress.country || '-' }}
-                                    <span v-if="validatedAddress.postalCode" class="mx-2">/</span>
-                                    <span v-if="validatedAddress.postalCode">
-                                        <span class="font-medium">{{ $t('onboarding.company.postal_code') }}:</span> {{ validatedAddress.postalCode }}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="flex items-center justify-between text-xs text-stone-500 dark:text-neutral-400">
-                            <span>{{ $t('onboarding.company.address_manual') }}</span>
-                            <button
-                                type="button"
-                                class="text-green-700 hover:underline dark:text-green-400"
-                                @click="showManualAddress = !showManualAddress"
+                            <div
+                                v-if="hasAddressFeedback"
+                                id="onboarding-company-address-feedback"
+                                class="space-y-1"
+                                aria-live="polite"
                             >
-                                {{ showManualAddress ? $t('onboarding.company.address_hide') : $t('onboarding.company.address_show') }}
-                            </button>
+                                <div v-if="isSearchingAddress" class="text-xs text-stone-500 dark:text-neutral-400">
+                                    {{ $t('onboarding.company.address_searching') }}
+                                </div>
+                                <div v-if="addressError" role="alert" class="text-xs text-red-600 dark:text-red-400">
+                                    {{ addressError }}
+                                </div>
+                                <InputError
+                                    v-if="!showManualAddress"
+                                    role="alert"
+                                    :message="addressServerError"
+                                />
+                            </div>
+
+                            <div v-if="validatedAddress" class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300">
+                                <p class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ $t('onboarding.company.address_validated') }}</p>
+                                <div class="mt-2 grid gap-2">
+                                    <div v-if="validatedAddress.formatted">
+                                        <span class="font-medium">{{ $t('onboarding.company.address_label') }}:</span> {{ validatedAddress.formatted }}
+                                    </div>
+                                    <div v-if="validatedAddress.street">
+                                        <span class="font-medium">{{ $t('onboarding.company.street') }}:</span> {{ validatedAddress.street }}
+                                    </div>
+                                    <div>
+                                        <span class="font-medium">{{ $t('onboarding.company.city') }}:</span> {{ validatedAddress.city || '-' }}
+                                        <span class="mx-2">/</span>
+                                        <span class="font-medium">{{ $t('onboarding.company.province') }}:</span> {{ validatedAddress.province || '-' }}
+                                    </div>
+                                    <div>
+                                        <span class="font-medium">{{ $t('onboarding.company.country') }}:</span> {{ validatedAddress.country || '-' }}
+                                        <span v-if="validatedAddress.postalCode" class="mx-2">/</span>
+                                        <span v-if="validatedAddress.postalCode">
+                                            <span class="font-medium">{{ $t('onboarding.company.postal_code') }}:</span> {{ validatedAddress.postalCode }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center justify-between text-xs text-stone-500 dark:text-neutral-400">
+                                <span>{{ $t('onboarding.company.address_manual') }}</span>
+                                <button
+                                    type="button"
+                                    class="text-green-700 hover:underline dark:text-green-400"
+                                    @click="showManualAddress = !showManualAddress"
+                                >
+                                    {{ showManualAddress ? $t('onboarding.company.address_hide') : $t('onboarding.company.address_show') }}
+                                </button>
+                            </div>
+
+                            <div v-if="showManualAddress" class="grid grid-cols-1 gap-3 md:grid-cols-3">
+                                <div>
+                                    <FloatingInput
+                                        id="onboarding-company-city"
+                                        v-model="form.company_city"
+                                        :label="$t('onboarding.company.city')"
+                                        :aria-invalid="Boolean(form.errors.company_city)"
+                                        :aria-describedby="form.errors.company_city ? 'onboarding-company-city-error' : undefined"
+                                    />
+                                    <InputError
+                                        id="onboarding-company-city-error"
+                                        class="mt-1"
+                                        role="alert"
+                                        :message="form.errors.company_city"
+                                    />
+                                </div>
+                                <div>
+                                    <FloatingInput
+                                        id="onboarding-company-province"
+                                        v-model="form.company_province"
+                                        :label="$t('onboarding.company.province_region')"
+                                        :aria-invalid="Boolean(form.errors.company_province)"
+                                        :aria-describedby="form.errors.company_province ? 'onboarding-company-province-error' : undefined"
+                                    />
+                                    <InputError
+                                        id="onboarding-company-province-error"
+                                        class="mt-1"
+                                        role="alert"
+                                        :message="form.errors.company_province"
+                                    />
+                                </div>
+                                <div>
+                                    <FloatingInput
+                                        id="onboarding-company-country"
+                                        v-model="form.company_country"
+                                        :label="$t('onboarding.company.country')"
+                                        :aria-invalid="Boolean(form.errors.company_country)"
+                                        :aria-describedby="form.errors.company_country ? 'onboarding-company-country-error' : undefined"
+                                    />
+                                    <InputError
+                                        id="onboarding-company-country-error"
+                                        class="mt-1"
+                                        role="alert"
+                                        :message="form.errors.company_country"
+                                    />
+                                </div>
+                            </div>
                         </div>
 
-                        <div v-if="showManualAddress" class="grid grid-cols-1 gap-3 md:grid-cols-3">
-                            <FloatingInput v-model="form.company_city" :label="$t('onboarding.company.city')" />
-                            <FloatingInput v-model="form.company_province" :label="$t('onboarding.company.province_region')" />
-                            <FloatingInput v-model="form.company_country" :label="$t('onboarding.company.country')" />
-                        </div>
                         <div>
                             <FloatingSelect
+                                id="onboarding-company-currency"
                                 v-model="form.currency_code"
-                                :label="'Main business currency'"
+                                :label="$t('onboarding.company.currency_label')"
                                 :options="currencyOptions"
+                                :aria-invalid="Boolean(form.errors.currency_code)"
+                                :aria-describedby="form.errors.currency_code ? 'onboarding-company-currency-error' : undefined"
                             />
-                            <InputError class="mt-1" :message="form.errors.currency_code" />
+                            <InputError
+                                id="onboarding-company-currency-error"
+                                class="mt-1"
+                                role="alert"
+                                :message="form.errors.currency_code"
+                            />
                             <p class="mt-2 text-xs text-stone-500 dark:text-neutral-400">
-                                Products, services, invoices, and Stripe online charges will use {{ selectedCurrencyCode }}.
+                                {{ $t('onboarding.company.currency_hint', { currency: selectedCurrencyCode }) }}
                             </p>
                         </div>
                     </div>

@@ -12,6 +12,8 @@ import { humanizeDate } from '@/utils/date';
 import { useI18n } from 'vue-i18n';
 import { useCurrencyFormatter } from '@/utils/currency';
 import { usePermissions } from '@/Composables/usePermissions';
+import CompanyBrandLogo from '@/Components/CompanyBrandLogo.vue';
+import { createPaymentIdempotencyKey } from '@/utils/paymentIdempotency';
 
 const props = defineProps({
     invoice: Object,
@@ -29,7 +31,6 @@ const page = usePage();
 const { t } = useI18n();
 const { hasAnyPermission } = usePermissions();
 const companyName = computed(() => page.props.auth?.account?.company?.name || t('invoices.company_fallback'));
-const companyLogo = computed(() => page.props.auth?.account?.company?.logo_url || null);
 const canOpenFinanceApprovals = computed(() => {
     const account = page.props.auth?.account;
 
@@ -50,6 +51,7 @@ const canOpenFinanceApprovals = computed(() => {
 });
 
 const form = useForm({
+    idempotency_key: createPaymentIdempotencyKey(),
     amount: '',
     method: '',
     reference: '',
@@ -85,6 +87,9 @@ const dispatchDemoEvent = (eventName) => {
 };
 
 const submitPayment = () => {
+    if (form.processing) {
+        return;
+    }
     if (paymentAmount.value < 0.01) {
         form.setError('amount', 'Enter a valid amount.');
         return;
@@ -98,6 +103,7 @@ const submitPayment = () => {
     form.post(route('payment.store', props.invoice.id), {
         preserveScroll: true,
         onSuccess: () => {
+            form.idempotency_key = createPaymentIdempotencyKey();
             form.reset('amount', 'method', 'reference', 'paid_at', 'notes');
             dispatchDemoEvent('demo:invoice_paid');
         },
@@ -105,6 +111,7 @@ const submitPayment = () => {
 };
 
 const customer = computed(() => props.invoice.customer || null);
+const customerSnapshot = computed(() => props.invoice.customer_snapshot || {});
 const work = computed(() => props.invoice.work || null);
 const invoiceItems = computed(() => props.invoice.items || []);
 const usesInvoiceItems = computed(() => invoiceItems.value.length > 0);
@@ -120,24 +127,24 @@ const offerPackageOptions = computed(() => (props.offerPackages || []).map((offe
 
 const customerName = computed(() => {
     const data = customer.value;
-    if (!data) {
-        return t('invoices.labels.customer_fallback');
-    }
-    const name = data.company_name || `${data.first_name || ''} ${data.last_name || ''}`.trim();
-    return name || t('invoices.labels.customer_fallback');
+    const name = data?.company_name || `${data?.first_name || ''} ${data?.last_name || ''}`.trim();
+
+    return name
+        || customerSnapshot.value?.name
+        || customerSnapshot.value?.company_name
+        || t('invoices.labels.customer_fallback');
 });
 
 const contactName = computed(() => {
     const data = customer.value;
-    if (!data) {
-        return '-';
-    }
-    const name = `${data.first_name || ''} ${data.last_name || ''}`.trim();
-    return name || data.company_name || '-';
+    const name = `${data?.first_name || ''} ${data?.last_name || ''}`.trim();
+
+    return name || data?.company_name || customerSnapshot.value?.name || '-';
 });
 
-const contactEmail = computed(() => customer.value?.email || '-');
-const contactPhone = computed(() => customer.value?.phone || '-');
+const contactEmail = computed(() => customer.value?.email || customerSnapshot.value?.email || '-');
+const contactPhone = computed(() => customer.value?.phone || customerSnapshot.value?.phone || '-');
+const invoiceContextTitle = computed(() => work.value?.job_title || invoiceItems.value?.[0]?.title || t('invoices.labels.job_fallback'));
 
 const fallbackProperty = computed(() => {
     const properties = customer.value?.properties || [];
@@ -170,14 +177,19 @@ const setPaymentAmount = (value) => {
 };
 
 const paymentTipAmount = (payment) => {
-    const value = Number(payment?.tip_amount || 0);
-    return Number.isFinite(value) ? Math.max(0, value) : 0;
+    const tip = Number(payment?.tip_amount || 0);
+    const reversed = Number(payment?.tip_reversed_amount || 0);
+    return Number.isFinite(tip) && Number.isFinite(reversed)
+        ? Math.max(0, tip - Math.max(0, reversed))
+        : 0;
 };
 
 const paymentChargedTotal = (payment) => {
-    const fallback = Number(payment?.amount || 0) + paymentTipAmount(payment);
+    const originalTip = Math.max(0, Number(payment?.tip_amount || 0));
+    const reversed = Math.min(originalTip, Math.max(0, Number(payment?.tip_reversed_amount || 0)));
+    const fallback = Number(payment?.amount || 0) + originalTip;
     const value = Number(payment?.charged_total ?? fallback);
-    return Number.isFinite(value) ? value : fallback;
+    return Number.isFinite(value) ? Math.max(0, value - reversed) : Math.max(0, fallback - reversed);
 };
 
 const formatShortDate = (value) => {
@@ -206,6 +218,14 @@ const formatTimeRange = (start, end) => {
 };
 
 const invoiceSubtotal = computed(() => {
+    const snapshotSubtotal = props.invoice?.subtotal;
+    if (snapshotSubtotal !== null && snapshotSubtotal !== undefined) {
+        const numericSubtotal = Number(snapshotSubtotal);
+        if (Number.isFinite(numericSubtotal) && numericSubtotal >= 0) {
+            return numericSubtotal;
+        }
+    }
+
     if (usesInvoiceItems.value) {
         return invoiceItems.value.reduce((sum, item) => sum + Number(item.total || 0), 0);
     }
@@ -216,6 +236,32 @@ const invoiceSubtotal = computed(() => {
 
     return Number(props.invoice.total || 0);
 });
+
+const invoiceTaxTotal = computed(() => {
+    const snapshotTax = props.invoice?.tax_total;
+    if (snapshotTax !== null && snapshotTax !== undefined) {
+        const numericTax = Number(snapshotTax);
+        if (Number.isFinite(numericTax) && numericTax >= 0) {
+            return numericTax;
+        }
+    }
+
+    return Math.max(0, Number(props.invoice?.total || 0) - invoiceSubtotal.value);
+});
+
+const settledPayments = computed(() => (props.invoice?.payments || []).filter((payment) =>
+    ['completed', 'paid'].includes(String(payment?.status || '').toLowerCase())
+));
+
+const totalTipAmount = computed(() => settledPayments.value.reduce(
+    (sum, payment) => sum + paymentTipAmount(payment),
+    0
+));
+
+const totalChargedAmount = computed(() => settledPayments.value.reduce(
+    (sum, payment) => sum + paymentChargedTotal(payment),
+    0
+));
 
 const lineItemColspan = computed(() => (isTaskBased.value ? 5 : 4));
 const lineTitle = (item) => item?.title || item?.name || 'Line item';
@@ -360,6 +406,10 @@ const isPendingCashPayment = (payment) =>
     String(payment?.method || '').toLowerCase() === 'cash'
     && String(payment?.status || '').toLowerCase() === 'pending';
 
+const isPendingManualPayment = (payment) =>
+    ['cash', 'bank_transfer', 'check'].includes(String(payment?.method || '').toLowerCase())
+    && String(payment?.status || '').toLowerCase() === 'pending';
+
 const paymentStatusLabel = (payment) => {
     if (isPendingCashPayment(payment)) {
         return t('invoices.show.payments.pending_cash');
@@ -422,12 +472,14 @@ watch(
             <div class="p-5 space-y-3 flex flex-col bg-stone-100 border border-stone-100 rounded-sm shadow-sm dark:bg-neutral-900 dark:border-neutral-800">
                 <div class="flex flex-wrap justify-between items-center gap-3">
                     <div class="flex items-center gap-3">
-                        <img v-if="companyLogo"
-                            :src="companyLogo"
-                            :alt="companyName"
-                            class="h-12 w-12 rounded-sm border border-stone-200 object-cover dark:border-neutral-700"
+                        <CompanyBrandLogo
+                            :company="page.props.auth?.account?.company"
+                            :name="companyName"
+                            :show-fallback-name="false"
+                            container-class="h-12 w-12 p-1"
+                            class="shrink-0 shadow-none"
                             loading="lazy"
-                            decoding="async" />
+                        />
                         <div>
                             <p class="text-xs uppercase text-stone-500 dark:text-neutral-400">
                                 {{ companyName }}
@@ -436,7 +488,7 @@ watch(
                                 {{ $t('invoices.show.invoice_for', { customer: customerName }) }}
                             </h1>
                             <p class="text-sm text-stone-600 dark:text-neutral-300">
-                                {{ work?.job_title || $t('invoices.labels.job_fallback') }}
+                                {{ invoiceContextTitle }}
                             </p>
                         </div>
                     </div>
@@ -492,7 +544,7 @@ watch(
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div class="col-span-2 space-x-2">
                         <div class="bg-white rounded-sm border border-stone-100 p-4 mb-4 text-stone-700 dark:bg-neutral-900 dark:border-neutral-800 dark:text-neutral-100">
-                            {{ work?.job_title || $t('invoices.labels.job_fallback') }}
+                            {{ invoiceContextTitle }}
                         </div>
                         <div class="flex flex-row space-x-6">
                             <div class="lg:col-span-3">
@@ -746,7 +798,29 @@ watch(
 
                     <div class="py-4 grid grid-cols-2 gap-x-4 border-t border-stone-200 dark:border-neutral-700">
                         <div class="col-span-1">
-                            <p class="text-sm text-stone-500 dark:text-neutral-400">{{ $t('invoices.show.summary.paid') }}:</p>
+                            <p class="text-sm text-stone-500 dark:text-neutral-400">{{ $t('invoices.show.summary.taxes') }}:</p>
+                        </div>
+                        <div class="flex justify-end">
+                            <p class="text-sm text-stone-800 dark:text-neutral-100">
+                                {{ formatCurrency(invoiceTaxTotal) }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="py-4 grid grid-cols-2 gap-x-4 border-t border-stone-200 dark:border-neutral-700">
+                        <div class="col-span-1">
+                            <p class="text-sm text-stone-800 font-bold dark:text-neutral-100">{{ $t('invoices.show.summary.invoice_total') }}:</p>
+                        </div>
+                        <div class="flex justify-end">
+                            <p class="text-sm text-stone-800 font-bold dark:text-neutral-100">
+                                {{ formatCurrency(invoice.total) }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="py-4 grid grid-cols-2 gap-x-4 border-t border-stone-200 dark:border-neutral-700">
+                        <div class="col-span-1">
+                            <p class="text-sm text-stone-500 dark:text-neutral-400">{{ $t('invoices.show.summary.paid_toward_invoice') }}:</p>
                         </div>
                         <div class="flex justify-end">
                             <p class="text-sm text-stone-800 dark:text-neutral-100">
@@ -755,16 +829,29 @@ watch(
                         </div>
                     </div>
 
-                    <div class="py-4 grid grid-cols-2 gap-x-4 border-t border-stone-200 dark:border-neutral-700">
-                        <div class="col-span-1">
-                            <p class="text-sm text-stone-800 font-bold dark:text-neutral-100">{{ $t('invoices.show.summary.total_amount') }}:</p>
+                    <template v-if="settledPayments.length">
+                        <div class="py-4 grid grid-cols-2 gap-x-4 border-t border-stone-200 dark:border-neutral-700">
+                            <div class="col-span-1">
+                                <p class="text-sm text-stone-500 dark:text-neutral-400">{{ $t('invoices.show.summary.tips') }}:</p>
+                            </div>
+                            <div class="flex justify-end">
+                                <p class="text-sm text-stone-800 dark:text-neutral-100">
+                                    {{ formatCurrency(totalTipAmount) }}
+                                </p>
+                            </div>
                         </div>
-                        <div class="flex justify-end">
-                            <p class="text-sm text-stone-800 font-bold dark:text-neutral-100">
-                                {{ formatCurrency(invoice.total) }}
-                            </p>
+
+                        <div class="py-4 grid grid-cols-2 gap-x-4 border-t border-stone-200 dark:border-neutral-700">
+                            <div class="col-span-1">
+                                <p class="text-sm font-bold text-stone-800 dark:text-neutral-100">{{ $t('invoices.show.summary.charged_total') }}:</p>
+                            </div>
+                            <div class="flex justify-end">
+                                <p class="text-sm font-bold text-stone-800 dark:text-neutral-100">
+                                    {{ formatCurrency(totalChargedAmount) }}
+                                </p>
+                            </div>
                         </div>
-                    </div>
+                    </template>
 
                     <div class="py-4 grid grid-cols-2 gap-x-4 border-t border-stone-200 dark:border-neutral-700">
                         <div class="col-span-1">
@@ -811,7 +898,7 @@ watch(
                                     {{ paymentStatusLabel(payment) }}
                                 </span>
                                 <button
-                                    v-if="isPendingCashPayment(payment)"
+                                    v-if="isPendingManualPayment(payment)"
                                     type="button"
                                     class="rounded-sm border border-stone-200 bg-white px-2 py-1 text-[11px] font-medium text-stone-700 hover:bg-stone-50 disabled:opacity-60 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
                                     :disabled="markPaidForm.processing"
@@ -836,6 +923,7 @@ watch(
                             :label="$t('invoices.show.add_payment.amount')"
                         />
                         <div v-if="form.errors.amount" class="text-xs text-red-600">{{ form.errors.amount }}</div>
+                        <div v-if="form.errors.idempotency_key" class="text-xs text-red-600">{{ form.errors.idempotency_key }}</div>
                         <p class="text-[11px] text-stone-500 dark:text-neutral-400">
                             For partial payments, enter an amount lower than the current balance.
                         </p>

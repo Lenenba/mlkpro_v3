@@ -5,6 +5,7 @@ import { Head } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
 import { useI18n } from 'vue-i18n';
 import { useCurrencyFormatter } from '@/utils/currency';
+import CompanyBrandLogo from '@/Components/CompanyBrandLogo.vue';
 
 const props = defineProps({
     invoice: Object,
@@ -14,7 +15,6 @@ const props = defineProps({
 const { t } = useI18n();
 const invoice = computed(() => props.invoice || {});
 const companyName = computed(() => props.company?.name || t('invoices.company_fallback'));
-const companyLogo = computed(() => props.company?.logo_url || null);
 
 const customer = computed(() => invoice.value.customer || null);
 const work = computed(() => invoice.value.work || null);
@@ -56,14 +56,19 @@ const formatDate = (value) => humanizeDate(value) || '-';
 const { formatCurrency } = useCurrencyFormatter();
 
 const paymentTipAmount = (payment) => {
-    const value = Number(payment?.tip_amount || 0);
-    return Number.isFinite(value) ? Math.max(0, value) : 0;
+    const tip = Number(payment?.tip_amount || 0);
+    const reversed = Number(payment?.tip_reversed_amount || 0);
+    return Number.isFinite(tip) && Number.isFinite(reversed)
+        ? Math.max(0, tip - Math.max(0, reversed))
+        : 0;
 };
 
 const paymentChargedTotal = (payment) => {
-    const fallback = Number(payment?.amount || 0) + paymentTipAmount(payment);
+    const originalTip = Math.max(0, Number(payment?.tip_amount || 0));
+    const reversed = Math.min(originalTip, Math.max(0, Number(payment?.tip_reversed_amount || 0)));
+    const fallback = Number(payment?.amount || 0) + originalTip;
     const value = Number(payment?.charged_total ?? fallback);
-    return Number.isFinite(value) ? value : fallback;
+    return Number.isFinite(value) ? Math.max(0, value - reversed) : Math.max(0, fallback - reversed);
 };
 
 const formatShortDate = (value) => {
@@ -92,6 +97,14 @@ const formatTimeRange = (start, end) => {
 };
 
 const invoiceSubtotal = computed(() => {
+    const snapshotSubtotal = invoice.value?.subtotal;
+    if (snapshotSubtotal !== null && snapshotSubtotal !== undefined) {
+        const numericSubtotal = Number(snapshotSubtotal);
+        if (Number.isFinite(numericSubtotal) && numericSubtotal >= 0) {
+            return numericSubtotal;
+        }
+    }
+
     if (isTaskBased.value) {
         return invoiceItems.value.reduce((sum, item) => sum + Number(item.total || 0), 0);
     }
@@ -102,6 +115,32 @@ const invoiceSubtotal = computed(() => {
 
     return Number(invoice.value.total || 0);
 });
+
+const invoiceTaxTotal = computed(() => {
+    const snapshotTax = invoice.value?.tax_total;
+    if (snapshotTax !== null && snapshotTax !== undefined) {
+        const numericTax = Number(snapshotTax);
+        if (Number.isFinite(numericTax) && numericTax >= 0) {
+            return numericTax;
+        }
+    }
+
+    return Math.max(0, Number(invoice.value?.total || 0) - invoiceSubtotal.value);
+});
+
+const settledPayments = computed(() => payments.value.filter((payment) =>
+    ['completed', 'paid'].includes(String(payment?.status || '').toLowerCase())
+));
+
+const totalTipAmount = computed(() => settledPayments.value.reduce(
+    (sum, payment) => sum + paymentTipAmount(payment),
+    0
+));
+
+const totalChargedAmount = computed(() => settledPayments.value.reduce(
+    (sum, payment) => sum + paymentChargedTotal(payment),
+    0
+));
 
 const lineItemColspan = computed(() => (isTaskBased.value ? 5 : 4));
 
@@ -135,44 +174,55 @@ const statusClass = (status) => {
     <Head :title="$t('invoices.show.title', { number: invoice.number || invoice.id })" />
 
     <AuthenticatedLayout>
-        <div class="mx-auto w-full max-w-6xl space-y-5">
+        <div class="w-full min-w-0 max-w-full space-y-5">
             <div class="p-5 space-y-3 flex flex-col bg-stone-100 border border-stone-100 rounded-sm shadow-sm dark:bg-neutral-900 dark:border-neutral-800">
-                <div class="flex flex-wrap justify-between items-center gap-3">
-                    <div class="flex items-center gap-3">
-                        <img
-                            v-if="companyLogo"
-                            :src="companyLogo"
-                            :alt="companyName"
-                            class="h-12 w-12 rounded-sm border border-stone-200 object-cover dark:border-neutral-700"
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex min-w-0 items-center gap-3">
+                        <CompanyBrandLogo
+                            :company="company"
+                            :name="companyName"
+                            :show-fallback-name="false"
+                            container-class="h-12 w-12 p-1"
+                            class="shrink-0 shadow-none"
                             loading="lazy"
-                            decoding="async"
                         />
-                        <div>
-                            <p class="text-xs uppercase text-stone-500 dark:text-neutral-400">
+                        <div class="min-w-0">
+                            <p class="break-words text-xs uppercase text-stone-500 dark:text-neutral-400">
                                 {{ companyName }}
                             </p>
-                            <h1 class="text-xl inline-block font-semibold text-stone-800 dark:text-neutral-100">
+                            <h1 class="inline-block break-words text-xl font-semibold text-stone-800 dark:text-neutral-100">
                                 {{ $t('invoices.show.invoice_for', { customer: customerName }) }}
                             </h1>
-                            <p class="text-sm text-stone-600 dark:text-neutral-300">
+                            <p class="break-words text-sm text-stone-600 dark:text-neutral-300">
                                 {{ work?.job_title || $t('invoices.labels.job_fallback') }}
                             </p>
                         </div>
                     </div>
-                    <span class="py-1.5 px-3 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-full"
-                        :class="statusClass(invoice.status)">
-                        {{ statusLabel }}
-                    </span>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <a
+                            v-if="invoice.receipt_url"
+                            :href="invoice.receipt_url"
+                            target="_blank"
+                            rel="noopener"
+                            class="inline-flex items-center rounded-sm border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
+                        >
+                            {{ $t('invoices.show.download_pdf') }}
+                        </a>
+                        <span class="py-1.5 px-3 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-full"
+                            :class="statusClass(invoice.status)">
+                            {{ statusLabel }}
+                        </span>
+                    </div>
                 </div>
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div class="col-span-2 space-x-2">
+                <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                    <div class="lg:col-span-2">
                         <div class="bg-white rounded-sm border border-stone-100 p-4 mb-4 text-stone-700 dark:bg-neutral-900 dark:border-neutral-800 dark:text-neutral-100">
                             {{ work?.job_title || $t('invoices.labels.job_fallback') }}
                         </div>
-                        <div class="flex flex-row space-x-6">
-                            <div class="lg:col-span-3">
+                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div class="min-w-0">
                                 <p class="text-sm text-stone-700 dark:text-neutral-200">{{ $t('invoices.show.property_address') }}</p>
-                                <div v-if="property" class="space-y-1">
+                                <div v-if="property" class="space-y-1 break-words">
                                     <div class="text-xs text-stone-600 dark:text-neutral-300">{{ property.country }}</div>
                                     <div class="text-xs text-stone-600 dark:text-neutral-300">{{ property.street1 }}</div>
                                     <div class="text-xs text-stone-600 dark:text-neutral-300">{{ property.state }} - {{ property.zip }}</div>
@@ -181,15 +231,15 @@ const statusClass = (status) => {
                                     {{ $t('invoices.show.no_property') }}
                                 </div>
                             </div>
-                            <div class="lg:col-span-3">
+                            <div class="min-w-0">
                                 <p class="text-sm text-stone-700 dark:text-neutral-200">{{ $t('invoices.show.contact_details') }}</p>
-                                <div class="text-xs text-stone-600 dark:text-neutral-300">
+                                <div class="break-words text-xs text-stone-600 dark:text-neutral-300">
                                     {{ contactName }}
                                 </div>
-                                <div class="text-xs text-stone-600 dark:text-neutral-300">
+                                <div class="break-words text-xs text-stone-600 dark:text-neutral-300">
                                     {{ contactEmail }}
                                 </div>
-                                <div class="text-xs text-stone-600 dark:text-neutral-300">
+                                <div class="break-words text-xs text-stone-600 dark:text-neutral-300">
                                     {{ contactPhone }}
                                 </div>
                             </div>
@@ -256,9 +306,8 @@ const statusClass = (status) => {
                 </div>
             </div>
 
-            <div class="p-5 grid grid-cols-2 gap-4 justify-between bg-white border border-stone-100 rounded-sm shadow-sm dark:bg-neutral-900 dark:border-neutral-800">
-                <div></div>
-                <div class="border-l border-stone-200 rounded-sm p-4 dark:border-neutral-700">
+            <div class="grid grid-cols-1 gap-4 rounded-sm border border-stone-100 bg-white p-5 shadow-sm dark:border-neutral-800 dark:bg-neutral-900 md:grid-cols-2">
+                <div class="rounded-sm border-stone-200 p-4 dark:border-neutral-700 md:col-start-2 md:border-l">
                     <div class="py-4 grid grid-cols-2 gap-x-4">
                         <div class="col-span-1">
                             <p class="text-sm text-stone-500 dark:text-neutral-400">{{ $t('invoices.show.summary.subtotal') }}:</p>
@@ -272,7 +321,29 @@ const statusClass = (status) => {
 
                     <div class="py-4 grid grid-cols-2 gap-x-4 border-t border-stone-200 dark:border-neutral-700">
                         <div class="col-span-1">
-                            <p class="text-sm text-stone-500 dark:text-neutral-400">{{ $t('invoices.show.summary.paid') }}:</p>
+                            <p class="text-sm text-stone-500 dark:text-neutral-400">{{ $t('invoices.show.summary.taxes') }}:</p>
+                        </div>
+                        <div class="flex justify-end">
+                            <p class="text-sm text-stone-800 dark:text-neutral-100">
+                                {{ formatCurrency(invoiceTaxTotal) }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="py-4 grid grid-cols-2 gap-x-4 border-t border-stone-200 dark:border-neutral-700">
+                        <div class="col-span-1">
+                            <p class="text-sm text-stone-800 font-bold dark:text-neutral-100">{{ $t('invoices.show.summary.invoice_total') }}:</p>
+                        </div>
+                        <div class="flex justify-end">
+                            <p class="text-sm text-stone-800 font-bold dark:text-neutral-100">
+                                {{ formatCurrency(invoice.total) }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="py-4 grid grid-cols-2 gap-x-4 border-t border-stone-200 dark:border-neutral-700">
+                        <div class="col-span-1">
+                            <p class="text-sm text-stone-500 dark:text-neutral-400">{{ $t('invoices.show.summary.paid_toward_invoice') }}:</p>
                         </div>
                         <div class="flex justify-end">
                             <p class="text-sm text-stone-800 dark:text-neutral-100">
@@ -281,16 +352,29 @@ const statusClass = (status) => {
                         </div>
                     </div>
 
-                    <div class="py-4 grid grid-cols-2 gap-x-4 border-t border-stone-200 dark:border-neutral-700">
-                        <div class="col-span-1">
-                            <p class="text-sm text-stone-800 font-bold dark:text-neutral-100">{{ $t('invoices.show.summary.total_amount') }}:</p>
+                    <template v-if="settledPayments.length">
+                        <div class="py-4 grid grid-cols-2 gap-x-4 border-t border-stone-200 dark:border-neutral-700">
+                            <div class="col-span-1">
+                                <p class="text-sm text-stone-500 dark:text-neutral-400">{{ $t('invoices.show.summary.tips') }}:</p>
+                            </div>
+                            <div class="flex justify-end">
+                                <p class="text-sm text-stone-800 dark:text-neutral-100">
+                                    {{ formatCurrency(totalTipAmount) }}
+                                </p>
+                            </div>
                         </div>
-                        <div class="flex justify-end">
-                            <p class="text-sm text-stone-800 font-bold dark:text-neutral-100">
-                                {{ formatCurrency(invoice.total) }}
-                            </p>
+
+                        <div class="py-4 grid grid-cols-2 gap-x-4 border-t border-stone-200 dark:border-neutral-700">
+                            <div class="col-span-1">
+                                <p class="text-sm font-bold text-stone-800 dark:text-neutral-100">{{ $t('invoices.show.summary.charged_total') }}:</p>
+                            </div>
+                            <div class="flex justify-end">
+                                <p class="text-sm font-bold text-stone-800 dark:text-neutral-100">
+                                    {{ formatCurrency(totalChargedAmount) }}
+                                </p>
+                            </div>
                         </div>
-                    </div>
+                    </template>
 
                     <div class="py-4 grid grid-cols-2 gap-x-4 border-t border-stone-200 dark:border-neutral-700">
                         <div class="col-span-1">
@@ -309,13 +393,13 @@ const statusClass = (status) => {
                 <h2 class="text-sm font-semibold text-stone-800 dark:text-neutral-100 mb-3">{{ $t('invoices.show.payments.title') }}</h2>
                 <div v-if="payments.length" class="space-y-2">
                     <div v-for="payment in payments" :key="payment.id"
-                        class="flex items-center justify-between p-2 rounded-sm bg-stone-50 dark:bg-neutral-800">
-                        <div>
-                            <p class="text-sm text-stone-700 dark:text-neutral-200">
+                        class="flex flex-col items-start gap-2 rounded-sm bg-stone-50 p-2 dark:bg-neutral-800 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="min-w-0">
+                            <p class="break-words text-sm text-stone-700 dark:text-neutral-200">
                                 {{ formatCurrency(payment.amount) }}
                                 - {{ payment.method || $t('invoices.labels.method_fallback') }}
                             </p>
-                            <div class="mt-1 space-y-0.5 text-xs text-stone-500 dark:text-neutral-400">
+                            <div class="mt-1 space-y-0.5 break-words text-xs text-stone-500 dark:text-neutral-400">
                                 <div>{{ $t('invoices.show.payments.subtotal') }}: {{ formatCurrency(payment.amount) }}</div>
                                 <div>{{ $t('invoices.show.payments.tip') }}: {{ formatCurrency(paymentTipAmount(payment)) }}</div>
                                 <div class="font-medium text-stone-700 dark:text-neutral-300">
@@ -329,7 +413,7 @@ const statusClass = (status) => {
                                 {{ formatDate(payment.paid_at) }}
                             </p>
                         </div>
-                        <span class="text-xs text-stone-500 dark:text-neutral-400">{{ payment.status }}</span>
+                        <span class="shrink-0 text-xs text-stone-500 dark:text-neutral-400">{{ payment.status }}</span>
                     </div>
                 </div>
                 <p v-else class="text-sm text-stone-500 dark:text-neutral-400">{{ $t('invoices.show.payments.empty') }}</p>

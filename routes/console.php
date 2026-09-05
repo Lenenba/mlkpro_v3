@@ -1,11 +1,15 @@
 <?php
 
+use App\Jobs\CloseExpiredWalkInsForAccountJob;
 use App\Jobs\ComputeInterestScoresJob;
+use App\Jobs\ProvisionDemoWorkspaceJob;
 use App\Jobs\QueueTopologyCanaryJob;
 use App\Jobs\ReconcileDeliveryReportsJob;
+use App\Jobs\ReconcilePastReservationsForAccountJob;
 use App\Mail\DemoWorkspaceAccessMail;
 use App\Models\ActivityLog;
 use App\Models\Customer;
+use App\Models\DemoWorkspace;
 use App\Models\PlatformSupportTicket;
 use App\Models\Product;
 use App\Models\Property;
@@ -16,6 +20,8 @@ use App\Models\Request as LeadRequest;
 use App\Models\ReservationSetting;
 use App\Models\Role;
 use App\Models\Sale;
+use App\Models\SocialAccountConnection;
+use App\Models\SocialTransportCutover;
 use App\Models\Tax;
 use App\Models\User;
 use App\Models\Work;
@@ -39,7 +45,12 @@ use App\Services\Capacity\CapacityRunContextService;
 use App\Services\Capacity\CapacityRunnerResultService;
 use App\Services\Capacity\CapacityRunnerResultValidationException;
 use App\Services\Capacity\CapacityScenarioCatalog;
+use App\Services\ConfiguredPlanCatalogReconciler;
 use App\Services\DailyAgendaService;
+use App\Services\Demo\DemoScenarioFingerprint;
+use App\Services\Demo\DemoScenarioInvariantValidator;
+use App\Services\Demo\DemoWorkspaceCatalog;
+use App\Services\Demo\DemoWorkspaceProvisioner;
 use App\Services\Demo\DemoWorkspacePurgeService;
 use App\Services\ExpenseRecurringService;
 use App\Services\Observability\ObservabilityReportService;
@@ -53,7 +64,8 @@ use App\Services\Prospects\ProspectCustomerMigrationVerificationService;
 use App\Services\ProspectStaleReminderService;
 use App\Services\PublicCopySyncService;
 use App\Services\QueueHealthService;
-use App\Services\Reservation\ExpiredReservationAutoCloser;
+use App\Services\Reservation\ExpiredWalkInAutoCloser;
+use App\Services\Reservation\PastReservationOutcomeReconciler;
 use App\Services\ReservationAvailabilityService;
 use App\Services\ReservationNotificationService;
 use App\Services\ReservationQueueService;
@@ -62,7 +74,14 @@ use App\Services\ServiceRequests\LegacyServiceRequestBackfillAnalysisService;
 use App\Services\ServiceRequests\LegacyServiceRequestBackfillService;
 use App\Services\ServiceRequests\LegacyServiceRequestBackfillVerificationService;
 use App\Services\SmsNotificationService;
+use App\Services\Social\LegacySocialInventoryService;
 use App\Services\Social\SocialAutomationRunnerService;
+use App\Services\Social\SocialDeliveryReconciler;
+use App\Services\Social\SocialEditorialFoundationBackfillService;
+use App\Services\Social\SocialLegacyTransportBackfillService;
+use App\Services\Social\SocialPublishingService;
+use App\Services\Social\SocialTransportCutoverService;
+use App\Services\Social\SocialTransportReadinessService;
 use App\Services\StripePlanEnvSyncService;
 use App\Services\StripePlanPriceProvisioner;
 use App\Services\SupportAssignmentService;
@@ -72,6 +91,7 @@ use App\Services\WhatsappNotificationService;
 use App\Services\WorkBillingService;
 use App\Support\LocalePreference;
 use App\Support\NotificationDispatcher;
+use App\Support\PlatformPermissions;
 use App\Support\QueueCanary;
 use App\Support\QueueWorkload;
 use App\Support\SchemaAudit\ManualSelectContractAudit;
@@ -79,6 +99,7 @@ use Database\Seeders\LaunchResetSeeder;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Contracts\Cache\Factory as CacheFactory;
 use Illuminate\Foundation\Inspiring;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
@@ -1225,6 +1246,22 @@ Artisan::command('billing:stripe-sync-env
     return 0;
 })->purpose('Read existing Stripe plan prices and sync .env and plan_prices without creating new Stripe prices');
 
+Artisan::command('billing:reconcile-plan-catalog', function (
+    ConfiguredPlanCatalogReconciler $reconciler
+): int {
+    $result = $reconciler->reconcile();
+
+    $this->table(['Action', 'Count'], [
+        ['Plans created', $result['plans_created']],
+        ['Prices created', $result['prices_created']],
+        ['Prices repaired', $result['prices_repaired']],
+        ['Custom prices preserved', $result['custom_prices_preserved']],
+    ]);
+    $this->info('Configured plan catalog reconciled locally without contacting the billing provider.');
+
+    return 0;
+})->purpose('Safely reconcile configured plans and prices without overwriting custom Stripe mappings');
+
 Artisan::command('billing:sync-plan-entitlements
     {--plans= : Optional comma-separated list of plan keys}
     {--reset-tenant-overrides : Clear company feature and limit overrides for tenants on the selected plans}
@@ -2143,7 +2180,702 @@ Artisan::command(
 
         return 0;
     }
-)->purpose('Generate due Malikia Pulse automation candidates');
+)->purpose('Generate due Pulse automation candidates');
+
+Artisan::command(
+    'social:dispatch-outbox {--limit=100 : Maximum number of Pulse outbox rows per pass}',
+    function (SocialPublishingService $publishingService): int {
+        $limit = $this->option('limit');
+        $normalizedLimit = filter_var($limit, FILTER_VALIDATE_INT);
+
+        if ($normalizedLimit === false || $normalizedLimit < 1 || $normalizedLimit > 1000) {
+            $this->error('The Pulse outbox limit must be an integer between 1 and 1000.');
+
+            return 1;
+        }
+
+        $summary = $publishingService->maintainDeliveryOutbox($normalizedLimit);
+
+        $this->info(sprintf(
+            'Pulse outbox: recovered %d pre-request lease(s), quarantined %d ambiguous lease(s), repaired %d post aggregate(s), dispatched %d due operation(s).',
+            $summary['pending_recovered'],
+            $summary['unknown_quarantined'],
+            $summary['aggregates_repaired'],
+            $summary['dispatched'],
+        ));
+
+        return 0;
+    },
+)->purpose('Recover leases and dispatch due Pulse outbox operations');
+
+Artisan::command(
+    'social:reconcile-buffer {--limit=100 : Maximum number of due Buffer deliveries per pass}',
+    function (SocialDeliveryReconciler $reconciler): int {
+        if (! (bool) config('services.buffer.delivery.enabled', false)) {
+            $this->info('Buffer delivery is disabled; nothing to reconcile.');
+
+            return 0;
+        }
+
+        $limit = filter_var($this->option('limit'), FILTER_VALIDATE_INT);
+
+        if ($limit === false || $limit < 1 || $limit > 500) {
+            $this->error('The Buffer reconciliation limit must be an integer between 1 and 500.');
+
+            return 1;
+        }
+
+        $summary = $reconciler->reconcileDueBufferDeliveries(
+            'pulse-buffer-status-scheduler',
+            $limit,
+        );
+
+        $this->info(sprintf(
+            'Buffer reconciliation: selected %d, claimed %d, reconciled %d, not applied %d.',
+            $summary['selected'],
+            $summary['claimed'],
+            $summary['reconciled'],
+            $summary['not_applied'],
+        ));
+
+        return 0;
+    },
+)->purpose('Reconcile due Pulse Buffer delivery statuses');
+
+Artisan::command(
+    'pulse:buffer:inventory-legacy
+        {--json : Output the aggregate inventory as JSON}
+        {--source-context=unspecified : Operator-declared source: local, representative-clone, approved-environment, or unspecified}
+        {--queue-scope=* : Explicit connection:queue scopes to inspect; repeat for current and legacy Pulse queues}
+        {--confirm-queue-scope-list-complete : Assert that every current and legacy Pulse queue is declared}
+        {--confirm-read-only-scan : Confirm the authorized all-tenant aggregate scan}',
+    function (LegacySocialInventoryService $inventoryService): int {
+        if (! (bool) $this->option('confirm-read-only-scan')) {
+            $this->error(
+                'Legacy Pulse inventory requires explicit operator confirmation. '
+                .'Use --confirm-read-only-scan only on an authorized local database, clone, or environment.'
+            );
+
+            return 1;
+        }
+
+        $queueScopes = $this->option('queue-scope');
+        $sourceContext = $this->option('source-context');
+
+        try {
+            $inventory = $inventoryService->inventory(
+                declaredQueueScopes: is_array($queueScopes) ? $queueScopes : [],
+                completeQueueScopeListAttested: (bool) $this->option('confirm-queue-scope-list-complete'),
+                sourceContext: is_string($sourceContext) ? $sourceContext : 'unspecified',
+            );
+        } catch (InvalidArgumentException|LogicException $exception) {
+            $this->error('Invalid queue scope: '.$exception->getMessage());
+
+            return 1;
+        }
+
+        if ((bool) $this->option('json')) {
+            $this->line(json_encode($inventory, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT));
+
+            return 0;
+        }
+
+        $this->info('Pulse Buffer legacy inventory (read-only, aggregate only)');
+        $queueRows = [];
+        $queueWorkloadLabels = [
+            'social_publish' => 'Queued publications',
+            'social_automation' => 'Queued automation candidates',
+        ];
+
+        foreach ($inventory['queue_scope_manifest']['scopes'] as $queueInventory) {
+            foreach ($queueWorkloadLabels as $workload => $label) {
+                $workloadInventory = $queueInventory['jobs_by_workload'][$workload];
+                $queueRows[] = [
+                    $label.' ('
+                        .$queueInventory['queue_connection'].':'
+                        .$queueInventory['queue_label'].')',
+                    $workloadInventory['total'] ?? 'not measurable',
+                    $queueInventory['measurable']
+                        ? $workloadInventory['ready'].' ready; '
+                            .$workloadInventory['delayed'].' delayed; '
+                            .$workloadInventory['active_reserved'].' active reservation; '
+                            .$workloadInventory['expired_reserved'].' expired reservation; '
+                            .$workloadInventory['unparseable_candidates'].' unparseable candidate'
+                        : $queueInventory['reason'],
+                ];
+            }
+        }
+
+        $failedAutomationJobs = $inventory['failed_pulse_jobs']['by_workload']['social_automation'];
+        $logicalDestinationKeyReadiness = $inventory['connections']['logical_destination_key_readiness'];
+        $configuredPulseTopology = $inventory['configured_pulse_topology'];
+
+        $this->table(['Scope', 'Total', 'Attention'], [
+            [
+                'Connections',
+                $inventory['connections']['total'],
+                $inventory['connections']['active'].' active',
+            ],
+            [
+                'Logical destination keys',
+                $logicalDestinationKeyReadiness['evaluated'],
+                $logicalDestinationKeyReadiness['derivable'].' derivable; '
+                    .$logicalDestinationKeyReadiness['derivation_failures'].' derivation failures; '
+                    .$logicalDestinationKeyReadiness['duplicate_or_collision_groups']
+                    .' duplicate/collision groups',
+            ],
+            [
+                'Configured Pulse topology',
+                $configuredPulseTopology['workload_count'],
+                $configuredPulseTopology['configured_workload_count'].' configured; '
+                    .$configuredPulseTopology['exactly_one_production_worker_profile_count']
+                    .' exactly-one production worker profiles; deployed runtime not proven',
+            ],
+            [
+                'Targets',
+                $inventory['targets']['total'],
+                $inventory['targets']['without_connection'].' without connection; '
+                    .$inventory['targets']['cross_tenant'].' cross-tenant',
+            ],
+            [
+                'Automation references',
+                $inventory['references']['automation_rules']['references'],
+                $inventory['references']['automation_rules']['missing_references'].' missing; '
+                    .$inventory['references']['automation_rules']['cross_tenant_references'].' cross-tenant; '
+                    .$inventory['references']['automation_rules']['malformed_records'].' malformed record; '
+                    .$inventory['references']['automation_rules']['invalid_references'].' invalid; '
+                    .$inventory['references']['automation_rules']['duplicate_references'].' duplicate',
+            ],
+            [
+                'Template references',
+                $inventory['references']['post_templates']['references'],
+                $inventory['references']['post_templates']['missing_references'].' missing; '
+                    .$inventory['references']['post_templates']['cross_tenant_references'].' cross-tenant; '
+                    .$inventory['references']['post_templates']['malformed_records'].' malformed record; '
+                    .$inventory['references']['post_templates']['invalid_references'].' invalid; '
+                    .$inventory['references']['post_templates']['duplicate_references'].' duplicate',
+            ],
+            [
+                'Failed publication jobs',
+                $inventory['failed_publications']['total'] ?? 'not measurable',
+                $inventory['failed_publications']['measurable']
+                    ? $inventory['failed_publications']['unparseable_candidates'].' unparseable candidate; '
+                        .($inventory['failed_publications']['total'] > 0
+                            || $inventory['failed_publications']['unparseable_candidates'] > 0
+                            ? 'retry qualification required'
+                            : 'no retryable legacy publication found')
+                    : $inventory['failed_publications']['reason'],
+            ],
+            [
+                'Failed automation candidate jobs',
+                $failedAutomationJobs['total'] ?? 'not measurable',
+                $inventory['failed_pulse_jobs']['measurable']
+                    ? $failedAutomationJobs['unparseable_candidates'].' unparseable candidate; '
+                        .($failedAutomationJobs['total'] > 0
+                            || $failedAutomationJobs['unparseable_candidates'] > 0
+                            ? 'manual retry qualification required'
+                            : 'no retryable legacy automation found')
+                    : $inventory['failed_pulse_jobs']['reason'],
+            ],
+            ...$queueRows,
+        ]);
+        $this->line(sprintf(
+            'Queue scope manifest: %d inspected; %d measurable; %d unmeasurable; %s; %s; %s; %s.',
+            $inventory['queue_scope_manifest']['scope_count'],
+            $inventory['queue_scope_manifest']['measurable_scope_count'],
+            $inventory['queue_scope_manifest']['unmeasurable_scope_count'],
+            $inventory['queue_scope_manifest']['operator_attested_complete_scope_list']
+                ? 'scope list attested complete by operator'
+                : 'scope list completeness not attested',
+            $inventory['queue_scope_manifest']['unmeasurable_scope_count'] > 0
+                ? 'external queue evidence required'
+                : 'all inspected scopes measurable',
+            $inventory['queue_scope_manifest']['requires_job_policy'] === null
+                ? 'queued-job policy evidence incomplete'
+                : ($inventory['queue_scope_manifest']['requires_job_policy']
+                    ? 'queued-job policy qualification required'
+                    : 'queued-job evidence complete'),
+            ! $inventory['failed_pulse_jobs']['measurable']
+                ? 'failed-job evidence required'
+                : ($inventory['failed_pulse_jobs']['requires_job_policy']
+                    ? 'failed-job retry qualification required'
+                    : 'failed-job evidence measurable')
+        ));
+
+        return 0;
+    }
+)->purpose('Inventory legacy Pulse routing references without reading credentials');
+
+Artisan::command(
+    'pulse:transport:readiness
+        {tenant : Workspace owner user ID}
+        {--gate=canary : Gate to evaluate: canary, drain, or h3}
+        {--json : Output the expurgated aggregate report as JSON}
+        {--source-context=unspecified : Operator-declared inventory source context}
+        {--queue-scope=* : Explicit connection:queue scopes to inspect}
+        {--confirm-queue-scope-list-complete : Assert that every Pulse queue is declared}
+        {--confirm-read-only-scan : Authorize the all-tenant aggregate queue scan}',
+    function (
+        SocialTransportReadinessService $readiness,
+        LegacySocialInventoryService $inventoryService,
+    ): int {
+        $tenantId = filter_var($this->argument('tenant'), FILTER_VALIDATE_INT);
+        $gate = trim((string) $this->option('gate'));
+
+        if ($tenantId === false || $tenantId < 1) {
+            $this->error('The Pulse readiness tenant must be a positive workspace owner ID.');
+
+            return 1;
+        }
+
+        if (! in_array($gate, ['canary', 'drain', 'h3'], true)) {
+            $this->error('The Pulse readiness gate must be canary, drain, or h3.');
+
+            return 1;
+        }
+
+        $tenant = User::query()->find($tenantId);
+        if (! $tenant || (int) $tenant->accountOwnerId() !== $tenantId) {
+            $this->error('The Pulse readiness workspace owner was not found.');
+
+            return 1;
+        }
+
+        $inventory = null;
+        if ((bool) $this->option('confirm-read-only-scan')) {
+            $queueScopes = $this->option('queue-scope');
+
+            try {
+                $inventory = $inventoryService->inventory(
+                    declaredQueueScopes: is_array($queueScopes) ? $queueScopes : [],
+                    completeQueueScopeListAttested: (bool) $this->option('confirm-queue-scope-list-complete'),
+                    sourceContext: (string) $this->option('source-context'),
+                );
+            } catch (InvalidArgumentException|LogicException $exception) {
+                $this->error('Pulse queue evidence is invalid: '.$exception->getMessage());
+
+                return 1;
+            }
+        }
+
+        try {
+            $report = $readiness->reportForDecision($tenantId, $inventory);
+        } catch (LogicException $exception) {
+            $this->error($exception->getMessage());
+
+            return 2;
+        }
+        $selectedGate = $gate === 'drain' ? 'legacy_drain' : $gate;
+        $gateReport = $report[$selectedGate];
+
+        if ((bool) $this->option('json')) {
+            $this->line(json_encode($report, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT));
+
+            return $gateReport['ready'] ? 0 : 2;
+        }
+
+        $this->info('Pulse transport readiness (single-tenant aggregate, sensitive fields excluded)');
+        $this->table(['Control', 'Value'], [
+            ['State', $report['state']],
+            ['Active transport generation', $report['active_transport_generation']],
+            ['Owner-validated mappings', $report['mapping']['owner_validated']],
+            ['Shadow-validated mappings', $report['mapping']['shadow_validated']],
+            ['Active direct connections', $report['connections']['direct_active']],
+            ['Active candidate connections', $report['connections']['candidate_active']],
+            ['Active or future direct targets', $report['targets']['direct_active_or_future']],
+            ['Unfinished direct outbox operations', $report['outbox']['direct_unfinished']],
+            ['Active direct references', $report['references']['active_direct']],
+            ['Queue evidence complete', $report['queues']['complete'] ? 'yes' : 'no'],
+            ['Deployed runtime proven', $report['queues']['deployed_runtime_proven'] ? 'yes' : 'no'],
+        ]);
+
+        if (! $gateReport['ready']) {
+            $this->warn(strtoupper($gate).' NO-GO: '.implode(', ', $gateReport['blockers']));
+
+            return 2;
+        }
+
+        $this->info(strtoupper($gate).' EVIDENCE READY — no transition was executed.');
+
+        return 0;
+    },
+)->purpose('Capture a mutex-protected Pulse readiness snapshot without executing a transition');
+
+Artisan::command(
+    'pulse:transport:retirement-readiness
+        {--json : Output the expurgated global aggregate report as JSON}
+        {--source-context=unspecified : Operator-declared inventory source context}
+        {--queue-scope=* : Explicit connection:queue scopes to inspect}
+        {--confirm-queue-scope-list-complete : Assert that every Pulse queue is declared}
+        {--confirm-read-only-scan : Authorize the all-tenant aggregate queue scan}',
+    function (
+        SocialTransportReadinessService $readiness,
+        LegacySocialInventoryService $inventoryService,
+    ): int {
+        $inventory = null;
+        if ((bool) $this->option('confirm-read-only-scan')) {
+            $queueScopes = $this->option('queue-scope');
+
+            try {
+                $inventory = $inventoryService->inventory(
+                    declaredQueueScopes: is_array($queueScopes) ? $queueScopes : [],
+                    completeQueueScopeListAttested: (bool) $this->option('confirm-queue-scope-list-complete'),
+                    sourceContext: (string) $this->option('source-context'),
+                );
+            } catch (InvalidArgumentException|LogicException $exception) {
+                $this->error('Pulse queue evidence is invalid: '.$exception->getMessage());
+
+                return 1;
+            }
+        }
+
+        $report = $readiness->globalDirectRetirementReport($inventory);
+
+        if ((bool) $this->option('json')) {
+            $this->line(json_encode($report, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT));
+
+            return $report['ready'] ? 0 : 2;
+        }
+
+        $this->info('Pulse direct retirement readiness (all tenants, sensitive fields excluded)');
+        $this->table(['Control', 'Value'], [
+            ['Incomplete tenant cutovers', $report['cutovers']['incomplete']],
+            ['Active direct connections', $report['direct_connections_active']],
+            ['Active or future direct targets', $report['direct_targets_active_or_future']],
+            ['Unfinished direct outbox operations', $report['direct_outbox_unfinished']],
+            ['Ambiguous outbox operations', $report['ambiguous_outbox']],
+            ['Queue evidence complete', $report['queues']['complete'] ? 'yes' : 'no'],
+            ['Deployed runtime proven', $report['queues']['deployed_runtime_proven'] ? 'yes' : 'no'],
+        ]);
+        $this->warn('DIRECT RETIREMENT NO-GO: '.implode(', ', $report['blockers']));
+
+        return 2;
+    },
+)->purpose('Prove that no tenant still needs direct transport before any global code removal');
+
+Artisan::command(
+    'pulse:transport:transition
+        {tenant : Workspace owner user ID}
+        {operator : Workspace owner or superadmin user ID}
+        {state : Allowed local action: legacy_only, rollback_hold, resume_legacy, or resume_held}
+        {--evidence-hash= : SHA-256 digest of the expurgated evidence}
+        {--confirm : Confirm the fail-closed control-plane transition}',
+    function (SocialTransportCutoverService $cutovers): int {
+        $tenantId = filter_var($this->argument('tenant'), FILTER_VALIDATE_INT);
+        $operatorId = filter_var($this->argument('operator'), FILTER_VALIDATE_INT);
+        $state = trim((string) $this->argument('state'));
+        $evidenceHash = trim((string) $this->option('evidence-hash'));
+
+        if ($tenantId === false || $tenantId < 1 || $operatorId === false || $operatorId < 1) {
+            $this->error('Pulse transport tenant and operator IDs must be positive integers.');
+
+            return 1;
+        }
+
+        if (! in_array($state, [
+            'legacy_only',
+            'rollback_hold',
+            'resume_legacy',
+            'resume_held',
+        ], true)) {
+            $this->error(
+                'Only initialization, fail-closed rollback hold, and explicit same-transport resume are available before H2 and the concrete candidate runtime.'
+            );
+
+            return 1;
+        }
+
+        if (! (bool) $this->option('confirm')) {
+            $this->error('The Pulse transport transition requires explicit --confirm.');
+
+            return 1;
+        }
+
+        $tenant = User::query()->find($tenantId);
+        $operator = User::query()->find($operatorId);
+        if (! $tenant || ! $operator) {
+            $this->error('The Pulse transport tenant or operator was not found.');
+
+            return 1;
+        }
+
+        try {
+            $cutover = match ($state) {
+                'rollback_hold' => $cutovers->placeOnRollbackHold(
+                    $tenant,
+                    $operator,
+                    $evidenceHash,
+                ),
+                'resume_legacy' => $cutovers->resumeLegacyAfterRollbackHold(
+                    $tenant,
+                    $operator,
+                    $evidenceHash,
+                ),
+                'resume_held' => $cutovers->resumeAfterRollbackHold(
+                    $tenant,
+                    $operator,
+                    $evidenceHash,
+                ),
+                default => $cutovers->initialize($tenant, $operator, $evidenceHash),
+            };
+        } catch (InvalidArgumentException|LogicException $exception) {
+            $this->error($exception->getMessage());
+
+            return 2;
+        }
+
+        $expectedState = $state === 'resume_legacy' ? 'legacy_only' : $state;
+        $transitionMatched = $state === 'resume_held'
+            ? $cutover->state !== SocialTransportCutover::STATE_ROLLBACK_HOLD
+            : (string) $cutover->state === $expectedState;
+        if (! $transitionMatched) {
+            $this->error('Pulse never falls back to direct automatically; the existing state was left unchanged.');
+
+            return 2;
+        }
+
+        $this->info('Pulse transport state: '.$cutover->state.'. No remote request was made.');
+
+        return 0;
+    },
+)->purpose('Initialize, hold, or explicitly resume the exact held Pulse transport');
+
+Artisan::command(
+    'pulse:transport:map
+        {tenant : Workspace owner user ID}
+        {operator : Owner or superadmin user ID recorded in the audit event}
+        {legacy-connection : Existing direct connection ID}
+        {replacement-connection : New replacement connection ID}
+        {--owner-evidence-hash= : SHA-256 digest of owner validation evidence}
+        {--confirm-owner-validation : Confirm the owner selected the exact destination}',
+    function (SocialTransportCutoverService $cutovers): int {
+        $tenantId = filter_var($this->argument('tenant'), FILTER_VALIDATE_INT);
+        $operatorId = filter_var($this->argument('operator'), FILTER_VALIDATE_INT);
+        $legacyId = filter_var($this->argument('legacy-connection'), FILTER_VALIDATE_INT);
+        $replacementId = filter_var($this->argument('replacement-connection'), FILTER_VALIDATE_INT);
+
+        if ($tenantId === false || $tenantId < 1
+            || $operatorId === false || $operatorId < 1
+            || $legacyId === false || $legacyId < 1
+            || $replacementId === false || $replacementId < 1) {
+            $this->error('Pulse mapping IDs must be positive integers.');
+
+            return 1;
+        }
+
+        if (! (bool) $this->option('confirm-owner-validation')) {
+            $this->error('Pulse mapping requires explicit owner validation confirmation.');
+
+            return 1;
+        }
+
+        $tenant = User::query()->find($tenantId);
+        $operator = User::query()->find($operatorId);
+        $legacy = SocialAccountConnection::query()
+            ->where('user_id', $tenantId)
+            ->find($legacyId);
+        $replacement = SocialAccountConnection::query()
+            ->where('user_id', $tenantId)
+            ->find($replacementId);
+
+        if (! $tenant || ! $operator || ! $legacy || ! $replacement) {
+            $this->error('The Pulse tenant, operator, or tenant-scoped mapping records were not found.');
+
+            return 1;
+        }
+
+        try {
+            $mapping = $cutovers->recordOwnerValidatedMapping(
+                $tenant,
+                $operator,
+                $legacy,
+                $replacement,
+                (string) $this->option('owner-evidence-hash'),
+            );
+        } catch (InvalidArgumentException|LogicException $exception) {
+            $this->error($exception->getMessage());
+
+            return 2;
+        }
+
+        $this->info(
+            'Pulse mapping recorded: owner validated; remote shadow validation remains pending. No remote request was made.',
+        );
+
+        return 0;
+    },
+)->purpose('Persist an owner-validated Pulse destination mapping without exposing remote identifiers');
+
+Artisan::command(
+    'pulse:buffer:backfill-legacy-transport
+        {--apply : Persist canonical direct/direct_v1 transport identities}
+        {--rollback : Roll back only the latest applied transport batch recorded in the ledger}
+        {--confirm-all-pulse-writers-stopped : Confirm that Pulse web and queue writers are stopped}
+        {--json : Output the aggregate report as JSON}',
+    function (SocialLegacyTransportBackfillService $backfillService): int {
+        $apply = (bool) $this->option('apply');
+        $rollback = (bool) $this->option('rollback');
+
+        if ($apply && $rollback) {
+            $this->error('Choose either --apply or --rollback, never both.');
+
+            return 1;
+        }
+
+        if (($apply || $rollback) && ! app()->environment('local', 'testing')) {
+            $this->error(
+                'Pulse legacy transport writes are restricted to local and testing environments.'
+            );
+
+            return 1;
+        }
+
+        if (($apply || $rollback) && ! (bool) $this->option('confirm-all-pulse-writers-stopped')) {
+            $this->error(
+                'Writes require confirmation that every Pulse web, automation, and publication writer is stopped.'
+            );
+
+            return 1;
+        }
+
+        try {
+            $report = match (true) {
+                $apply => $backfillService->execute(),
+                $rollback => $backfillService->rollback(),
+                default => $backfillService->preview(),
+            };
+        } catch (LogicException $exception) {
+            $this->error($exception->getMessage());
+
+            return 2;
+        }
+
+        if ((bool) $this->option('json')) {
+            $this->line(json_encode($report, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT));
+
+            return ($report['ready'] ?? false) === true ? 0 : 2;
+        }
+
+        $this->info('Pulse legacy transport identity '.(string) $report['mode']);
+        $this->table(['Scope', 'Total', 'Backfillable', 'Canonical', 'Changed'], [
+            [
+                'Connections',
+                $report['connections']['total'],
+                $report['connections']['backfillable'],
+                $report['connections']['already_canonical'],
+                $report['connections']['updated'] ?? $report['connections']['cleared'] ?? 0,
+            ],
+            [
+                'Targets',
+                $report['targets']['total'],
+                $report['targets']['backfillable'],
+                $report['targets']['already_canonical'],
+                $report['targets']['updated'] ?? $report['targets']['cleared'] ?? 0,
+            ],
+        ]);
+        $this->line('Terminal orphan targets ignored: '.(int) $report['targets']['terminal_orphans_ignored']);
+        $this->line('Batch provenance: '.(string) ($report['batch_id'] ?? 'none'));
+        $this->line('Aggregate anomalies: '.(int) $report['anomalies']['total']);
+
+        foreach ($report['anomalies']['by_reason'] as $reason => $count) {
+            $this->line('- '.$reason.': '.$count);
+        }
+
+        return ($report['ready'] ?? false) === true ? 0 : 2;
+    }
+)->purpose('Preflight, apply, or roll back legacy Pulse direct transport identities');
+
+Artisan::command(
+    'pulse:buffer:backfill-editorial-foundation
+        {--apply : Persist immutable revision snapshots and editorial pointers}
+        {--rollback : Roll back only the latest applied editorial batch recorded in the ledger}
+        {--confirm-all-pulse-writers-stopped : Confirm that Pulse web and queue writers are stopped}
+        {--json : Output the aggregate report as JSON}',
+    function (SocialEditorialFoundationBackfillService $backfillService): int {
+        $apply = (bool) $this->option('apply');
+        $rollback = (bool) $this->option('rollback');
+
+        if ($apply && $rollback) {
+            $this->error('Choose either --apply or --rollback, never both.');
+
+            return 1;
+        }
+
+        if (($apply || $rollback) && ! app()->environment('local', 'testing')) {
+            $this->error(
+                'Pulse editorial foundation writes are restricted to local and testing environments.'
+            );
+
+            return 1;
+        }
+
+        if (($apply || $rollback) && ! (bool) $this->option('confirm-all-pulse-writers-stopped')) {
+            $this->error(
+                'Writes require confirmation that every Pulse web, automation, and publication writer is stopped.'
+            );
+
+            return 1;
+        }
+
+        try {
+            $report = match (true) {
+                $apply => $backfillService->execute(),
+                $rollback => $backfillService->rollback(),
+                default => $backfillService->preview(),
+            };
+        } catch (LogicException $exception) {
+            $this->error($exception->getMessage());
+
+            return 2;
+        }
+
+        if ((bool) $this->option('json')) {
+            $this->line(json_encode($report, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT));
+
+            return ($report['ready'] ?? false) === true ? 0 : 2;
+        }
+
+        $this->info('Pulse editorial foundation '.(string) $report['mode']);
+        $this->table(['Scope', 'Total', 'Backfillable', 'Canonical', 'Changed'], [
+            [
+                'Posts',
+                $report['posts']['total'],
+                $report['posts']['backfillable'],
+                $report['posts']['already_canonical'],
+                $report['posts']['updated'] ?? $report['posts']['cleared'] ?? 0,
+            ],
+            [
+                'Revisions',
+                $report['revisions']['total'],
+                $report['revisions']['synthetic_candidates'],
+                $report['posts']['already_canonical'],
+                $report['revisions']['created'] ?? $report['revisions']['deleted'] ?? 0,
+            ],
+            [
+                'Approvals',
+                $report['approvals']['total'],
+                $report['approvals']['backfillable'],
+                0,
+                $report['approvals']['updated'] ?? $report['approvals']['cleared'] ?? 0,
+            ],
+            [
+                'Targets',
+                $report['targets']['total'],
+                $report['targets']['backfillable'],
+                0,
+                $report['targets']['updated'] ?? $report['targets']['cleared'] ?? 0,
+            ],
+        ]);
+        $this->line('Batch provenance: '.(string) ($report['batch_id'] ?? 'none'));
+        $this->line('Aggregate anomalies: '.(int) $report['anomalies']['total']);
+
+        foreach ($report['anomalies']['by_reason'] as $reason => $count) {
+            $this->line('- '.$reason.': '.$count);
+        }
+
+        return ($report['ready'] ?? false) === true ? 0 : 2;
+    }
+)->purpose('Preflight, apply, or safely roll back the legacy Pulse editorial foundation');
 
 Artisan::command('campaigns:vip-auto-sync {--account_id=} {--dry-run}', function (VipService $vipService): int {
     $accountId = $this->option('account_id');
@@ -2175,6 +2907,393 @@ Artisan::command('campaigns:reconcile-delivery', function (): int {
 
     return 0;
 })->purpose('Queue campaign delivery status reconciliation');
+
+/**
+ * Resolve an actor allowed to manage demo workspaces without guessing between
+ * multiple privileged accounts.
+ *
+ * @return array{0: User|null, 1: string|null}
+ */
+$resolveDemoScenarioActor = static function (?string $email): array {
+    $email = trim((string) $email);
+
+    if ($email !== '') {
+        $actor = User::query()
+            ->with(['role', 'platformAdmin'])
+            ->where('email', $email)
+            ->first();
+
+        if (! $actor) {
+            return [null, "No user exists with the email [{$email}]."];
+        }
+
+        if ($actor->is_suspended) {
+            return [null, "User [{$email}] is suspended and cannot manage demo workspaces."];
+        }
+
+        if (! $actor->isSuperadmin() && ! $actor->hasPlatformPermission(PlatformPermissions::DEMOS_MANAGE)) {
+            return [null, "User [{$email}] is not allowed to manage demo workspaces."];
+        }
+
+        return [$actor, null];
+    }
+
+    $superadmins = User::query()
+        ->with('role')
+        ->where('is_suspended', false)
+        ->whereHas('role', fn ($query) => $query->where('name', 'superadmin'))
+        ->orderBy('id')
+        ->get();
+
+    if ($superadmins->count() === 1) {
+        return [$superadmins->first(), null];
+    }
+
+    if ($superadmins->count() > 1) {
+        return [null, 'More than one superadmin exists. Use --admin=<email> to select the actor explicitly.'];
+    }
+
+    $platformAdmins = User::query()
+        ->with(['role', 'platformAdmin'])
+        ->where('is_suspended', false)
+        ->whereHas('role', fn ($query) => $query->where('name', 'admin'))
+        ->orderBy('id')
+        ->get()
+        ->filter(fn (User $user): bool => $user->hasPlatformPermission(PlatformPermissions::DEMOS_MANAGE))
+        ->values();
+
+    if ($platformAdmins->count() === 1) {
+        return [$platformAdmins->first(), null];
+    }
+
+    if ($platformAdmins->count() > 1) {
+        return [null, 'More than one platform admin can manage demos. Use --admin=<email> to select the actor explicitly.'];
+    }
+
+    return [null, 'No superadmin or platform admin with demo management permission was found.'];
+};
+
+/**
+ * Return a safety error for scenario commands, or null when execution is allowed.
+ */
+$demoScenarioSafetyError = static function (bool $requiresReset): ?string {
+    if (app()->environment('production')) {
+        return 'Demo scenario commands are disabled in production.';
+    }
+
+    if (! (bool) config('demo.enabled')) {
+        return 'Demo mode is disabled. Set DEMO_ENABLED=true outside production before using scenario commands.';
+    }
+
+    if ($requiresReset && ! (bool) config('demo.allow_reset')) {
+        return 'Demo reset is disabled. Set DEMO_ALLOW_RESET=true outside production before resetting a scenario.';
+    }
+
+    return null;
+};
+
+Artisan::command(
+    'demo:scenario:create
+        {scenario? : Registered demo scenario key}
+        {--volume= : Data volume: small, medium, or large}
+        {--reference-date= : Scenario reference date in YYYY-MM-DD format}
+        {--seed= : Non-negative deterministic random seed}
+        {--admin= : Email of the authorized platform actor}
+        {--queue : Queue provisioning instead of running it in this process}',
+    function (
+        DemoWorkspaceCatalog $catalog,
+        DemoWorkspaceProvisioner $provisioner
+    ) use ($demoScenarioSafetyError, $resolveDemoScenarioActor): int {
+        if ($error = $demoScenarioSafetyError(false)) {
+            $this->error($error);
+
+            return 1;
+        }
+
+        $scenarioKey = strtolower(trim((string) ($this->argument('scenario')
+            ?: config('demo_scenarios.default_scenario', 'studio_naya_coiffure'))));
+        $definition = $catalog->scenarioDefinition($scenarioKey);
+
+        if (! $definition) {
+            $this->error("Unknown demo scenario [{$scenarioKey}].");
+            $this->line('Available scenarios: '.implode(', ', $catalog->scenarioKeys()));
+
+            return 1;
+        }
+
+        $preset = collect($catalog->presets())
+            ->first(fn (array $candidate): bool => ($candidate['scenario_key'] ?? null) === $scenarioKey);
+
+        if (! is_array($preset)) {
+            $this->error("Scenario [{$scenarioKey}] does not have a provisioning preset.");
+
+            return 1;
+        }
+
+        [$actor, $actorError] = $resolveDemoScenarioActor((string) $this->option('admin'));
+
+        if (! $actor) {
+            $this->error((string) $actorError);
+
+            return 1;
+        }
+
+        $timezone = (string) ($preset['timezone'] ?? $definition['reference_timezone'] ?? 'UTC');
+        $volume = trim((string) $this->option('volume'));
+        $referenceDate = trim((string) $this->option('reference-date'));
+        $seed = trim((string) $this->option('seed'));
+        $payload = array_replace(
+            $catalog->defaults(),
+            Arr::except($preset, ['key', 'label', 'description', 'modules'])
+        );
+        $payload['selected_modules'] = array_values((array) ($preset['modules'] ?? []));
+        $payload['scenario_key'] = $scenarioKey;
+        $payload['data_volume'] = $volume !== ''
+            ? $volume
+            : (string) ($definition['default_volume'] ?? config('demo_scenarios.default_volume', 'medium'));
+        $payload['reference_date'] = $referenceDate !== ''
+            ? $referenceDate
+            : now($timezone)->toDateString();
+        $payload['random_seed'] = $seed !== ''
+            ? $seed
+            : (int) config('demo_scenarios.default_seed', 26082026);
+        $payload['scenario_version'] = (int) ($definition['version'] ?? 1);
+        $payload['internal_notes'] = trim(implode("\n", array_filter([
+            (string) ($payload['internal_notes'] ?? ''),
+            'Created with demo:scenario:create.',
+        ])));
+
+        try {
+            if ((bool) $this->option('queue')) {
+                $workspace = $provisioner->queueCreate($payload, $actor);
+                ProvisionDemoWorkspaceJob::dispatch((int) $workspace->id, (int) $actor->id);
+                $workspace->refresh();
+            } else {
+                $workspace = $provisioner->create($payload, $actor);
+            }
+        } catch (\Throwable $exception) {
+            report($exception);
+            $this->error('Scenario creation failed: '.$exception->getMessage());
+
+            return 1;
+        }
+
+        $this->info((bool) $this->option('queue')
+            ? 'Demo scenario provisioning was queued.'
+            : 'Demo scenario workspace is ready.');
+        $this->table(
+            ['Workspace ID', 'Scenario', 'Volume', 'Reference date', 'Seed', 'Status', 'Access email'],
+            [[
+                $workspace->id,
+                $workspace->scenario_key,
+                $workspace->data_volume?->value,
+                $workspace->reference_date?->toDateString(),
+                $workspace->random_seed,
+                $workspace->provisioning_status,
+                $workspace->access_email ?: 'Pending provisioning',
+            ]]
+        );
+
+        return 0;
+    }
+)->purpose('Create a deterministic demo workspace through the modern scenario engine');
+
+Artisan::command(
+    'demo:scenario:reset
+        {workspace : Exact demo workspace ID}
+        {--admin= : Email of the authorized platform actor}
+        {--queue : Queue the baseline reset instead of running it in this process}
+        {--force : Reset without an interactive confirmation}',
+    function (DemoWorkspaceProvisioner $provisioner) use ($demoScenarioSafetyError, $resolveDemoScenarioActor): int {
+        if ($error = $demoScenarioSafetyError(true)) {
+            $this->error($error);
+
+            return 1;
+        }
+
+        $workspaceId = filter_var(
+            $this->argument('workspace'),
+            FILTER_VALIDATE_INT,
+            ['options' => ['min_range' => 1]]
+        );
+
+        if ($workspaceId === false) {
+            $this->error('The workspace argument must be an exact positive numeric ID.');
+
+            return 1;
+        }
+
+        $workspace = DemoWorkspace::query()->with('owner')->find((int) $workspaceId);
+
+        if (! $workspace) {
+            $this->error("Demo workspace [{$workspaceId}] was not found.");
+
+            return 1;
+        }
+
+        if (! filled($workspace->scenario_key)) {
+            $this->error("Demo workspace [{$workspaceId}] is not managed by the scenario engine.");
+
+            return 1;
+        }
+
+        if (! $workspace->owner || ! $workspace->owner->is_demo) {
+            $this->error("Demo workspace [{$workspaceId}] does not have a linked demo tenant and cannot be reset.");
+
+            return 1;
+        }
+
+        if (in_array($workspace->provisioning_status, [
+            DemoWorkspaceProvisioner::STATUS_QUEUED,
+            DemoWorkspaceProvisioner::STATUS_PROVISIONING,
+        ], true)) {
+            $this->error("Demo workspace [{$workspaceId}] is already queued or provisioning.");
+
+            return 1;
+        }
+
+        [$actor, $actorError] = $resolveDemoScenarioActor((string) $this->option('admin'));
+
+        if (! $actor) {
+            $this->error((string) $actorError);
+
+            return 1;
+        }
+
+        if (! (bool) $this->option('force') && ! $this->confirm(
+            "Reset only demo workspace #{$workspace->id} ({$workspace->company_name}) to its saved baseline?",
+            false
+        )) {
+            $this->warn('Reset cancelled.');
+
+            return 1;
+        }
+
+        try {
+            if ((bool) $this->option('queue')) {
+                $workspace = $provisioner->queueResetToBaseline($workspace, $actor);
+                ProvisionDemoWorkspaceJob::dispatch((int) $workspace->id, (int) $actor->id, true);
+                $workspace->refresh();
+            } else {
+                $workspace = $provisioner->resetToBaseline($workspace, $actor);
+            }
+        } catch (\Throwable $exception) {
+            report($exception);
+            $this->error('Scenario reset failed: '.$exception->getMessage());
+
+            return 1;
+        }
+
+        $this->info((bool) $this->option('queue')
+            ? "Baseline reset queued for demo workspace #{$workspace->id}."
+            : "Demo workspace #{$workspace->id} was reset to its saved baseline.");
+        $this->line(sprintf(
+            'Scenario=%s volume=%s reference_date=%s seed=%s status=%s',
+            (string) $workspace->scenario_key,
+            (string) ($workspace->data_volume?->value ?? ''),
+            (string) ($workspace->reference_date?->toDateString() ?? ''),
+            (string) $workspace->random_seed,
+            (string) $workspace->provisioning_status
+        ));
+
+        return 0;
+    }
+)->purpose('Reset one exact demo scenario workspace to its deterministic baseline');
+
+Artisan::command(
+    'demo:scenario:validate
+        {workspace : Exact demo workspace ID}
+        {--json : Print the complete validation report as JSON}',
+    function (
+        DemoScenarioInvariantValidator $validator,
+        DemoScenarioFingerprint $fingerprint
+    ) use ($demoScenarioSafetyError): int {
+        if ($error = $demoScenarioSafetyError(false)) {
+            $this->error($error);
+
+            return 1;
+        }
+
+        $workspaceId = filter_var(
+            $this->argument('workspace'),
+            FILTER_VALIDATE_INT,
+            ['options' => ['min_range' => 1]]
+        );
+
+        if ($workspaceId === false) {
+            $this->error('The workspace argument must be an exact positive numeric ID.');
+
+            return 1;
+        }
+
+        $workspace = DemoWorkspace::query()->with('owner')->find((int) $workspaceId);
+
+        if (! $workspace) {
+            $this->error("Demo workspace [{$workspaceId}] was not found.");
+
+            return 1;
+        }
+
+        if (! filled($workspace->scenario_key) || ! $workspace->owner) {
+            $this->error("Demo workspace [{$workspaceId}] is not a provisioned scenario workspace.");
+
+            return 1;
+        }
+
+        try {
+            $referenceDate = $workspace->reference_date?->toDateString()
+                ?? now((string) ($workspace->timezone ?: config('app.timezone', 'UTC')))->toDateString();
+            $report = $validator->validate($workspace->owner, $referenceDate);
+            $report['workspace_id'] = $workspace->id;
+            $report['scenario_key'] = $workspace->scenario_key;
+            $report['semantic_fingerprint'] = $fingerprint->forOwner($workspace->owner);
+        } catch (\Throwable $exception) {
+            report($exception);
+            $this->error('Scenario validation could not run: '.$exception->getMessage());
+
+            return 1;
+        }
+
+        if ((bool) $this->option('json')) {
+            $this->line((string) json_encode(
+                $report,
+                JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR
+            ));
+
+            return $report['valid'] ? 0 : 1;
+        }
+
+        $rows = collect($report['checks'])
+            ->map(fn (array $check, string $name): array => [
+                $name,
+                $check['valid'] ? 'PASS' : 'FAIL',
+                count($check['violations'] ?? []),
+            ])
+            ->values()
+            ->all();
+
+        $this->table(['Invariant', 'Result', 'Violations'], $rows);
+        $this->line('Semantic fingerprint: '.$report['semantic_fingerprint']);
+
+        if ($report['valid']) {
+            $this->info("Demo scenario workspace #{$workspace->id} is valid.");
+
+            return 0;
+        }
+
+        foreach ($report['violations'] as $violation) {
+            $this->error(sprintf(
+                '[%s] %s #%s: %s',
+                (string) ($violation['code'] ?? 'unknown'),
+                (string) ($violation['entity_type'] ?? 'record'),
+                (string) ($violation['entity_id'] ?? '?'),
+                (string) ($violation['message'] ?? 'Invariant violation')
+            ));
+        }
+
+        return 1;
+    }
+)->purpose('Validate the live invariants and fingerprint of one demo scenario workspace');
 
 Artisan::command('demo:seed {type=service} {--tenant_id=}', function (): int {
     $this->warn('Legacy demo CLI seeding is disabled.');
@@ -2215,7 +3334,7 @@ Artisan::command('reservations:queue-alerts', function (
     ReservationAvailabilityService $availabilityService
 ): int {
     $accountIds = ReservationSetting::query()
-        ->whereNull('team_member_id')
+        ->accountDefault()
         ->where('business_preset', 'salon')
         ->where('queue_mode_enabled', true)
         ->pluck('account_id')
@@ -2240,29 +3359,107 @@ Artisan::command('reservations:queue-alerts', function (
     return 0;
 })->purpose('Refresh queue metrics and dispatch queue ETA alerts');
 
-Artisan::command('reservations:auto-close-expired {--account_id=} {--dry-run}', function (
-    ExpiredReservationAutoCloser $autoCloser
+Artisan::command('reservations:reconcile-past {--account_id=} {--dry-run}', function (
+    PastReservationOutcomeReconciler $reconciler
 ): int {
-    $accountId = $this->option('account_id');
-    $accountId = is_numeric($accountId) ? (int) $accountId : null;
+    $accountOption = $this->option('account_id');
+    $accountId = null;
+    if ($accountOption !== null && $accountOption !== '') {
+        if (! ctype_digit((string) $accountOption) || (int) $accountOption <= 0) {
+            $this->error('The --account_id option must be a positive integer.');
 
-    $summary = $autoCloser->closeExpired($accountId, (bool) $this->option('dry-run'));
+            return 1;
+        }
+
+        $accountId = (int) $accountOption;
+    }
+
+    $enabledSettings = ReservationSetting::query()
+        ->select(['id', 'account_id'])
+        ->accountDefault()
+        ->where('past_reservation_reconciliation_enabled', true)
+        ->when($accountId !== null, fn ($query) => $query->where('account_id', $accountId))
+        ->orderBy('id');
+
+    if ((bool) $this->option('dry-run')) {
+        $checked = 0;
+        $eligible = 0;
+        foreach ($enabledSettings->lazyById(100) as $setting) {
+            $enabledAccountId = (int) $setting->account_id;
+            $summary = $reconciler->reconcile($enabledAccountId, true);
+            $checked += $summary['checked'];
+            $eligible += $summary['eligible'];
+        }
+
+        $this->info("Dry run: checked {$checked} reservation(s); would flag {$eligible} for internal review.");
+
+        return 0;
+    }
+
+    $dispatched = 0;
+    foreach ($enabledSettings->lazyById(100) as $setting) {
+        $enabledAccountId = (int) $setting->account_id;
+        ReconcilePastReservationsForAccountJob::dispatch($enabledAccountId);
+        $dispatched++;
+    }
+
+    $this->info(sprintf('Dispatched past reservation reconciliation for %d account(s).', $dispatched));
+
+    return 0;
+})->purpose('Flag past active reservations for tenant-scoped human outcome review');
+
+Artisan::command('reservations:auto-close-expired-walk-ins {--account_id=} {--dry-run} {--dispatch}', function (
+    ExpiredWalkInAutoCloser $autoCloser
+): int {
+    $accountOption = $this->option('account_id');
+    $accountId = null;
+    if ($accountOption !== null && $accountOption !== '') {
+        if (! ctype_digit((string) $accountOption) || (int) $accountOption <= 0) {
+            $this->error('The --account_id option must be a positive integer.');
+
+            return 1;
+        }
+
+        $accountId = (int) $accountOption;
+    }
+
+    $dryRun = (bool) $this->option('dry-run');
+    $accountIds = $accountId !== null
+        ? collect([$accountId])
+        : $autoCloser->candidateAccountIds();
+
+    if ((bool) $this->option('dispatch') && ! $dryRun) {
+        $dispatched = 0;
+        foreach ($accountIds as $candidateAccountId) {
+            CloseExpiredWalkInsForAccountJob::dispatch((int) $candidateAccountId);
+            $dispatched++;
+        }
+
+        $this->info("Dispatched expired walk-in cleanup for {$dispatched} account(s).");
+
+        return 0;
+    }
+
+    $summary = [
+        'checked' => 0,
+        'eligible' => 0,
+        'closed' => 0,
+        'dry_run' => $dryRun,
+    ];
+    foreach ($accountIds as $candidateAccountId) {
+        $accountSummary = $autoCloser->closeExpired((int) $candidateAccountId, $dryRun);
+        foreach (['checked', 'eligible', 'closed'] as $key) {
+            $summary[$key] += $accountSummary[$key];
+        }
+    }
 
     $count = $summary['dry_run'] ? $summary['eligible'] : $summary['closed'];
     $prefix = $summary['dry_run'] ? 'Dry run: would auto-close' : 'Auto-closed';
-    $this->info("{$prefix} {$count} expired reservation(s).");
-    $walkInCount = $summary['dry_run'] ? $summary['walk_in_eligible'] : $summary['walk_in_closed'];
-    $this->info("{$prefix} {$walkInCount} expired walk-in ticket(s).");
-    $this->line(
-        "checked={$summary['checked']}, eligible={$summary['eligible']}, queue_items_closed={$summary['queue_items_closed']}, "
-        ."skipped_today_or_future={$summary['skipped_today_or_future']}, skipped_checked_in={$summary['skipped_checked_in']}, "
-        ."skipped_arrived_queue={$summary['skipped_arrived_queue']}, walk_in_checked={$summary['walk_in_checked']}, "
-        ."walk_in_eligible={$summary['walk_in_eligible']}, walk_in_skipped_today_or_future={$summary['walk_in_skipped_today_or_future']}, "
-        ."walk_in_skipped_in_service={$summary['walk_in_skipped_in_service']}"
-    );
+    $this->info("{$prefix} {$count} expired walk-in ticket(s).");
+    $this->line("checked={$summary['checked']}, eligible={$summary['eligible']}");
 
     return 0;
-})->purpose('Automatically close past reservations and walk-in tickets that were not completed or handled');
+})->purpose('Close unserved walk-in queue tickets after their local business day');
 
 Artisan::command('notifications:retry-failed
     {--notification=App\\Notifications\\InviteUserNotification : Fully-qualified notification class filter}
@@ -2544,7 +3741,7 @@ Artisan::command('queue:workloads
     {--tries= : Fallback attempts for jobs without an explicit policy}
     {--timeout= : Worker timeout; cannot be lower than the profile timeout}
     {--sleep=3 : Seconds to sleep when no job is available}
-    {--memory=256 : Memory limit in megabytes}
+    {--memory=512 : Worker and PHP memory limit in megabytes}
 ', function (): int {
     $profile = trim((string) $this->argument('profile'));
     $connection = trim((string) ($this->argument('connection') ?: config('queue.default', 'database')));
@@ -2628,6 +3825,23 @@ Artisan::command('queue:workloads
         }
 
         return 0;
+    }
+
+    $currentMemoryLimit = trim((string) ini_get('memory_limit'));
+    $currentMemoryBytes = match (strtolower(substr($currentMemoryLimit, -1))) {
+        'g' => (int) $currentMemoryLimit * 1024 * 1024 * 1024,
+        'm' => (int) $currentMemoryLimit * 1024 * 1024,
+        'k' => (int) $currentMemoryLimit * 1024,
+        default => (int) $currentMemoryLimit,
+    };
+    $requestedMemoryBytes = $memory * 1024 * 1024;
+
+    if ($currentMemoryLimit !== '-1' && $currentMemoryBytes < $requestedMemoryBytes) {
+        if (ini_set('memory_limit', "{$memory}M") === false) {
+            $this->error("Unable to raise the PHP memory_limit to {$memory}M.");
+
+            return 1;
+        }
     }
 
     return $this->call($command, [
@@ -3618,10 +4832,26 @@ Schedule::command('prospects:stale-reminders')->hourlyAt(20)->withoutOverlapping
 Schedule::command('support:sla-reminders')->hourly();
 Schedule::command('reservations:notifications')->everyFifteenMinutes();
 Schedule::command('reservations:queue-alerts')->everyFiveMinutes()->withoutOverlapping();
-Schedule::command('reservations:auto-close-expired')->dailyAt('02:20')->withoutOverlapping();
+Schedule::command('reservations:reconcile-past')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping(10)
+    ->onOneServer();
+Schedule::command('reservations:auto-close-expired-walk-ins --dispatch')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping(30)
+    ->onOneServer();
 Schedule::command('offer-packages:automation')->hourlyAt(5)->withoutOverlapping();
 Schedule::command('campaigns:automations')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('social:run-automations')->everyFifteenMinutes()->withoutOverlapping();
+Schedule::command('social:dispatch-outbox --limit=100')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->onOneServer();
+Schedule::command('social:reconcile-buffer --limit=100')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->onOneServer()
+    ->when(fn (): bool => (bool) config('services.buffer.delivery.enabled', false));
 Schedule::command('campaigns:vip-auto-sync')->dailyAt('02:35')->withoutOverlapping();
 Schedule::command('campaigns:interest-scores')->dailyAt('02:15');
 Schedule::command('campaigns:reconcile-delivery')->everyTenMinutes()->withoutOverlapping();

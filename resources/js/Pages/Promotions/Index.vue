@@ -7,6 +7,8 @@ import AppModal from '@/Components/Modal.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import InputError from '@/Components/InputError.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
+import ModuleKpiSection from '@/Components/Dashboard/ModuleKpiSection.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import { useCurrencyFormatter } from '@/utils/currency';
 
@@ -95,6 +97,32 @@ const totalPromotions = computed(() => props.promotions.length);
 const activePromotions = computed(() => props.promotions.filter((promotion) => promotion.status === 'active').length);
 const validPromotions = computed(() => props.promotions.filter((promotion) => promotion.is_currently_valid).length);
 const codedPromotions = computed(() => props.promotions.filter((promotion) => promotion.code).length);
+const kpiMetrics = computed(() => [
+    {
+        key: 'total',
+        label: t('promotions.stats.total'),
+        value: totalPromotions.value,
+        tone: 'indigo',
+    },
+    {
+        key: 'active',
+        label: t('promotions.stats.active'),
+        value: activePromotions.value,
+        tone: 'emerald',
+    },
+    {
+        key: 'valid_now',
+        label: t('promotions.stats.valid_now'),
+        value: validPromotions.value,
+        tone: 'teal',
+    },
+    {
+        key: 'codes',
+        label: t('promotions.stats.codes'),
+        value: codedPromotions.value,
+        tone: 'violet',
+    },
+]);
 const canOpenPulseComposer = computed(() => Boolean(props.pulse?.can_open));
 
 const targetTypeLabel = (type) => {
@@ -207,40 +235,9 @@ const deletePromotion = (promotion) => {
                 </PrimaryButton>
             </div>
 
-            <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <div class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">
-                        {{ t('promotions.stats.total') }}
-                    </div>
-                    <div class="mt-2 text-2xl font-semibold text-stone-900 dark:text-neutral-100">
-                        {{ totalPromotions }}
-                    </div>
-                </div>
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <div class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">
-                        {{ t('promotions.stats.active') }}
-                    </div>
-                    <div class="mt-2 text-2xl font-semibold text-stone-900 dark:text-neutral-100">
-                        {{ activePromotions }}
-                    </div>
-                </div>
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <div class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">
-                        {{ t('promotions.stats.valid_now') }}
-                    </div>
-                    <div class="mt-2 text-2xl font-semibold text-stone-900 dark:text-neutral-100">
-                        {{ validPromotions }}
-                    </div>
-                </div>
-                <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                    <div class="text-xs uppercase tracking-wide text-stone-500 dark:text-neutral-400">
-                        {{ t('promotions.stats.codes') }}
-                    </div>
-                    <div class="mt-2 text-2xl font-semibold text-stone-900 dark:text-neutral-100">
-                        {{ codedPromotions }}
-                    </div>
-                </div>
-            </div>
+            <ModuleKpiSection module-key="promotions">
+                <KpiMetricGrid :metrics="kpiMetrics" />
+            </ModuleKpiSection>
 
             <div class="rounded-sm border border-stone-200 bg-white shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
                 <div class="border-b border-stone-200 px-4 py-3 dark:border-neutral-700">

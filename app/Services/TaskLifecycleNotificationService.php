@@ -163,7 +163,8 @@ class TaskLifecycleNotificationService
                 route('task.show', $task),
                 $message['action_label'],
                 $message['email_subject'],
-                $message['email_note']
+                $message['email_note'],
+                accountOwnerId: $owner->id,
             ), [
                 'task_id' => $task->id,
                 'type' => $type,

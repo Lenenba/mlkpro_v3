@@ -6,6 +6,7 @@ import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import AdminDataTableActions from '@/Components/DataTable/AdminDataTableActions.vue';
 import AdminDataTableToolbar from '@/Components/DataTable/AdminDataTableToolbar.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import DatePicker from '@/Components/DatePicker.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
@@ -52,6 +53,39 @@ const planOptions = computed(() =>
 
 const formatNumber = (value) =>
     Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
+
+const kpiMetrics = computed(() => [
+    {
+        key: 'total',
+        label: t('super_admin.tenants.stats.total_companies'),
+        value: formatNumber(props.stats.total),
+        tone: 'emerald',
+    },
+    {
+        key: 'active',
+        label: t('super_admin.tenants.stats.active'),
+        value: formatNumber(props.stats.active),
+        tone: 'blue',
+    },
+    {
+        key: 'suspended',
+        label: t('super_admin.tenants.stats.suspended'),
+        value: formatNumber(props.stats.suspended),
+        tone: 'rose',
+    },
+    {
+        key: 'new_30d',
+        label: t('super_admin.tenants.stats.new_30d'),
+        value: formatNumber(props.stats.new_30d),
+        tone: 'amber',
+    },
+    {
+        key: 'onboarded',
+        label: t('super_admin.tenants.stats.onboarded'),
+        value: formatNumber(props.stats.onboarded),
+        tone: 'sky',
+    },
+]);
 
 const formatDate = (value) => {
     if (! value) {
@@ -108,48 +142,10 @@ const statusLabel = (tenant) => {
                 </div>
             </section>
 
-            <div class="grid grid-cols-2 gap-2 md:grid-cols-3 md:gap-3 lg:gap-5 xl:grid-cols-5">
-                <div class="rounded-sm border border-stone-200 border-t-4 border-t-emerald-600 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('super_admin.tenants.stats.total_companies') }}
-                    </p>
-                    <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
-                        {{ formatNumber(stats.total) }}
-                    </p>
-                </div>
-                <div class="rounded-sm border border-stone-200 border-t-4 border-t-blue-600 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('super_admin.tenants.stats.active') }}
-                    </p>
-                    <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
-                        {{ formatNumber(stats.active) }}
-                    </p>
-                </div>
-                <div class="rounded-sm border border-stone-200 border-t-4 border-t-rose-600 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('super_admin.tenants.stats.suspended') }}
-                    </p>
-                    <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
-                        {{ formatNumber(stats.suspended) }}
-                    </p>
-                </div>
-                <div class="rounded-sm border border-stone-200 border-t-4 border-t-amber-600 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('super_admin.tenants.stats.new_30d') }}
-                    </p>
-                    <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
-                        {{ formatNumber(stats.new_30d) }}
-                    </p>
-                </div>
-                <div class="rounded-sm border border-stone-200 border-t-4 border-t-sky-600 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-800">
-                    <p class="text-xs text-stone-500 dark:text-neutral-400">
-                        {{ $t('super_admin.tenants.stats.onboarded') }}
-                    </p>
-                    <p class="mt-1 text-2xl font-semibold text-stone-800 dark:text-neutral-100">
-                        {{ formatNumber(stats.onboarded) }}
-                    </p>
-                </div>
-            </div>
+            <KpiMetricGrid
+                :metrics="kpiMetrics"
+                grid-class="grid-cols-2 md:grid-cols-3 xl:grid-cols-5"
+            />
 
             <AdminDataTable
                 :rows="tenantRows"

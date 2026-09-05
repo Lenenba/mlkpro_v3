@@ -13,6 +13,7 @@ use App\Models\Task;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Services\CompanyFeatureService;
+use App\Services\Customers\CustomerPortalAccessService;
 use App\Services\ProspectStatusHistoryService;
 use App\Services\Segments\SegmentResolverRegistry;
 use App\Services\UsageLimitService;
@@ -28,6 +29,7 @@ class PlaybookExecutionService
     public function __construct(
         private readonly SegmentResolverRegistry $segmentResolverRegistry,
         private readonly CompanyFeatureService $companyFeatureService,
+        private readonly CustomerPortalAccessService $customerPortalAccessService,
     ) {}
 
     public function executeManual(Playbook $playbook, User $actor): PlaybookRun
@@ -239,18 +241,18 @@ class PlaybookExecutionService
     private function executeCustomerAction(Playbook $playbook, User $actor, Collection $selectedIds): array
     {
         return match ((string) $playbook->action_key) {
-            'portal_enable' => $this->runCustomerBulkUpdate($playbook, $actor, $selectedIds, [
-                'column' => 'portal_access',
-                'value' => true,
-                'message' => 'Portal access enabled.',
-                'ability' => 'update',
-            ]),
-            'portal_disable' => $this->runCustomerBulkUpdate($playbook, $actor, $selectedIds, [
-                'column' => 'portal_access',
-                'value' => false,
-                'message' => 'Portal access disabled.',
-                'ability' => 'update',
-            ]),
+            'portal_enable' => $this->runCustomerPortalAccessUpdate(
+                $playbook,
+                $actor,
+                $selectedIds,
+                true,
+            ),
+            'portal_disable' => $this->runCustomerPortalAccessUpdate(
+                $playbook,
+                $actor,
+                $selectedIds,
+                false,
+            ),
             'archive' => $this->runCustomerBulkUpdate($playbook, $actor, $selectedIds, [
                 'column' => 'is_active',
                 'value' => false,
@@ -463,6 +465,75 @@ class PlaybookExecutionService
             $matchedCustomers->count(),
             0,
             [],
+        );
+    }
+
+    /**
+     * @param  Collection<int, int>  $selectedIds
+     * @return array<string, mixed>
+     */
+    private function runCustomerPortalAccessUpdate(
+        Playbook $playbook,
+        User $actor,
+        Collection $selectedIds,
+        bool $enabled,
+    ): array {
+        $customers = Customer::query()
+            ->byUser((int) $playbook->user_id)
+            ->whereIn('id', $selectedIds->all())
+            ->get()
+            ->keyBy('id');
+        $matchedCustomers = $selectedIds
+            ->map(fn (int $selectedId): ?Customer => $customers->get($selectedId))
+            ->filter()
+            ->values();
+
+        foreach ($matchedCustomers as $customer) {
+            $inspection = Gate::forUser($actor)->inspect('update', $customer);
+            if (! $inspection->allowed()) {
+                return $this->fatalActionResult(
+                    $inspection->message() ?: 'You are not allowed to run this customer playbook.',
+                    $selectedIds
+                );
+            }
+        }
+
+        $accountOwner = $this->resolveOwner((int) $playbook->user_id);
+        $processedIds = [];
+        $successCount = 0;
+        $failedCount = 0;
+        $errors = [];
+
+        foreach ($matchedCustomers as $customer) {
+            $processedIds[] = (int) $customer->id;
+
+            try {
+                $result = $this->customerPortalAccessService->setAccess($customer, $enabled);
+
+                if (
+                    $result->invitationRequired
+                    && ! $this->customerPortalAccessService->sendInvitation($result->customer, $accountOwner)
+                ) {
+                    $errors[] = sprintf(
+                        'Customer %d: portal access was enabled, but the invitation could not be sent.',
+                        $result->customer->id
+                    );
+                }
+
+                $successCount++;
+            } catch (Throwable $exception) {
+                $failedCount++;
+                $errors[] = sprintf('Customer %d: %s', $customer->id, $exception->getMessage());
+            }
+        }
+
+        return $this->completedActionResult(
+            $enabled ? 'Portal access enabled.' : 'Portal access disabled.',
+            $processedIds,
+            $selectedIds,
+            $successCount,
+            $failedCount,
+            $errors,
         );
     }
 

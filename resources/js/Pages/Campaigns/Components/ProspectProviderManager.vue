@@ -4,6 +4,7 @@ import axios from 'axios';
 import { usePage } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import FloatingInput from '@/Components/FloatingInput.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import Modal from '@/Components/Modal.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
@@ -58,9 +59,27 @@ const normalizedSummary = computed(() => ({
 }));
 
 const summaryCards = computed(() => ([
-    { key: 'configured', value: normalizedSummary.value.configured },
-    { key: 'connected', value: normalizedSummary.value.connected },
-    { key: 'attention', value: normalizedSummary.value.attention },
+    {
+        key: 'configured',
+        label: t('marketing.prospect_provider_manager.summary.configured'),
+        value: normalizedSummary.value.configured,
+        tone: 'stone',
+        loading: isLoading.value,
+    },
+    {
+        key: 'connected',
+        label: t('marketing.prospect_provider_manager.summary.connected'),
+        value: normalizedSummary.value.connected,
+        tone: 'emerald',
+        loading: isLoading.value,
+    },
+    {
+        key: 'attention',
+        label: t('marketing.prospect_provider_manager.summary.attention'),
+        value: normalizedSummary.value.attention,
+        tone: 'amber',
+        loading: isLoading.value,
+    },
 ]));
 
 const statusClass = (status) => {
@@ -285,20 +304,7 @@ load();
             </SecondaryButton>
         </div>
 
-        <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
-            <div
-                v-for="card in summaryCards"
-                :key="`provider-summary-${card.key}`"
-                class="rounded-3xl border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900"
-            >
-                <div class="text-xs uppercase tracking-[0.18em] text-stone-500 dark:text-neutral-400">
-                    {{ t(`marketing.prospect_provider_manager.summary.${card.key}`) }}
-                </div>
-                <div class="mt-2 text-3xl font-semibold text-stone-900 dark:text-neutral-100">
-                    {{ card.value }}
-                </div>
-            </div>
-        </div>
+        <KpiMetricGrid :metrics="summaryCards" :aria-label="t('marketing.prospect_provider_manager.title')" />
 
         <div
             v-if="!access.can_manage_secrets"

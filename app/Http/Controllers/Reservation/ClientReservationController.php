@@ -16,11 +16,14 @@ use App\Models\Product;
 use App\Models\Reservation;
 use App\Models\ReservationQueueItem;
 use App\Models\ReservationReview;
+use App\Models\ReservationStatusTransition;
 use App\Models\ReservationWaitlist;
 use App\Models\TeamMember;
 use App\Models\User;
 use App\Services\BillingPlanService;
 use App\Services\BillingSubscriptionService;
+use App\Services\Portal\PortalCapabilityService;
+use App\Services\Reservation\ReservationStatusTransitionService;
 use App\Services\ReservationAvailabilityService;
 use App\Services\ReservationIntentGuardService;
 use App\Services\ReservationNotificationService;
@@ -39,7 +42,9 @@ class ClientReservationController extends Controller
         private readonly ReservationAvailabilityService $availabilityService,
         private readonly ReservationNotificationService $notificationService,
         private readonly ReservationQueueService $queueService,
-        private readonly ReservationIntentGuardService $intentGuard
+        private readonly ReservationIntentGuardService $intentGuard,
+        private readonly ReservationStatusTransitionService $statusTransitions,
+        private readonly PortalCapabilityService $portalCapabilities,
     ) {}
 
     public function book(Request $request)
@@ -52,6 +57,9 @@ class ClientReservationController extends Controller
         $this->authorize('create', Reservation::class);
         [$account, $customer] = $this->resolveClientContext($user);
         $ownerOnlyMode = $this->ownerOnlyMode($account);
+        $portalCapabilities = $this->portalCapabilities->forUser($user);
+        $canViewReservations = data_get($portalCapabilities, 'reservations.view') === true;
+        $canManageReservations = data_get($portalCapabilities, 'reservations.manage') === true;
 
         $teamMembers = $ownerOnlyMode
             ? collect()
@@ -75,19 +83,26 @@ class ClientReservationController extends Controller
             ->orderBy('name')
             ->get(['id', 'name', 'description', 'price', 'item_type']);
 
-        $upcomingReservations = Reservation::query()
-            ->forAccount($account->id)
-            ->where(function ($query) use ($user, $customer) {
-                $query->where('client_user_id', $user->id)
-                    ->orWhere('client_id', $customer->id);
-            })
-            ->whereDate('starts_at', '>=', now()->toDateString())
-            ->orderBy('starts_at')
-            ->limit(8)
-            ->with(['teamMember.user:id,name', 'service:id,name,price', 'review:id,reservation_id,rating,feedback'])
-            ->get();
-
         $settings = $this->effectiveSettings($account);
+        $upcomingReservations = $canViewReservations
+            ? Reservation::query()
+                ->forAccount($account->id)
+                ->where(function ($query) use ($user, $customer) {
+                    $query->where('client_user_id', $user->id)
+                        ->orWhere('client_id', $customer->id);
+                })
+                ->whereDate('starts_at', '>=', now()->toDateString())
+                ->orderBy('starts_at')
+                ->limit(8)
+                ->with(['teamMember.user:id,name', 'service:id,name,price', 'review:id,reservation_id,rating,feedback'])
+                ->get()
+            : collect();
+        $waitlistEntries = $canViewReservations
+            ? $this->mapClientWaitlistEntries($account->id, $customer->id, $user->id)
+            : [];
+        $queueTickets = $canViewReservations
+            ? $this->queueService->clientTickets($account->id, $customer->id, $user->id, $settings)
+            : [];
 
         return $this->inertiaOrJson('Reservation/ClientBook', [
             'timezone' => $this->availabilityService->timezoneForAccount($account),
@@ -101,8 +116,12 @@ class ClientReservationController extends Controller
                 'phone' => $customer->phone,
             ],
             'upcomingReservations' => $upcomingReservations,
-            'waitlistEntries' => $this->mapClientWaitlistEntries($account->id, $customer->id, $user->id),
-            'queueTickets' => $this->queueService->clientTickets($account->id, $customer->id, $user->id, $settings),
+            'waitlistEntries' => $waitlistEntries,
+            'queueTickets' => $queueTickets,
+            'capabilities' => [
+                'view' => $canViewReservations,
+                'manage' => $canManageReservations,
+            ],
             'settings' => [
                 'business_preset' => (string) ($settings['business_preset'] ?? 'service_general'),
                 'waitlist_enabled' => (bool) ($settings['waitlist_enabled'] ?? false),
@@ -112,6 +131,8 @@ class ClientReservationController extends Controller
                 'queue_grace_minutes' => (int) ($settings['queue_grace_minutes'] ?? 5),
                 'queue_pre_call_threshold' => (int) ($settings['queue_pre_call_threshold'] ?? 2),
                 'queue_no_show_on_grace_expiry' => (bool) ($settings['queue_no_show_on_grace_expiry'] ?? false),
+                'owner_only_mode' => (bool) ($settings['owner_only_mode'] ?? false),
+                'slot_booking_enabled' => (bool) ($settings['slot_booking_enabled'] ?? true),
                 'slot_duration_minutes' => $this->slotDurationMinutes($account->id),
                 'kiosk_public_url' => $this->kioskEntryUrl($account->id, $settings),
                 'allow_client_cancel' => (bool) $settings['allow_client_cancel'],
@@ -259,6 +280,7 @@ class ClientReservationController extends Controller
 
         $stats = [
             'total' => (clone $query)->count(),
+            'upcoming' => (clone $query)->whereDate('starts_at', '>=', now()->toDateString())->count(),
             'pending' => (clone $query)->where('status', Reservation::STATUS_PENDING)->count(),
             'confirmed' => (clone $query)->where('status', Reservation::STATUS_CONFIRMED)->count(),
             'cancelled' => (clone $query)->where('status', Reservation::STATUS_CANCELLED)->count(),
@@ -285,6 +307,8 @@ class ClientReservationController extends Controller
                 'queue_grace_minutes' => (int) ($settings['queue_grace_minutes'] ?? 5),
                 'queue_pre_call_threshold' => (int) ($settings['queue_pre_call_threshold'] ?? 2),
                 'queue_no_show_on_grace_expiry' => (bool) ($settings['queue_no_show_on_grace_expiry'] ?? false),
+                'owner_only_mode' => (bool) ($settings['owner_only_mode'] ?? false),
+                'slot_booking_enabled' => (bool) ($settings['slot_booking_enabled'] ?? true),
                 'slot_duration_minutes' => $this->slotDurationMinutes($account->id),
                 'kiosk_public_url' => $this->kioskEntryUrl($account->id, $settings),
                 'allow_client_cancel' => (bool) $settings['allow_client_cancel'],
@@ -347,6 +371,10 @@ class ClientReservationController extends Controller
             abort(404);
         }
 
+        $expectedStatusVersion = (int) $reservation->status_version;
+        $expectedScheduleVersion = (int) $reservation->schedule_version;
+        $expectedMutationVersion = (int) $reservation->mutation_version;
+
         if (! $reservation->canBeCancelled()) {
             throw ValidationException::withMessages([
                 'reservation' => ['This reservation cannot be cancelled.'],
@@ -369,13 +397,34 @@ class ClientReservationController extends Controller
             ]);
         }
 
-        $reservation->update([
-            'status' => Reservation::STATUS_CANCELLED,
-            'cancelled_at' => now(),
-            'cancelled_by_user_id' => $user->id,
-            'cancel_reason' => $request->validated('reason'),
-            'metadata' => $this->availabilityService->metadataForStatusTransition($reservation, Reservation::STATUS_CANCELLED),
-        ]);
+        $transition = $this->statusTransitions->transition(
+            $reservation,
+            Reservation::STATUS_CANCELLED,
+            ReservationStatusTransition::ACTOR_USER,
+            $user,
+            Reservation::STATUS_CHANGE_SOURCE_CLIENT_PORTAL,
+            'client_cancelled',
+            $request->validated('reason'),
+            [
+                'cancelled_at' => now(),
+                'cancelled_by_user_id' => $user->id,
+                'cancel_reason' => $request->validated('reason'),
+                'metadata' => $this->availabilityService->metadataForStatusTransition($reservation, Reservation::STATUS_CANCELLED),
+                'auto_closed_at' => null,
+                'auto_closed_reason' => null,
+            ],
+            allowedFromStatuses: Reservation::ACTIVE_STATUSES,
+            expectedStatusVersion: $expectedStatusVersion,
+            expectedScheduleVersion: $expectedScheduleVersion,
+            expectedMutationVersion: $expectedMutationVersion
+        );
+        if (! $transition->performed) {
+            throw ValidationException::withMessages([
+                'reservation' => ['This reservation changed while it was being cancelled. Refresh and try again.'],
+            ]);
+        }
+
+        $reservation = $transition->reservation;
         $this->notificationService->handleCancelled($reservation->fresh(), $user);
 
         return response()->json([
@@ -421,12 +470,15 @@ class ClientReservationController extends Controller
         }
 
         $validated = $request->validated();
-        $reservation = $this->availabilityService->reschedule($reservation, [
+        $reschedule = $this->availabilityService->reschedule($reservation, [
             ...$validated,
             'status' => Reservation::STATUS_PENDING,
             'source' => Reservation::SOURCE_CLIENT,
         ], $user);
-        $this->notificationService->handleRescheduled($reservation, $user);
+        $reservation = $reschedule->reservation;
+        if ($reschedule->scheduleChanged) {
+            $this->notificationService->handleRescheduled($reservation, $user);
+        }
 
         return response()->json([
             'message' => 'Reservation rescheduled.',
@@ -733,7 +785,14 @@ class ClientReservationController extends Controller
             'eta_minutes' => $ticket->eta_minutes,
             'call_expires_at' => $ticket->call_expires_at?->toIso8601String(),
             'created_at' => $ticket->created_at?->toIso8601String(),
-            'can_cancel' => in_array($ticket->status, ReservationQueueItem::ACTIVE_STATUSES, true),
+            'can_cancel' => in_array($ticket->status, [
+                ReservationQueueItem::STATUS_NOT_ARRIVED,
+                ReservationQueueItem::STATUS_CHECKED_IN,
+                ReservationQueueItem::STATUS_PRE_CALLED,
+                ReservationQueueItem::STATUS_CALLED,
+                ReservationQueueItem::STATUS_SKIPPED,
+                ReservationQueueItem::STATUS_IN_SERVICE,
+            ], true),
             'can_still_here' => in_array($ticket->status, [
                 ReservationQueueItem::STATUS_CHECKED_IN,
                 ReservationQueueItem::STATUS_PRE_CALLED,

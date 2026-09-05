@@ -1,6 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head } from '@inertiajs/vue3';
+import ModuleKpiSection from '@/Components/Dashboard/ModuleKpiSection.vue';
 import ServiceStats from '@/Components/UI/ServiceStats.vue';
 import ServiceTable from '@/Pages/Service/UI/ServiceTable.vue';
 
@@ -28,7 +29,9 @@ defineProps({
 <template>
     <Head :title="$t('services.title')" />
     <AuthenticatedLayout>
-        <ServiceStats :stats="stats" />
+        <ModuleKpiSection module-key="services">
+            <ServiceStats :stats="stats" />
+        </ModuleKpiSection>
         <div class="grid grid-cols-1 gap-5">
             <ServiceTable
                 :services="services"

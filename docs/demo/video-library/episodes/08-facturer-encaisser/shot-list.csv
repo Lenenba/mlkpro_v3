@@ -1,0 +1,19 @@
+capture_id,sequence,route,ui_state,data,framing,narration_focus,expected_proof,canonical_filename,status
+G08-S01,1,/app/reservations,Ticket de rejeu En service,Marie Karim Coupe femme plus brushing,Vue file avec ligne entière,Point de départ métier,Identités et statut visibles,G08-ENCAISSEMENT__S01-TICKET-EN-SERVICE__desktop__fr__v01.png,a_produire
+G08-S02,2,/app/reservations,Actions du ticket,Encaisser et terminer,Vue ligne plus menu,Transition vers paiement,Action réelle disponible,G08-ENCAISSEMENT__S02-ACTION-TERMINER__desktop__fr__v01.png,a_produire
+G08-S03,3,/app/reservations,Ticket À encaisser,awaiting_payment,Vue file avec badge,Travail fini règlement absent,Statut visible,G08-ENCAISSEMENT__S03-A-ENCAISSER__desktop__fr__v01.png,a_produire
+G08-S04,4,/app/reservations,Modale identité,Marie service Karim,Haut de modale,Contrôle du contexte,Trois identités cohérentes,G08-ENCAISSEMENT__S04-CONTEXTE-SERVICE__desktop__fr__v01.png,a_produire
+G08-S05,5,/app/reservations,Montants sans pourboire,65.00 9.73 74.73,Gros plan récapitulatif,Sous-total taxes facture,Équation lisible,G08-ENCAISSEMENT__S05-MONTANTS-FACTURE__desktop__fr__v01.png,a_produire
+G08-S06,6,/app/reservations,Moyen et reçu,Espèces ne pas envoyer,Gros plan contrôles,Paiement manuel sans notification,Choix visibles,G08-ENCAISSEMENT__S06-ESPECES-SANS-ENVOI__desktop__fr__v01.png,a_produire
+G08-S07,7,/app/reservations,Pourboire activé,Pourcentage,Gros plan carte pourboire,Choix facultatif,Modes visibles,G08-ENCAISSEMENT__S07-POURBOIRE-ACTIVE__desktop__fr__v01.png,a_produire
+G08-S08,8,/app/reservations,Pourboire 18 pour cent,11.70,Gros plan saisie et calcul,Base du pourboire,18 pour cent de 65 visible,G08-ENCAISSEMENT__S08-POURBOIRE-18__desktop__fr__v01.png,a_produire
+G08-S09,9,/app/reservations,Référence et note,DEMO-ECLAT-CASH-G08-001,Vue champs bas de modale,Rapprochement sans donnée sensible,Valeurs fictives,G08-ENCAISSEMENT__S09-REFERENCE-NOTE__desktop__fr__v01.png,a_produire
+G08-S10,10,/app/reservations,Récapitulatif final avant soumission,74.73 facture 11.70 tip 86.43 collecté,Vue modale complète ou montage annoté,Différence facture encaissement,Montants réconciliés,G08-ENCAISSEMENT__S10-TOTAL-A-ENCAISSER__desktop__fr__v01.png,a_produire
+G08-S11,11,/app/reservations,Succès checkout,Ticket terminé et lien reçu,Vue bannière et ligne,Effets atomiques,Succès réel du clone,G08-ENCAISSEMENT__S11-SUCCES-TICKET__desktop__fr__v01.png,a_produire
+G08-S12,12,/invoices,Facture créée dans la liste,Marie statut payé,Vue liste filtrée,Première preuve financière,Ligne identifiable,G08-ENCAISSEMENT__S12-FACTURE-LISTE__desktop__fr__v01.png,a_produire
+G08-S13,13,/invoices/{invoice},En-tête facture,Marie payée,Vue haut de fiche,Lien client statut,Bonne facture ouverte,G08-ENCAISSEMENT__S13-FACTURE-PAYEE__desktop__fr__v01.png,a_produire
+G08-S14,14,/invoices/{invoice},Résumé financier,65.00 9.73 74.73 11.70 86.43 solde zero,Gros plan résumé,Réconciliation complète,Tous montants visibles,G08-ENCAISSEMENT__S14-RECONCILIATION__desktop__fr__v01.png,a_produire
+G08-S15,15,/invoices/{invoice},Bloc Paiements,Espèces Karim 11.70,Vue bloc complet,Moyen pourboire bénéficiaire,Trace de paiement,G08-ENCAISSEMENT__S15-PAIEMENT-POURBOIRE__desktop__fr__v01.png,a_produire
+G08-S16,16,downloaded-pdf,Reçu PDF téléchargé puis ouvert,Marie facture payée,Document recadré sans chemin local,Reçu téléchargeable,Document propre sans chemin local,G08-ENCAISSEMENT__S16-RECU-PDF__desktop__fr__v01.png,a_produire
+G08-S17,17,/payments/tips,Allocation du pourboire,Karim 11.70,Vue ligne propriétaire,Traçabilité employé,Allocation retrouvée,G08-ENCAISSEMENT__S17-ALLOCATION-POURBOIRE__desktop__fr__v01.png,a_produire
+G08-S18,18,/invoices/{invoice},Preuve canonique lecture seule,Numéro facture I… relevé après provisioning,Vue facture avec cartouche,Fallback vérifié,Origine provisionnée explicite,G08-ENCAISSEMENT__S18-PREUVE-CANONIQUE__desktop__fr__v01.png,a_produire

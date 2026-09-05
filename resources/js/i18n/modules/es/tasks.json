@@ -13,6 +13,9 @@
       "schedule": "Horario",
       "team": "Equipo"
     },
+    "window": {
+      "truncated": "Vista optimizada: {shown} de {total} tareas. Ajuste los filtros para acotar la lista."
+    },
     "team": {
       "title": "Horario del equipo",
       "no_members": "Aún no hay miembros del equipo."

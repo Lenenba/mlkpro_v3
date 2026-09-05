@@ -9,6 +9,10 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class InvoiceDocumentService
 {
+    public function __construct(
+        private readonly TenantBrandingResolver $tenantBrandingResolver,
+    ) {}
+
     /**
      * @return array<int, array{key:string,label_key:string,description_key:string,view:string}>
      */
@@ -43,6 +47,7 @@ class InvoiceDocumentService
 
     public function templateKeyFor(?User $company = null): string
     {
+        $company = $this->normalizeCompany($company);
         $selected = data_get($company?->company_store_settings, 'invoice_template_key');
         $selected = is_string($selected) ? trim($selected) : '';
         $templates = config('invoices.templates', []);
@@ -76,7 +81,7 @@ class InvoiceDocumentService
     public function buildPdf(Invoice $invoice, ?User $company = null)
     {
         $invoice = $this->prepareInvoice($invoice);
-        $company ??= $this->resolveCompany($invoice);
+        $company = $this->normalizeCompany($this->resolveCompany($invoice) ?? $company);
         $templateKey = $this->templateKeyFor($company);
         $view = (string) data_get(config('invoices.templates', []), $templateKey.'.view', 'pdf.invoice');
 
@@ -94,6 +99,7 @@ class InvoiceDocumentService
      */
     private function buildViewData(Invoice $invoice, ?User $company = null, ?string $templateKey = null): array
     {
+        $company = $this->normalizeCompany($company ?? $this->resolveCompany($invoice));
         $hasInvoiceItems = $invoice->items->isNotEmpty();
         $isTaskBased = $hasInvoiceItems && $invoice->items->contains(function ($item): bool {
             return (bool) ($item->task_id || $item->scheduled_date || $item->start_time || $item->end_time || $item->assignee_name);
@@ -139,33 +145,63 @@ class InvoiceDocumentService
             });
         }
 
-        $subtotal = $isTaskBased
+        $lineSubtotal = $isTaskBased
             ? round($taskItems->sum('total'), 2)
             : round($productItems->sum('total'), 2);
-        $totalPaid = round((float) $invoice->payments
+        $invoiceSubtotal = $invoice->subtotal === null
+            ? $lineSubtotal
+            : max(0, round((float) $invoice->subtotal, 2));
+        $invoiceTotal = max(0, round((float) $invoice->total, 2));
+        if ($invoiceSubtotal <= 0 && $invoiceTotal > 0) {
+            $invoiceSubtotal = $invoiceTotal;
+        }
+        $taxTotal = $invoice->tax_total === null
+            ? max(0, round($invoiceTotal - $invoiceSubtotal, 2))
+            : max(0, round((float) $invoice->tax_total, 2));
+        $paymentRows = $invoice->payments
             ->whereIn('status', Payment::settledStatuses())
-            ->sum('amount'), 2);
+            ->sortByDesc('paid_at');
+        $totalPaid = round((float) $paymentRows->sum('amount'), 2);
+        $tipTotal = round((float) $paymentRows->sum(
+            static fn (Payment $payment): float => $payment->tip_net_amount
+        ), 2);
+        $chargedTotal = round((float) $paymentRows->sum(
+            static fn (Payment $payment): float => $payment->charged_net_amount
+        ), 2);
 
         return [
-            'company' => $company ?: $this->resolveCompany($invoice),
+            'company' => $company,
             'customer' => $invoice->customer,
             'invoice' => $invoice,
             'invoiceTemplateKey' => $templateKey ?: $this->defaultTemplateKey(),
             'isTaskBased' => $isTaskBased,
             'productItems' => $productItems,
-            'subtotal' => $subtotal,
+            'subtotal' => $lineSubtotal,
+            'invoiceSubtotal' => $invoiceSubtotal,
+            'taxTotal' => $taxTotal,
+            'invoiceTotal' => $invoiceTotal,
             'taskItems' => $taskItems,
             'totalPaid' => $totalPaid,
+            'tipTotal' => $tipTotal,
+            'chargedTotal' => $chargedTotal,
+            'paymentRows' => $paymentRows,
             'work' => $invoice->work,
         ];
     }
 
     private function resolveCompany(Invoice $invoice): ?User
     {
-        if ($invoice->relationLoaded('user')) {
+        if ($invoice->relationLoaded('user') && $invoice->user instanceof User) {
             return $invoice->user;
         }
 
         return User::find($invoice->user_id);
+    }
+
+    private function normalizeCompany(?User $company): ?User
+    {
+        return $company
+            ? $this->tenantBrandingResolver->resolveAccountOwner($company)
+            : null;
     }
 }

@@ -1,9 +1,9 @@
-export const buildSparklinePoints = (values, maxHeight = 28, minHeight = 4, fallbackLength = 6) => {
-    const safeValues = Array.isArray(values) && values.length
-        ? values
-        : Array.from({ length: fallbackLength }, () => 0);
+export const buildSparklinePoints = (values, maxHeight = 28, minHeight = 4) => {
+    if (!Array.isArray(values) || !values.length) {
+        return [];
+    }
 
-    const numbers = safeValues.map((value) => Number(value || 0));
+    const numbers = values.map((value) => Number(value || 0));
     const maxValue = Math.max(...numbers, 0);
     const scale = maxValue > 0 ? maxValue : 1;
 
@@ -13,9 +13,31 @@ export const buildSparklinePoints = (values, maxHeight = 28, minHeight = 4, fall
     }));
 };
 
+export const buildKpiProgress = (value, maximum, label = undefined) => {
+    if (value === null || value === undefined) {
+        return null;
+    }
+
+    const current = Number(value);
+    const max = Number(maximum);
+
+    if (!Number.isFinite(current) || !Number.isFinite(max) || max <= 0) {
+        return null;
+    }
+
+    return {
+        value: Math.min(max, Math.max(0, current)),
+        max,
+        ...(label ? { label } : {}),
+    };
+};
+
 export const buildTrend = (values, positiveDirection = 'up') => {
-    const safeValues = Array.isArray(values) && values.length ? values : [0, 0];
-    const numbers = safeValues.map((value) => Number(value || 0));
+    if (!Array.isArray(values) || values.length < 2) {
+        return null;
+    }
+
+    const numbers = values.map((value) => Number(value || 0));
     const last = numbers[numbers.length - 1] ?? 0;
     const prev = numbers[numbers.length - 2] ?? 0;
     const diff = last - prev;
@@ -36,15 +58,4 @@ export const buildTrend = (values, positiveDirection = 'up') => {
         isPositive,
         percent,
     };
-};
-
-export const formatTrendValue = (trend, options = {}) => {
-    const newLabel = options.newLabel || 'New';
-    if (!trend) {
-        return '0%';
-    }
-    if (trend.percent === null) {
-        return newLabel;
-    }
-    return `${trend.percent.toFixed(1)}%`;
 };

@@ -23,7 +23,7 @@ const showServices = computed(() => companyType.value !== 'products');
 const isOwner = computed(() => Boolean(page.props.auth?.account?.is_owner));
 const isClient = computed(() => Boolean(page.props.auth?.account?.is_client));
 const canSearch = computed(() => !isClient.value);
-const { hasPermission, hasAnyPermission } = usePermissions();
+const { hasModuleAccess, hasPermission } = usePermissions();
 const teamRole = computed(() => page.props.auth?.account?.team?.role || null);
 const isSeller = computed(() => teamRole.value === 'seller');
 const searchPlaceholder = computed(() => (
@@ -31,11 +31,18 @@ const searchPlaceholder = computed(() => (
         ? t('global_search.placeholder')
         : t('global_search.placeholder_solo')
 ));
-const canSales = computed(() => hasAnyPermission(['sales.manage', 'sales.pos']));
 const canSalesManage = computed(() => hasPermission('sales.manage'));
+const canCreateCustomer = computed(() => (
+    hasModuleAccess('customers') && hasPermission('customers.create')
+));
+const canCreateProduct = computed(() => (
+    hasFeature('products')
+    && hasModuleAccess('products')
+    && hasPermission('products.create')
+));
 
 const quickActions = computed(() => {
-    if (isClient.value || isSeller.value) {
+    if (isClient.value) {
         return [];
     }
 
@@ -46,12 +53,15 @@ const quickActions = computed(() => {
         }
     };
 
-    if (!isSeller.value && ((isOwner.value && showServices.value) || (companyType.value === 'products' && hasFeature('sales') && canSales.value))) {
+    if (canCreateCustomer.value) {
         actions.push({
             id: 'customer',
             label: t('quick_create.customer'),
             action: () => openOverlay('#hs-quick-create-customer'),
         });
+    }
+
+    if (!isSeller.value) {
         if (hasFeature('services') && showServices.value && isOwner.value) {
             actions.push({
                 id: 'service',
@@ -75,7 +85,7 @@ const quickActions = computed(() => {
         }
     }
 
-    if (isOwner.value && hasFeature('products')) {
+    if (canCreateProduct.value) {
         actions.push({
             id: 'product',
             label: t('quick_create.product'),

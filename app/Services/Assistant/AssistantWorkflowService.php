@@ -25,6 +25,7 @@ use App\Notifications\SendQuoteNotification;
 use App\Services\CompanyFeatureService;
 use App\Services\CRM\OutgoingEmailLogService;
 use App\Services\InventoryService;
+use App\Services\OfferPackages\CustomerPackageService;
 use App\Services\Prospects\ProspectConversionService;
 use App\Services\ProspectStatusHistoryService;
 use App\Services\TaskBillingService;
@@ -774,6 +775,8 @@ class AssistantWorkflowService
         }
 
         if ($invoice->status === 'paid') {
+            app(CustomerPackageService::class)->fulfillPaidInvoice($invoice, $user);
+
             return [
                 'status' => 'created',
                 'message' => 'Facture deja payee.',
@@ -1647,7 +1650,8 @@ class AssistantWorkflowService
             $token,
             $user->company_name ?: config('app.name'),
             $user->company_logo_url,
-            'team'
+            'team',
+            $user->id,
         ), [
             'team_member_id' => $teamMember->id,
         ]);
@@ -2000,6 +2004,8 @@ class AssistantWorkflowService
         }
 
         if ($invoice->status === 'paid') {
+            app(CustomerPackageService::class)->fulfillPaidInvoice($invoice, $user);
+
             return [
                 'status' => 'created',
                 'message' => 'Facture deja payee.',
@@ -2049,6 +2055,10 @@ class AssistantWorkflowService
         if ($invoice->status === 'paid' && $invoice->work) {
             $invoice->work->status = Work::STATUS_CLOSED;
             $invoice->work->save();
+        }
+
+        if ($invoice->status === 'paid') {
+            app(CustomerPackageService::class)->fulfillPaidInvoice($invoice, $user);
         }
 
         return [

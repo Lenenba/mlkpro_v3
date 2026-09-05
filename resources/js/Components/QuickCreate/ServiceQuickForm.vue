@@ -1,17 +1,29 @@
 <script setup>
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, defineAsyncComponent, reactive, ref, watch } from 'vue';
 import axios from 'axios';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingNumberInput from '@/Components/FloatingNumberInput.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import Checkbox from '@/Components/Checkbox.vue';
+import AsyncDropzonePlaceholder from '@/Components/AsyncDropzonePlaceholder.vue';
+import { toFormData } from '@/utils/formData';
 import { useI18n } from 'vue-i18n';
+
+const DropzoneInput = defineAsyncComponent({
+    loader: () => import('@/Components/DropzoneInput.vue'),
+    loadingComponent: AsyncDropzonePlaceholder,
+    delay: 0,
+});
 
 const props = defineProps({
     categories: {
         type: Array,
         required: true,
+    },
+    materialProducts: {
+        type: Array,
+        default: () => [],
     },
     overlayId: {
         type: String,
@@ -30,6 +42,33 @@ const unitOptions = computed(() => ([
     { id: 'other', name: t('services.units.other') },
 ]));
 
+const buildMaterial = (material = {}, index = 0) => ({
+    product_id: material.product_id ?? '',
+    label: material.label ?? '',
+    description: material.description ?? '',
+    unit: material.unit ?? '',
+    quantity: material.quantity ?? 1,
+    unit_price: material.unit_price ?? 0,
+    billable: material.billable ?? true,
+    sort_order: material.sort_order ?? index,
+});
+
+const materialOptions = computed(() => [
+    { id: '', name: t('services.materials.custom') },
+    ...props.materialProducts.map((product) => ({
+        id: product.id,
+        name: product.name,
+    })),
+]);
+
+const materialProductMap = computed(() => {
+    const map = new Map();
+    props.materialProducts.forEach((product) => {
+        map.set(Number(product.id), product);
+    });
+    return map;
+});
+
 const categoryOptions = ref(Array.isArray(props.categories) ? [...props.categories] : []);
 
 const form = reactive({
@@ -40,6 +79,8 @@ const form = reactive({
     tax_rate: 0,
     is_active: true,
     description: '',
+    image: null,
+    materials: [],
 });
 
 const errors = ref({});
@@ -110,6 +151,43 @@ watch(categoryName, (value) => {
     }
 });
 
+const addMaterial = () => {
+    form.materials.push(buildMaterial({}, form.materials.length));
+};
+
+const removeMaterial = (index) => {
+    form.materials.splice(index, 1);
+};
+
+const applyMaterialDefaults = (material) => {
+    if (!material.product_id) {
+        return;
+    }
+
+    const product = materialProductMap.value.get(Number(material.product_id));
+    if (!product) {
+        return;
+    }
+
+    if (!material.label) {
+        material.label = product.name;
+    }
+    if (!material.unit) {
+        material.unit = product.unit || '';
+    }
+    if (!Number(material.unit_price)) {
+        material.unit_price = product.price || 0;
+    }
+};
+
+const normalizedMaterials = () => form.materials
+    .map((material, index) => ({
+        ...material,
+        product_id: material.product_id || null,
+        sort_order: index,
+    }))
+    .filter((material) => material.label || material.product_id);
+
 const isValid = computed(() => {
     return form.name.trim() !== '' && form.category_id && form.price >= 0;
 });
@@ -143,6 +221,8 @@ const resetForm = () => {
     form.tax_rate = 0;
     form.is_active = true;
     form.description = '';
+    form.image = null;
+    form.materials = [];
     categoryName.value = '';
     categoryError.value = '';
     showCategoryForm.value = false;
@@ -170,10 +250,17 @@ const submit = async () => {
         tax_rate: form.tax_rate,
         is_active: form.is_active,
         description: form.description,
+        materials: normalizedMaterials(),
     };
 
+    if (typeof File !== 'undefined' && form.image instanceof File) {
+        payload.image = form.image;
+    }
+
     try {
-        const response = await axios.post(route('service.quick.store'), payload);
+        const response = await axios.post(route('service.quick.store'), toFormData(payload), {
+            headers: { Accept: 'application/json' },
+        });
         emit('created', response.data);
         closeOverlay();
         resetForm();
@@ -224,7 +311,7 @@ const submit = async () => {
                 </div>
             </div>
             <FloatingSelect v-model="form.unit" :label="$t('services.form.unit')" :options="unitOptions" />
-            <FloatingNumberInput v-model="form.tax_rate" :label="$t('services.form.tax_rate')" :step="0.01" />
+            <FloatingNumberInput v-model="form.tax_rate" :label="$t('services.form.tax_rate')" :step="0.0001" />
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -236,6 +323,68 @@ const submit = async () => {
         </div>
 
         <FloatingTextarea v-model="form.description" :label="$t('services.form.description')" />
+        <DropzoneInput
+            v-model="form.image"
+            :label="$t('services.form.image')"
+            :allowed-extensions="['jpg', 'jpeg', 'png', 'webp']"
+        />
+
+        <div class="space-y-3">
+            <div class="flex items-center justify-between">
+                <h3 class="text-sm font-semibold text-stone-700 dark:text-neutral-200">
+                    {{ $t('services.materials.title') }}
+                </h3>
+                <button
+                    type="button"
+                    class="py-1.5 px-2.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200"
+                    @click="addMaterial"
+                >
+                    {{ $t('services.materials.add') }}
+                </button>
+            </div>
+
+            <div v-if="form.materials.length" class="space-y-3">
+                <div
+                    v-for="(material, index) in form.materials"
+                    :key="index"
+                    class="rounded-sm border border-stone-200 bg-stone-50 p-3 space-y-3 dark:border-neutral-700 dark:bg-neutral-900"
+                >
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <FloatingSelect
+                            v-model="material.product_id"
+                            :options="materialOptions"
+                            :label="$t('services.materials.product')"
+                            @update:modelValue="applyMaterialDefaults(material)"
+                        />
+                        <FloatingInput v-model="material.label" :label="$t('services.materials.label')" />
+                        <FloatingNumberInput v-model="material.quantity" :label="$t('services.materials.quantity')" :step="0.01" />
+                        <FloatingNumberInput v-model="material.unit_price" :label="$t('services.materials.unit_price')" :step="0.01" />
+                        <FloatingInput v-model="material.unit" :label="$t('services.materials.unit')" />
+                        <div class="flex items-center gap-2 p-2 rounded-sm border border-stone-200 bg-white dark:bg-neutral-900 dark:border-neutral-700">
+                            <Checkbox v-model:checked="material.billable" />
+                            <span class="text-sm text-stone-600 dark:text-neutral-400">
+                                {{ $t('services.materials.billable') }}
+                            </span>
+                        </div>
+                    </div>
+
+                    <FloatingTextarea v-model="material.description" :label="$t('services.materials.description_optional')" />
+
+                    <div class="flex justify-end">
+                        <button
+                            type="button"
+                            class="py-1.5 px-2.5 text-xs font-medium rounded-sm border border-red-200 bg-white text-red-600 hover:bg-red-50 dark:bg-neutral-800 dark:border-red-500/40 dark:text-red-400"
+                            @click="removeMaterial(index)"
+                        >
+                            {{ $t('services.materials.remove') }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <p v-else class="text-xs text-stone-500 dark:text-neutral-500">
+                {{ $t('services.materials.empty') }}
+            </p>
+        </div>
 
         <div v-if="errorMessages.length" class="rounded-sm border border-red-200 bg-red-50 p-3 text-sm text-red-700">
             <div v-for="(message, index) in errorMessages" :key="index">
@@ -244,7 +393,7 @@ const submit = async () => {
         </div>
 
         <div class="flex justify-end gap-2">
-            <button type="button" :data-hs-overlay="overlayId || undefined"
+            <button type="button" @click="closeOverlay"
                 class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
                 {{ $t('services.actions.cancel') }}
             </button>
@@ -255,4 +404,3 @@ const submit = async () => {
         </div>
     </form>
 </template>
-

@@ -1,15 +1,22 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, defineAsyncComponent, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import AnnouncementsPanel from '@/Components/Dashboard/AnnouncementsPanel.vue';
 import KpiCompositePanel from '@/Components/Dashboard/KpiCompositePanel.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { humanizeDate } from '@/utils/date';
 import { buildSparklinePoints, buildTrend } from '@/utils/kpi';
 import { useCurrencyFormatter } from '@/utils/currency';
 import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 import { usePermissions } from '@/Composables/usePermissions';
+
+const AnnouncementsPanel = defineAsyncComponent(
+    () => import('@/Components/Dashboard/AnnouncementsPanel.vue'),
+);
+const ScenarioBusinessOverview = defineAsyncComponent(
+    () => import('@/Components/Dashboard/ScenarioBusinessOverview.vue'),
+);
 
 const props = defineProps({
     stats: {
@@ -80,6 +87,10 @@ const props = defineProps({
         type: Object,
         default: () => ({}),
     },
+    scenarioInsights: {
+        type: Object,
+        default: null,
+    },
 });
 
 const page = usePage();
@@ -94,7 +105,10 @@ const greeting = computed(() =>
 );
 const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
 const showServices = computed(() => companyType.value !== 'products');
-const { hasAnyPermission } = usePermissions();
+const { hasAnyPermission, hasModuleAccess, hasPermission } = usePermissions();
+const canSales = computed(() => hasAnyPermission(['sales.manage', 'sales.pos']));
+const canCustomers = computed(() => hasModuleAccess('customers'));
+const canProducts = computed(() => hasModuleAccess('products'));
 const canQuotes = computed(() => hasAnyPermission(['quotes.view', 'quotes.edit', 'quotes.send']));
 const canSalesManage = computed(() => hasAnyPermission(['sales.manage']));
 const canJobs = computed(() => hasAnyPermission(['jobs.view', 'jobs.edit']));
@@ -122,6 +136,14 @@ const canCampaigns = computed(() => hasAnyPermission([
 const hasCatalogFeature = computed(() =>
     showServices.value ? hasFeature('services') : hasFeature('products')
 );
+const canQuickCreateCustomer = computed(() => (
+    canCustomers.value && hasPermission('customers.create')
+));
+const canQuickCreateProduct = computed(() => (
+    hasFeature('products')
+    && canProducts.value
+    && hasPermission('products.create')
+));
 const hasPlanScans = computed(() => showServices.value && hasFeature('quotes') && hasFeature('plan_scans'));
 const hasTopAnnouncements = computed(() => (props.announcements || []).length > 0);
 const hasQuickAnnouncements = computed(() => (props.quickAnnouncements || []).length > 0);
@@ -170,11 +192,19 @@ const marketingCards = computed(() => {
             key: 'campaigns_sent',
             label: t('dashboard.marketing_panel.cards.campaigns_sent'),
             value: formatNumber(marketingMetrics.value.campaigns_sent || 0),
+            tone: 'violet',
+            colorClass: 'bg-violet-500/70 dark:bg-violet-400/50',
+            trend: null,
+            points: [],
         },
         {
             key: 'delivery_success_rate',
             label: t('dashboard.marketing_panel.cards.delivery_success_rate'),
             value: formatPercent(marketingMetrics.value.delivery_success_rate),
+            tone: 'emerald',
+            colorClass: 'bg-emerald-500/70 dark:bg-emerald-400/50',
+            trend: null,
+            points: [],
         },
         {
             key: 'click_rate',
@@ -182,11 +212,19 @@ const marketingCards = computed(() => {
             value: marketingMetrics.value.click_rate === null
                 ? t('dashboard.marketing_panel.cards.tracking_off')
                 : formatPercent(marketingMetrics.value.click_rate),
+            tone: 'sky',
+            colorClass: 'bg-sky-500/70 dark:bg-sky-400/50',
+            trend: null,
+            points: [],
         },
         {
             key: 'conversions_attributed',
             label: t('dashboard.marketing_panel.cards.conversions_attributed'),
             value: formatNumber(marketingMetrics.value.conversions_attributed || 0),
+            tone: 'amber',
+            colorClass: 'bg-amber-500/70 dark:bg-amber-400/50',
+            trend: null,
+            points: [],
         },
     ];
 });
@@ -198,16 +236,105 @@ const audienceGrowthDelta = computed(() => {
 
     return formatNumber(delta);
 });
-const audienceGrowthDeltaClass = computed(() => {
+const audienceGrowthTone = computed(() => {
     const delta = Number(marketingMetrics.value?.audience_growth?.delta || 0);
     if (delta > 0) {
-        return 'text-emerald-700 dark:text-emerald-300';
+        return 'emerald';
     }
     if (delta < 0) {
-        return 'text-rose-700 dark:text-rose-300';
+        return 'rose';
     }
 
-    return 'text-stone-600 dark:text-neutral-300';
+    return 'stone';
+});
+const audienceGrowthColorClass = computed(() => ({
+    emerald: 'bg-emerald-500/70 dark:bg-emerald-400/50',
+    rose: 'bg-rose-500/70 dark:bg-rose-400/50',
+    stone: 'bg-stone-400/70 dark:bg-neutral-500/50',
+}[audienceGrowthTone.value]));
+const marketingSecondaryCards = computed(() => ([
+    {
+        key: 'top-campaign',
+        label: t('dashboard.marketing_panel.top_campaign'),
+        value: marketingMetrics.value?.top_performing_campaign?.name || t('dashboard.marketing_panel.no_data'),
+        wrapValue: true,
+        context: t('dashboard.marketing_panel.conversions_clicks', {
+            conversions: formatNumber(marketingMetrics.value?.top_performing_campaign?.conversions || 0),
+            clicks: formatNumber(marketingMetrics.value?.top_performing_campaign?.clicks || 0),
+        }),
+        tone: 'violet',
+        colorClass: 'bg-violet-500/70 dark:bg-violet-400/50',
+        trend: null,
+        points: [],
+    },
+    {
+        key: 'audience-growth',
+        label: t('dashboard.marketing_panel.audience_growth'),
+        value: formatNumber(marketingMetrics.value?.audience_growth?.current || 0),
+        context: `${t('dashboard.marketing_panel.delta')}: ${audienceGrowthDelta.value}`,
+        tone: audienceGrowthTone.value,
+        colorClass: audienceGrowthColorClass.value,
+        trend: null,
+        points: [],
+    },
+    {
+        key: 'vip-customers',
+        label: t('dashboard.marketing_panel.vip_customers'),
+        value: formatNumber(marketingMetrics.value?.vip_count || 0),
+        tone: 'amber',
+        colorClass: 'bg-amber-500/70 dark:bg-amber-400/50',
+        trend: null,
+        points: [],
+    },
+    {
+        key: 'mailing-lists',
+        label: t('dashboard.marketing_panel.mailing_lists'),
+        value: t('dashboard.marketing_panel.list_count', {
+            count: formatNumber(marketingMetrics.value?.mailing_lists?.count || 0),
+        }),
+        context: t('dashboard.marketing_panel.customers_count', {
+            count: formatNumber(marketingMetrics.value?.mailing_lists?.customers_total || 0),
+        }),
+        tone: 'sky',
+        colorClass: 'bg-sky-500/70 dark:bg-sky-400/50',
+        trend: null,
+        points: [],
+    },
+]));
+const marketingCrossModuleCards = computed(() => {
+    if (!marketingCrossModule.value) {
+        return [];
+    }
+
+    return [
+        {
+            key: 'reservations-created',
+            label: t('dashboard.marketing_panel.reservations_created_label'),
+            value: formatNumber(marketingCrossModule.value.reservations_created || 0),
+            tone: 'violet',
+            colorClass: 'bg-violet-500/70 dark:bg-violet-400/50',
+            trend: null,
+            points: [],
+        },
+        {
+            key: 'invoices-paid',
+            label: t('dashboard.marketing_panel.invoices_paid_label'),
+            value: formatNumber(marketingCrossModule.value.invoices_paid || 0),
+            tone: 'emerald',
+            colorClass: 'bg-emerald-500/70 dark:bg-emerald-400/50',
+            trend: null,
+            points: [],
+        },
+        {
+            key: 'quotes-accepted',
+            label: t('dashboard.marketing_panel.quotes_accepted_label'),
+            value: formatNumber(marketingCrossModule.value.quotes_accepted || 0),
+            tone: 'sky',
+            colorClass: 'bg-sky-500/70 dark:bg-sky-400/50',
+            trend: null,
+            points: [],
+        },
+    ];
 });
 const setMarketingPanelVisibility = (visible) => {
     showMarketingPanel.value = visible;
@@ -398,25 +525,37 @@ const scheduleSummaryCards = computed(() => ([
         key: 'total',
         label: t('dashboard.weekly.summary.total'),
         value: formatNumber(weekSummary.value.total || 0),
-        class: 'border-stone-200 bg-stone-50 text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200',
+        tone: 'stone',
+        colorClass: 'bg-stone-400/70 dark:bg-neutral-500/50',
+        trend: null,
+        points: [],
     },
     {
         key: 'to-go',
         label: t('dashboard.weekly.summary.to_go'),
         value: formatNumber(weekSummary.value.to_go || 0),
-        class: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200',
+        tone: 'amber',
+        colorClass: 'bg-amber-500/70 dark:bg-amber-400/50',
+        trend: null,
+        points: [],
     },
     {
         key: 'active',
         label: t('dashboard.weekly.summary.active'),
         value: formatNumber(weekSummary.value.active || 0),
-        class: 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200',
+        tone: 'sky',
+        colorClass: 'bg-sky-500/70 dark:bg-sky-400/50',
+        trend: null,
+        points: [],
     },
     {
         key: 'complete',
         label: t('dashboard.weekly.summary.complete'),
         value: formatNumber(weekSummary.value.complete || 0),
-        class: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-200',
+        tone: 'emerald',
+        colorClass: 'bg-emerald-500/70 dark:bg-emerald-400/50',
+        trend: null,
+        points: [],
     },
 ]));
 const scheduleEventClass = (event) => {
@@ -513,7 +652,7 @@ const insightItems = computed(() => {
     return items;
 });
 const customersEmpty = computed(() => stat('customers_total') <= 0);
-const catalogEmpty = computed(() => stat('products_total') <= 0);
+const catalogEmpty = computed(() => stat('catalog_total') <= 0);
 const quotesEmpty = computed(() => stat('quotes_total') <= 0);
 const planScansEmpty = computed(() => stat('plan_scans_total') <= 0);
 
@@ -554,12 +693,17 @@ const kpiData = computed(() => {
     return data;
 });
 const financePanelMetrics = computed(() => {
-    if (!hasFeature('invoices') || !canInvoices.value) {
+    const canViewInvoiceFinance = hasFeature('invoices') && canInvoices.value;
+    const canViewPosFinance = hasFeature('sales') && canSales.value;
+
+    if (!canViewInvoiceFinance && !canViewPosFinance) {
         return [];
     }
 
-    const items = [
-        {
+    const items = [];
+
+    if (canViewInvoiceFinance) {
+        items.push({
             key: 'revenue-paid',
             label: t('dashboard.kpi.revenue_paid'),
             value: formatCurrency(stat('revenue_paid')),
@@ -567,8 +711,8 @@ const financePanelMetrics = computed(() => {
             trend: kpiData.value.revenue_paid.trend,
             points: kpiData.value.revenue_paid.points,
             colorClass: 'bg-emerald-500/70 dark:bg-emerald-400/50',
-        },
-        {
+        });
+        items.push({
             key: 'revenue-outstanding',
             label: t('dashboard.kpi.outstanding_balance'),
             value: formatCurrency(stat('revenue_outstanding')),
@@ -576,8 +720,8 @@ const financePanelMetrics = computed(() => {
             trend: kpiData.value.revenue_outstanding.trend,
             points: kpiData.value.revenue_outstanding.points,
             colorClass: 'bg-amber-500/70 dark:bg-amber-400/50',
-        },
-        {
+        });
+        items.push({
             key: 'client-follow-up',
             label: t('dashboard.kpi.client_follow_up'),
             value: formatNumber(financeCount('outstanding_invoices_count')),
@@ -585,8 +729,20 @@ const financePanelMetrics = computed(() => {
                 amount: formatCurrency(stat('revenue_outstanding')),
             }),
             colorClass: 'bg-sky-500/70 dark:bg-sky-400/50',
-        },
-    ];
+        });
+    }
+
+    if (canViewPosFinance) {
+        items.push({
+            key: 'pos-revenue',
+            label: t('dashboard.kpi.pos_revenue'),
+            value: formatCurrency(stat('pos_revenue_paid')),
+            context: t('dashboard.kpi.pos_revenue_month', {
+                amount: formatCurrency(stat('pos_payments_month')),
+            }),
+            colorClass: 'bg-violet-500/70 dark:bg-violet-400/50',
+        });
+    }
 
     if (hasFeature('expenses') && canExpenses.value) {
         items.push({
@@ -642,6 +798,32 @@ const pipelinePanelMetrics = computed(() => {
     }
 
     return items;
+});
+const inventoryPanelMetrics = computed(() => {
+    if (!hasFeature('products') || !canProducts.value) {
+        return [];
+    }
+
+    return [
+        {
+            key: 'inventory-value',
+            label: t('dashboard.kpi.inventory_value'),
+            value: formatCurrency(stat('inventory_value')),
+            context: t('dashboard.kpi.products_total', { count: formatNumber(stat('products_total')) }),
+            trend: kpiData.value.inventory_value.trend,
+            points: kpiData.value.inventory_value.points,
+            colorClass: 'bg-teal-500/70 dark:bg-teal-400/50',
+        },
+        {
+            key: 'low-stock',
+            label: t('dashboard.kpi.low_stock'),
+            value: formatNumber(stat('products_low_stock')),
+            context: t('dashboard.kpi.out_of_stock', { count: formatNumber(stat('products_out')) }),
+            trend: kpiData.value.products_low_stock.trend,
+            points: kpiData.value.products_low_stock.points,
+            colorClass: 'bg-orange-500/70 dark:bg-orange-400/50',
+        },
+    ];
 });
 const pipelinePanelActionHref = computed(() => {
     if (hasFeature('jobs') && canJobs.value) {
@@ -714,50 +896,39 @@ const pipelinePanelSummary = computed(() => {
 
     return items;
 });
-const financePanelGridClass = computed(() => {
-    if (financePanelMetrics.value.length >= 4) {
-        return 'sm:grid-cols-2 xl:grid-cols-4';
+const adaptivePanelGridClass = (itemCount, summary = false) => {
+    if (itemCount <= 1) {
+        return 'grid-cols-1';
     }
 
-    if (financePanelMetrics.value.length === 3) {
-        return 'sm:grid-cols-2 xl:grid-cols-3';
-    }
-
-    return 'sm:grid-cols-2';
-});
-const pipelinePanelGridClass = computed(() => {
-    if (pipelinePanelMetrics.value.length >= 3) {
-        return 'sm:grid-cols-2 xl:grid-cols-3';
-    }
-
-    return 'sm:grid-cols-2';
-});
-const financePanelSummaryGridClass = computed(() => {
-    if (financePanelSummary.value.length >= 4) {
-        return 'sm:grid-cols-2 xl:grid-cols-4';
-    }
-
-    if (financePanelSummary.value.length === 3) {
-        return 'sm:grid-cols-3';
-    }
-
-    return 'sm:grid-cols-2';
-});
-const pipelinePanelSummaryGridClass = computed(() => {
-    if (pipelinePanelSummary.value.length >= 4) {
-        return 'sm:grid-cols-2 xl:grid-cols-4';
-    }
-
-    if (pipelinePanelSummary.value.length === 3) {
-        return 'sm:grid-cols-3';
-    }
-
-    return 'sm:grid-cols-2';
-});
+    return summary
+        ? 'grid-cols-[repeat(auto-fit,minmax(min(100%,10rem),1fr))]'
+        : 'grid-cols-[repeat(auto-fit,minmax(min(100%,12rem),1fr))]';
+};
+const financePanelGridClass = computed(() => adaptivePanelGridClass(financePanelMetrics.value.length));
+const pipelinePanelGridClass = computed(() => adaptivePanelGridClass(pipelinePanelMetrics.value.length));
+const inventoryPanelGridClass = computed(() => adaptivePanelGridClass(inventoryPanelMetrics.value.length));
+const financePanelSummaryGridClass = computed(() => adaptivePanelGridClass(financePanelSummary.value.length, true));
+const pipelinePanelSummaryGridClass = computed(() => adaptivePanelGridClass(pipelinePanelSummary.value.length, true));
 const hasFinancePanel = computed(() => financePanelMetrics.value.length > 0);
 const hasPipelinePanel = computed(() => pipelinePanelMetrics.value.length > 0);
-const financePanelClass = computed(() => (hasPipelinePanel.value ? 'xl:col-span-6' : 'xl:col-span-12'));
-const pipelinePanelClass = computed(() => (hasFinancePanel.value ? 'xl:col-span-6' : 'xl:col-span-12'));
+const hasInventoryPanel = computed(() => inventoryPanelMetrics.value.length > 0);
+const overviewPanelCount = computed(() => [
+    hasFinancePanel.value,
+    hasPipelinePanel.value,
+    hasInventoryPanel.value,
+].filter(Boolean).length);
+const overviewPanelClass = (panelCount, panel) => {
+    if (panelCount === 2) {
+        return 'xl:col-span-6';
+    }
+
+    if (panelCount >= 3 && panel !== 'finance') {
+        return 'xl:col-span-6';
+    }
+
+    return 'xl:col-span-12';
+};
 
 const displayCustomer = (customer) =>
     customer?.company_name ||
@@ -775,16 +946,18 @@ const onboardingChecklist = computed(() => {
                 ? t('dashboard.onboarding.add_first_service')
                 : t('dashboard.onboarding.add_first_product'),
             route: isServices ? 'service.index' : 'product.index',
-            completed: stat('products_total') > 0,
+            completed: stat('catalog_total') > 0,
         });
     }
 
-    steps.push({
-        key: 'customer',
-        label: t('dashboard.onboarding.add_first_customer'),
-        route: 'customer.create',
-        completed: stat('customers_total') > 0,
-    });
+    if (canCustomers.value) {
+        steps.push({
+            key: 'customer',
+            label: t('dashboard.onboarding.add_first_customer'),
+            route: 'customer.create',
+            completed: stat('customers_total') > 0,
+        });
+    }
 
     if (hasFeature('quotes') && canQuotes.value) {
         steps.push({
@@ -816,15 +989,17 @@ const showPlanScanCta = computed(() => hasPlanScans.value);
 const suggestionActions = computed(() => {
     const actions = [];
 
-    actions.push({
-        key: 'customer',
-        label: t('dashboard.suggestions.create_customer'),
-        type: 'overlay',
-        overlay: '#hs-quick-create-customer',
-        priority: customersEmpty.value ? 1 : 5,
-    });
+    if (canQuickCreateCustomer.value) {
+        actions.push({
+            key: 'customer',
+            label: t('dashboard.suggestions.create_customer'),
+            type: 'overlay',
+            overlay: '#hs-quick-create-customer',
+            priority: customersEmpty.value ? 1 : 5,
+        });
+    }
 
-    if (hasCatalogFeature.value) {
+    if (hasCatalogFeature.value && (showServices.value ? isOwner.value : canQuickCreateProduct.value)) {
         actions.push({
             key: 'catalog',
             label: showServices.value
@@ -941,10 +1116,10 @@ onMounted(() => {
             </section>
 
             <div :class="['grid gap-4 items-start', hasTopAnnouncements ? 'xl:grid-cols-[minmax(0,1fr)_320px]' : 'grid-cols-1']">
-                <section class="grid grid-cols-1 gap-4 xl:grid-cols-12" data-testid="demo-dashboard-overview">
+                <section class="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-12" data-testid="demo-dashboard-overview">
                     <KpiCompositePanel
                         v-if="financePanelMetrics.length"
-                        :class="financePanelClass"
+                        :class="overviewPanelClass(overviewPanelCount, 'finance')"
                         :title="$t('dashboard.kpi_panels.finance_title')"
                         :subtitle="$t('dashboard.kpi_panels.finance_subtitle')"
                         :metrics="financePanelMetrics"
@@ -958,7 +1133,7 @@ onMounted(() => {
                     />
                     <KpiCompositePanel
                         v-if="pipelinePanelMetrics.length"
-                        :class="pipelinePanelClass"
+                        :class="overviewPanelClass(overviewPanelCount, 'pipeline')"
                         :title="$t('dashboard.kpi_panels.pipeline_title')"
                         :subtitle="$t('dashboard.kpi_panels.pipeline_subtitle')"
                         :metrics="pipelinePanelMetrics"
@@ -968,6 +1143,18 @@ onMounted(() => {
                         :action-href="pipelinePanelActionHref"
                         :action-label="$t('dashboard.actions.view_all')"
                         accent-class="border-t-blue-600"
+                        compact-metrics
+                    />
+                    <KpiCompositePanel
+                        v-if="inventoryPanelMetrics.length"
+                        :class="overviewPanelClass(overviewPanelCount, 'inventory')"
+                        :title="$t('dashboard.kpi_panels.inventory_title')"
+                        :subtitle="$t('dashboard.kpi_panels.inventory_subtitle')"
+                        :metrics="inventoryPanelMetrics"
+                        :metrics-grid-class="inventoryPanelGridClass"
+                        :action-href="route('product.index')"
+                        :action-label="$t('dashboard.actions.view_all')"
+                        accent-class="border-t-teal-600"
                         compact-metrics
                     />
                 </section>
@@ -980,6 +1167,11 @@ onMounted(() => {
                     :limit="3"
                 />
             </div>
+
+            <ScenarioBusinessOverview
+                v-if="scenarioInsights"
+                :insights="scenarioInsights"
+            />
 
             <section
                 v-if="hasMarketingKpis"
@@ -1016,77 +1208,35 @@ onMounted(() => {
                     </div>
                 </div>
 
-                <div v-if="showMarketingPanel" class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-                    <div
-                        v-for="card in marketingCards"
-                        :key="card.key"
-                        class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-3 dark:border-neutral-700 dark:bg-neutral-800"
-                    >
-                        <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ card.label }}</div>
-                        <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ card.value }}</div>
-                    </div>
-                </div>
+                <KpiMetricGrid
+                    v-if="showMarketingPanel"
+                    class="mt-3"
+                    variant="dashboard"
+                    :metrics="marketingCards"
+                    grid-class="grid-cols-1 md:grid-cols-2 xl:grid-cols-4"
+                    :aria-label="$t('dashboard.marketing_panel.title')"
+                    compact
+                />
 
-                <div v-if="showMarketingPanel" class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-                    <div class="rounded-sm border border-stone-200 bg-white px-3 py-3 dark:border-neutral-700 dark:bg-neutral-900">
-                        <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('dashboard.marketing_panel.top_campaign') }}</div>
-                        <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                            {{ marketingMetrics?.top_performing_campaign?.name || $t('dashboard.marketing_panel.no_data') }}
-                        </div>
-                        <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                            {{ $t('dashboard.marketing_panel.conversions_clicks', {
-                                conversions: formatNumber(marketingMetrics?.top_performing_campaign?.conversions || 0),
-                                clicks: formatNumber(marketingMetrics?.top_performing_campaign?.clicks || 0),
-                            }) }}
-                        </div>
-                    </div>
-                    <div class="rounded-sm border border-stone-200 bg-white px-3 py-3 dark:border-neutral-700 dark:bg-neutral-900">
-                        <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('dashboard.marketing_panel.audience_growth') }}</div>
-                        <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                            {{ formatNumber(marketingMetrics?.audience_growth?.current || 0) }}
-                        </div>
-                        <div class="mt-1 text-xs" :class="audienceGrowthDeltaClass">
-                            {{ $t('dashboard.marketing_panel.delta') }}: {{ audienceGrowthDelta }}
-                        </div>
-                    </div>
-                    <div class="rounded-sm border border-stone-200 bg-white px-3 py-3 dark:border-neutral-700 dark:bg-neutral-900">
-                        <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('dashboard.marketing_panel.vip_customers') }}</div>
-                        <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                            {{ formatNumber(marketingMetrics?.vip_count || 0) }}
-                        </div>
-                    </div>
-                    <div class="rounded-sm border border-stone-200 bg-white px-3 py-3 dark:border-neutral-700 dark:bg-neutral-900">
-                        <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('dashboard.marketing_panel.mailing_lists') }}</div>
-                        <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                            {{ $t('dashboard.marketing_panel.list_count', {
-                                count: formatNumber(marketingMetrics?.mailing_lists?.count || 0),
-                            }) }}
-                        </div>
-                        <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                            {{ $t('dashboard.marketing_panel.customers_count', {
-                                count: formatNumber(marketingMetrics?.mailing_lists?.customers_total || 0),
-                            }) }}
-                        </div>
-                    </div>
-                </div>
+                <KpiMetricGrid
+                    v-if="showMarketingPanel"
+                    class="mt-3"
+                    variant="dashboard"
+                    :metrics="marketingSecondaryCards"
+                    grid-class="grid-cols-1 md:grid-cols-2 xl:grid-cols-4"
+                    :aria-label="$t('dashboard.marketing_panel.title')"
+                    compact
+                />
 
-                <div v-if="showMarketingPanel && marketingCrossModule" class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
-                    <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
-                        {{ $t('dashboard.marketing_panel.reservations_created', {
-                            count: formatNumber(marketingCrossModule.reservations_created || 0),
-                        }) }}
-                    </div>
-                    <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
-                        {{ $t('dashboard.marketing_panel.invoices_paid', {
-                            count: formatNumber(marketingCrossModule.invoices_paid || 0),
-                        }) }}
-                    </div>
-                    <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-2 text-xs text-stone-700 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200">
-                        {{ $t('dashboard.marketing_panel.quotes_accepted', {
-                            count: formatNumber(marketingCrossModule.quotes_accepted || 0),
-                        }) }}
-                    </div>
-                </div>
+                <KpiMetricGrid
+                    v-if="showMarketingPanel && marketingCrossModule"
+                    class="mt-3"
+                    variant="dashboard"
+                    :metrics="marketingCrossModuleCards"
+                    grid-class="grid-cols-1 gap-2 sm:grid-cols-3"
+                    :aria-label="$t('dashboard.marketing_panel.title')"
+                    compact
+                />
             </section>
 
             <section class="grid grid-cols-1 xl:grid-cols-3 gap-4">
@@ -1133,21 +1283,13 @@ onMounted(() => {
                                     </span>
                                 </div>
                             </div>
-                            <div class="grid grid-cols-2 gap-2 xl:grid-cols-4">
-                                <div
-                                    v-for="card in scheduleSummaryCards"
-                                    :key="card.key"
-                                    class="rounded-sm border px-3 py-2.5"
-                                    :class="card.class"
-                                >
-                                    <div class="text-[11px] font-semibold uppercase tracking-[0.1em]">
-                                        {{ card.label }}
-                                    </div>
-                                    <div class="mt-1.5 text-xl font-semibold">
-                                        {{ card.value }}
-                                    </div>
-                                </div>
-                            </div>
+                            <KpiMetricGrid
+                                variant="dashboard"
+                                :metrics="scheduleSummaryCards"
+                                grid-class="grid-cols-2 gap-2 xl:grid-cols-4"
+                                :aria-label="$t('dashboard.weekly.title')"
+                                compact
+                            />
                             <div v-if="!hasWeekPlanning" class="mt-4 text-sm text-stone-500 dark:text-neutral-400">
                                 {{ $t('dashboard.weekly.empty') }}
                             </div>

@@ -1,19 +1,19 @@
 {
   "terms": {
     "meta": {
-      "title": "Conditions d utilisation"
+      "title": "Conditions d'utilisation"
     },
     "header": {
       "tagline": "Suite de gestion"
     },
     "actions": {
       "sign_in": "Se connecter",
-      "create_account": "Creer un compte"
+      "create_account": "Créer un compte"
     },
     "intro": {
-      "eyebrow": "Conditions d utilisation",
-      "title": "Conditions d utilisation pour Malikia pro",
-      "updated": "Dernière mise à jour : {date}. Cette page est un modèle et doit être relue avant publication.",
+      "eyebrow": "Conditions d'utilisation",
+      "title": "Conditions d'utilisation de Malikia Pro",
+      "updated": "Dernière mise à jour : {date}.",
       "legal": "Nom légal : Malikia Pro."
     },
     "sections": {
@@ -24,9 +24,9 @@
       "accounts": {
         "title": "2. Comptes",
         "bullets": {
-          "one": "Les comptes sont créés et gérés par un propriétaire ou un admin.",
+          "one": "Les comptes sont créés et gérés par un propriétaire d'entreprise ou un administrateur.",
           "two": "Vous êtes responsable de la sécurité des identifiants.",
-          "three": "Les rôles et permissions limitent l'accès aux données et actions."
+          "three": "Les rôles et permissions limitent l'accès aux données et aux actions."
         }
       },
       "data": {
@@ -38,7 +38,7 @@
         "bullets": {
           "one": "Les devis sont des estimations et peuvent varier selon le site et le périmètre.",
           "two": "Les recherches de prix utilisent des sources tierces et la précision n'est pas garantie.",
-          "three": "Vous devez valider les prix fournisseur avant d'accepter ou d'envoyer un devis."
+          "three": "Vous devez valider les prix des fournisseurs avant d'accepter ou d'envoyer un devis."
         }
       },
       "billing": {
@@ -48,9 +48,9 @@
       "acceptable": {
         "title": "6. Usage acceptable",
         "bullets": {
-          "one": "Ne téléversez pas de contenu illégal et ne détournez pas les données client.",
-          "two": "Ne tentez pas de perturber ou d analyser le service.",
-          "three": "Respectez les lois applicables et les accords client."
+          "one": "Ne téléversez pas de contenu illégal et ne détournez pas les données des clients.",
+          "two": "Ne tentez pas de perturber ou d'analyser le service.",
+          "three": "Respectez les lois applicables et les accords avec les clients."
         }
       },
       "availability": {

@@ -6,6 +6,7 @@ import { useI18n } from 'vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import Modal from '@/Components/Modal.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
@@ -15,6 +16,7 @@ import CampaignStepHeading from '@/Pages/Campaigns/Components/CampaignStepHeadin
 import CampaignStepRail from '@/Pages/Campaigns/Components/CampaignStepRail.vue';
 import EmailBodyEditor from '@/Pages/Campaigns/Components/EmailBodyEditor.vue';
 import OfferSelector from '@/Pages/Campaigns/Components/OfferSelector.vue';
+import { buildSparklinePoints } from '@/utils/kpi';
 
 const props = defineProps({
     campaign: { type: Object, default: null },
@@ -389,6 +391,33 @@ const leadLinkOptions = ref([]);
 const selectedLeadId = ref(null);
 const leadLinkBusy = ref(false);
 const leadLinkError = ref('');
+
+const prospectingBatchSummaryMetrics = computed(() => ([
+    {
+        key: 'total',
+        label: t('marketing.campaign_wizard.prospecting.summary.total_batches'),
+        value: prospectingBatchSummary.value?.total_batches || 0,
+        tone: 'stone',
+    },
+    {
+        key: 'analyzed',
+        label: t('marketing.campaign_wizard.prospecting.summary.analyzed_batches'),
+        value: prospectingBatchSummary.value?.analyzed_batches || 0,
+        tone: 'sky',
+    },
+    {
+        key: 'approved',
+        label: t('marketing.campaign_wizard.prospecting.summary.approved_batches'),
+        value: prospectingBatchSummary.value?.approved_batches || 0,
+        tone: 'emerald',
+    },
+    {
+        key: 'canceled',
+        label: t('marketing.campaign_wizard.prospecting.summary.canceled_batches'),
+        value: prospectingBatchSummary.value?.canceled_batches || 0,
+        tone: 'rose',
+    },
+]));
 
 const prospectingImportModeOptions = computed(() => ([
     { value: 'manual', label: t('marketing.campaign_wizard.prospecting.import_modes.manual') },
@@ -2481,38 +2510,76 @@ const reviewReadinessPanelClass = computed(() => {
     return 'border-emerald-200 bg-emerald-50 dark:border-emerald-500/30 dark:bg-emerald-500/10';
 });
 
-const resultsOverviewCards = computed(() => ([
+const campaignRunPoints = (key) => {
+    const values = campaignRuns.value
+        .slice(0, 12)
+        .reverse()
+        .flatMap((run) => {
+            const rawValue = run?.summary?.[key];
+            if (rawValue === null || rawValue === undefined || rawValue === '') {
+                return [];
+            }
+
+            const value = Number(rawValue);
+            return Number.isFinite(value) ? [value] : [];
+        });
+
+    return values.length ? buildSparklinePoints(values) : [];
+};
+
+const resultsOverviewCards = computed(() => {
+    const targeted = Number(latestRunSummary.value?.targeted || latestCampaignRun.value?.audience_snapshot?.eligible || 0);
+    const delivered = Number(latestRunSummary.value?.delivered || 0);
+
+    return ([
     {
         key: 'campaign-status',
-        label: 'Campaign status',
+        label: t('marketing.campaign_wizard.results.campaign_status'),
         value: campaignStatusLabel(props.campaign?.status || 'draft'),
-        helper: props.campaign?.updated_at ? `Updated ${formatDateTime(props.campaign.updated_at)}` : 'Save the draft to start the lifecycle.',
+        context: props.campaign?.updated_at
+            ? t('marketing.campaign_wizard.results.updated', { date: formatDateTime(props.campaign.updated_at) })
+            : t('marketing.campaign_wizard.results.save_to_start'),
+        tone: 'stone',
     },
     {
         key: 'latest-run',
-        label: 'Latest run',
-        value: latestCampaignRun.value ? `#${latestCampaignRun.value.id}` : 'No run yet',
-        helper: latestCampaignRun.value
-            ? `${runStatusLabel(latestCampaignRun.value.status)} | ${formatDateTime(latestCampaignRun.value.started_at || latestCampaignRun.value.created_at)}`
-            : 'Launch from Review to create the first run.',
+        label: t('marketing.campaign_wizard.results.latest_run'),
+        value: latestCampaignRun.value ? `#${latestCampaignRun.value.id}` : t('marketing.campaign_wizard.results.no_run'),
+        context: latestCampaignRun.value
+            ? `${runStatusLabel(latestCampaignRun.value.status)} · ${formatDateTime(latestCampaignRun.value.started_at || latestCampaignRun.value.created_at)}`
+            : t('marketing.campaign_wizard.results.launch_to_create'),
+        tone: 'sky',
     },
     {
         key: 'targeted',
-        label: 'Targeted',
+        label: t('marketing.campaign_wizard.results.targeted'),
         value: latestCampaignRun.value
-            ? formatNumber(latestRunSummary.value?.targeted || latestCampaignRun.value?.audience_snapshot?.eligible || 0)
+            ? formatNumber(targeted)
             : (hasAudienceEstimate.value ? formatNumber(audienceEstimateTotal.value) : '-'),
-        helper: latestCampaignRun.value ? 'Recipients in the latest run' : 'Estimated eligible recipients',
+        context: t(latestCampaignRun.value
+            ? 'marketing.campaign_wizard.results.latest_recipients'
+            : 'marketing.campaign_wizard.results.estimated_recipients'),
+        tone: 'indigo',
+        points: campaignRunPoints('targeted'),
     },
     {
         key: 'delivery',
-        label: 'Delivered',
-        value: latestCampaignRun.value ? formatNumber(latestRunSummary.value?.delivered || 0) : '-',
-        helper: latestCampaignRun.value
-            ? `${formatNumber(latestRunSummary.value?.sent || 0)} sent | ${formatNumber(latestRunSummary.value?.failed || 0)} failed`
-            : 'Delivery metrics appear after launch.',
+        label: t('marketing.campaign_wizard.results.delivered'),
+        value: latestCampaignRun.value ? formatNumber(delivered) : '-',
+        context: latestCampaignRun.value
+            ? t('marketing.campaign_wizard.results.delivery_context', {
+                sent: formatNumber(latestRunSummary.value?.sent || 0),
+                failed: formatNumber(latestRunSummary.value?.failed || 0),
+            })
+            : t('marketing.campaign_wizard.results.metrics_after_launch'),
+        tone: 'emerald',
+        points: campaignRunPoints('delivered'),
+        progress: latestCampaignRun.value && targeted > 0
+            ? { value: delivered, max: targeted }
+            : undefined,
     },
-]));
+    ]);
+});
 
 const latestRunHighlights = computed(() => {
     if (!latestCampaignRun.value) {
@@ -2522,23 +2589,30 @@ const latestRunHighlights = computed(() => {
     return [
         {
             key: 'trigger',
-            label: 'Trigger',
+            label: t('marketing.campaign_wizard.results.trigger'),
             value: humanizeValue(latestCampaignRun.value.trigger_type || 'manual'),
+            tone: 'stone',
         },
         {
             key: 'started',
-            label: 'Started',
+            label: t('marketing.campaign_wizard.results.started'),
             value: formatDateTime(latestCampaignRun.value.started_at || latestCampaignRun.value.created_at),
+            tone: 'sky',
         },
         {
             key: 'completed',
-            label: 'Completed',
+            label: t('marketing.campaign_wizard.results.completed'),
             value: formatDateTime(latestCampaignRun.value.completed_at),
+            tone: 'emerald',
         },
         {
             key: 'engagement',
-            label: 'Engagement',
-            value: `${formatNumber(latestRunSummary.value?.opened || 0)} opened | ${formatNumber(latestRunSummary.value?.clicked || 0)} clicked`,
+            label: t('marketing.campaign_wizard.results.engagement'),
+            value: t('marketing.campaign_wizard.results.engagement_value', {
+                opened: formatNumber(latestRunSummary.value?.opened || 0),
+                clicked: formatNumber(latestRunSummary.value?.clicked || 0),
+            }),
+            tone: 'violet',
         },
     ];
 });
@@ -3705,24 +3779,10 @@ watch(isProspectingMode, async (enabled) => {
                             </div>
                         </div>
 
-                        <div v-if="prospectingBatchSummary" class="grid grid-cols-2 gap-2 xl:grid-cols-4">
-                            <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-3 text-xs dark:border-neutral-700 dark:bg-neutral-800">
-                                <div class="text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_wizard.prospecting.summary.total_batches') }}</div>
-                                <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ prospectingBatchSummary.total_batches || 0 }}</div>
-                            </div>
-                            <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-3 text-xs dark:border-neutral-700 dark:bg-neutral-800">
-                                <div class="text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_wizard.prospecting.summary.analyzed_batches') }}</div>
-                                <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ prospectingBatchSummary.analyzed_batches || 0 }}</div>
-                            </div>
-                            <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-3 text-xs dark:border-neutral-700 dark:bg-neutral-800">
-                                <div class="text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_wizard.prospecting.summary.approved_batches') }}</div>
-                                <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ prospectingBatchSummary.approved_batches || 0 }}</div>
-                            </div>
-                            <div class="rounded-sm border border-stone-200 bg-stone-50 px-3 py-3 text-xs dark:border-neutral-700 dark:bg-neutral-800">
-                                <div class="text-stone-500 dark:text-neutral-400">{{ t('marketing.campaign_wizard.prospecting.summary.canceled_batches') }}</div>
-                                <div class="mt-1 text-lg font-semibold text-stone-800 dark:text-neutral-100">{{ prospectingBatchSummary.canceled_batches || 0 }}</div>
-                            </div>
-                        </div>
+                        <KpiMetricGrid
+                            v-if="prospectingBatchSummary"
+                            :metrics="prospectingBatchSummaryMetrics"
+                        />
 
                         <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800">
                             <div class="flex flex-wrap items-center justify-between gap-2">
@@ -4934,17 +4994,7 @@ watch(isProspectingMode, async (enabled) => {
                     :recommendation="stepMeta(5).recommendation"
                     :recommendation-label="t('marketing.campaign_wizard.foundation.recommended_next')"
                 />
-                <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
-                    <div
-                        v-for="card in resultsOverviewCards"
-                        :key="`results-card-${card.key}`"
-                        class="rounded-sm border border-stone-200 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-800"
-                    >
-                        <div class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ card.label }}</div>
-                        <div class="mt-2 text-sm font-semibold text-stone-900 dark:text-neutral-100">{{ card.value }}</div>
-                        <p class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ card.helper }}</p>
-                    </div>
-                </div>
+                <KpiMetricGrid :metrics="resultsOverviewCards" />
 
                 <div v-if="!latestCampaignRun" class="rounded-lg border border-dashed border-stone-300 bg-stone-50 p-6 dark:border-neutral-600 dark:bg-neutral-800">
                     <div class="max-w-2xl">
@@ -4972,16 +5022,12 @@ watch(isProspectingMode, async (enabled) => {
                             </span>
                         </div>
 
-                        <div class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-                            <div
-                                v-for="item in latestRunHighlights"
-                                :key="`latest-run-highlight-${item.key}`"
-                                class="rounded-sm border border-stone-200 bg-stone-50 p-3 dark:border-neutral-700 dark:bg-neutral-800"
-                            >
-                                <div class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">{{ item.label }}</div>
-                                <div class="mt-2 text-sm font-semibold text-stone-900 dark:text-neutral-100">{{ item.value }}</div>
-                            </div>
-                        </div>
+                        <KpiMetricGrid
+                            class="mt-4"
+                            :metrics="latestRunHighlights"
+                            grid-class="grid-cols-1 md:grid-cols-2"
+                            compact
+                        />
 
                         <div class="mt-4 flex flex-wrap gap-2">
                             <Link v-if="isEdit" :href="route('campaigns.show', campaignId)">

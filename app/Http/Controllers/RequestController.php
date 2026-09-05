@@ -35,6 +35,7 @@ use App\Support\CRM\SalesActivityTaxonomy;
 use App\Support\Prospects\ProspectIntakeMeta;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
@@ -112,7 +113,7 @@ class RequestController extends Controller
         $requests = $indexData['requests'];
         $stats = $indexData['stats'];
 
-        $customers = Customer::byUser($accountId)
+        $customers = fn (): Collection => Customer::byUser($accountId)
             ->with(['properties' => function ($query) {
                 $query->orderByDesc('is_default')->orderBy('id');
             }])
@@ -147,20 +148,23 @@ class RequestController extends Controller
         $statuses = Prospect::statusOptions();
         $lostReasonOptions = LeadRequest::lostReasonOptions();
 
-        $assignees = TeamMember::query()
-            ->where('account_id', $accountId)
-            ->where('is_active', true)
-            ->with('user:id,name')
-            ->orderBy('id')
-            ->get(['id', 'account_id', 'user_id', 'role'])
-            ->map(function (TeamMember $member) {
-                return [
-                    'id' => $member->id,
-                    'name' => $member->user?->name ?? 'Team member',
-                    'role' => $member->role,
-                ];
-            })
-            ->values();
+        $resolvedAssignees = null;
+        $assignees = function () use ($accountId, &$resolvedAssignees): Collection {
+            return $resolvedAssignees ??= TeamMember::query()
+                ->where('account_id', $accountId)
+                ->where('is_active', true)
+                ->with('user:id,name')
+                ->orderBy('id')
+                ->get(['id', 'account_id', 'user_id', 'role'])
+                ->map(function (TeamMember $member) {
+                    return [
+                        'id' => $member->id,
+                        'name' => $member->user?->name ?? 'Team member',
+                        'role' => $member->role,
+                    ];
+                })
+                ->values();
+        };
 
         $leadIntake = [
             'public_form_url' => URL::signedRoute('public.requests.form', ['user' => $accountId]),
@@ -168,7 +172,7 @@ class RequestController extends Controller
         ];
 
         $canManageSavedSegments = (int) $user->id === (int) $accountId;
-        $savedSegments = $canManageSavedSegments
+        $savedSegments = fn (): Collection => $canManageSavedSegments
             ? SavedSegment::query()
                 ->byUser($accountId)
                 ->where('module', SavedSegment::MODULE_REQUEST)
@@ -189,7 +193,7 @@ class RequestController extends Controller
                 ])
             : collect();
 
-        return $this->inertiaOrJson('Request/Index', [
+        $props = [
             'requests' => $requests,
             'filters' => $filters,
             'stats' => $stats,
@@ -197,16 +201,22 @@ class RequestController extends Controller
             'statuses' => $statuses,
             'lostReasonOptions' => $lostReasonOptions,
             'assignees' => $assignees,
-            'bulkActions' => app(BulkActionRegistry::class)->definitionFor('request', [
+            'bulkActions' => fn (): array => app(BulkActionRegistry::class)->definitionFor('request', [
                 'statuses' => $statuses,
-                'assignees' => $assignees,
+                'assignees' => $assignees(),
             ]),
             'savedSegments' => $savedSegments,
             'canManageSavedSegments' => $canManageSavedSegments,
             'canExport' => $this->canExportProspects($user, $accountId),
             'lead_intake' => $leadIntake,
-            'analytics' => $this->buildAnalyticsData($accountId),
-        ]);
+            'analytics' => fn (): array => $this->buildAnalyticsData($accountId),
+        ];
+
+        if ($this->shouldReturnJson($request)) {
+            $props = array_map(fn (mixed $prop): mixed => $prop instanceof \Closure ? $prop() : $prop, $props);
+        }
+
+        return $this->inertiaOrJson('Request/Index', $props);
     }
 
     public function show(Request $request, LeadRequest $lead)

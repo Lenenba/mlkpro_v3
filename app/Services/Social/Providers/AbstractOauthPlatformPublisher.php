@@ -46,10 +46,17 @@ abstract class AbstractOauthPlatformPublisher extends AbstractPlatformPublisher
             $query['scope'] = implode($this->scopeSeparator(), $scopes);
         }
 
-        return [
+        $result = [
             'redirect_url' => $this->authorizeUrl().'?'.http_build_query($query, '', '&', PHP_QUERY_RFC3986),
             'metadata' => (array) ($authorization['metadata'] ?? []),
         ];
+
+        $oauthCodeVerifier = trim((string) ($authorization['oauth_code_verifier'] ?? ''));
+        if ($oauthCodeVerifier !== '') {
+            $result['oauth_code_verifier'] = $oauthCodeVerifier;
+        }
+
+        return $result;
     }
 
     public function completeAuthorization(SocialAccountConnection $connection, array $payload): array
@@ -127,7 +134,10 @@ abstract class AbstractOauthPlatformPublisher extends AbstractPlatformPublisher
      */
     protected function tokenRequest(array $requestPayload, ?string $url = null): array
     {
-        $request = Http::asForm()->acceptJson();
+        $request = Http::asForm()
+            ->acceptJson()
+            ->connectTimeout($this->oauthConnectTimeout())
+            ->timeout($this->oauthTimeout());
         if ($this->usesBasicAuthForTokenRequests() && $this->clientSecret() !== '') {
             $request = $request->withBasicAuth($this->clientId(), $this->clientSecret());
         }
@@ -140,6 +150,22 @@ abstract class AbstractOauthPlatformPublisher extends AbstractPlatformPublisher
         }
 
         return (array) ($response->json() ?? []);
+    }
+
+    protected function oauthConnectTimeout(): int
+    {
+        return max(1, (int) config(
+            sprintf('services.social.%s.oauth.connect_timeout', $this->key()),
+            config('services.social.oauth.connect_timeout', 5)
+        ));
+    }
+
+    protected function oauthTimeout(): int
+    {
+        return max($this->oauthConnectTimeout(), (int) config(
+            sprintf('services.social.%s.oauth.timeout', $this->key()),
+            config('services.social.oauth.timeout', 20)
+        ));
     }
 
     /**
@@ -174,7 +200,6 @@ abstract class AbstractOauthPlatformPublisher extends AbstractPlatformPublisher
                 'oauth_ready' => true,
                 'oauth_provider' => $this->key(),
                 'granted_scopes' => $permissions,
-                'oauth_code_verifier' => null,
             ],
             'message' => sprintf('%s connected.', $this->label()),
         ];

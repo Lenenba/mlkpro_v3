@@ -2,17 +2,30 @@
 import { Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useAccountFeatures } from '@/Composables/useAccountFeatures';
+
 const props = defineProps({
     type: String,
     customer: Object,
 });
 
 const { t } = useI18n();
+const { hasFeature } = useAccountFeatures();
+
+const featureKey = computed(() => ({
+    quotes: 'quotes',
+    works: 'jobs',
+    jobs: 'jobs',
+    tasks: 'tasks',
+    invoices: 'invoices',
+    requests: 'requests',
+}[props.type] || null));
+const featureEnabled = computed(() => !featureKey.value || hasFeature(featureKey.value));
 
 const typeLabel = computed(() => t(`customers.tabs.types.${props.type}`));
 
 const action = computed(() => {
-    if (!props.customer) {
+    if (!props.customer || !featureEnabled.value) {
         return null;
     }
 
@@ -49,7 +62,7 @@ const action = computed(() => {
 </script>
 <template>
     <!-- Empty State -->
-    <div class="p-5 min-h-[100px]  flex flex-col justify-center items-center text-center">
+    <div v-if="featureEnabled" class="p-5 min-h-[100px]  flex flex-col justify-center items-center text-center">
         <svg class="w-48 mx-auto mb-4" width="178" height="90" viewBox="0 0 178 90" fill="none"
             xmlns="http://www.w3.org/2000/svg">
             <rect x="27" y="50.5" width="124" height="39" rx="7.5" fill="currentColor"

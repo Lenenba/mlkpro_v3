@@ -60,6 +60,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PromotionController;
 use App\Http\Controllers\ProspectController;
 use App\Http\Controllers\PublicInvoiceController;
+use App\Http\Controllers\PublicInvoiceReceiptController;
 use App\Http\Controllers\PublicPageController;
 use App\Http\Controllers\PublicQuoteController;
 use App\Http\Controllers\PublicRequestController;
@@ -78,6 +79,7 @@ use App\Http\Controllers\Reservation\PublicBookingController;
 use App\Http\Controllers\Reservation\PublicBookingConversionController;
 use App\Http\Controllers\Reservation\PublicBookingLinkController;
 use App\Http\Controllers\Reservation\PublicKioskReservationController;
+use App\Http\Controllers\Reservation\ReservationQueueStripeCheckoutController;
 use App\Http\Controllers\Reservation\ReservationSettingsController;
 use App\Http\Controllers\Reservation\StaffReservationController;
 use App\Http\Controllers\SaleController;
@@ -102,6 +104,7 @@ use App\Http\Controllers\Settings\SubscriptionController;
 use App\Http\Controllers\SocialAccountConnectionController;
 use App\Http\Controllers\SocialAutomationController;
 use App\Http\Controllers\SocialBrandVoiceController;
+use App\Http\Controllers\SocialBufferController;
 use App\Http\Controllers\SocialCampaignController;
 use App\Http\Controllers\SocialMediaLibraryController;
 use App\Http\Controllers\SocialPostController;
@@ -131,6 +134,7 @@ use App\Http\Controllers\WorkChecklistController;
 use App\Http\Controllers\WorkController;
 use App\Http\Controllers\WorkMediaController;
 use App\Http\Controllers\WorkProofController;
+use App\Http\Controllers\WorkspaceBreadcrumbEntityController;
 use App\Http\Controllers\WorkspaceCategoryController;
 use App\Http\Middleware\EnsureClientUser;
 use App\Http\Middleware\EnsureInternalUser;
@@ -197,6 +201,12 @@ Route::get('/sitemap.xml', function () {
 Route::get('/integrations/prospect-providers/{provider}/callback', [MarketingProspectProviderConnectionController::class, 'oauthCallback'])
     ->whereIn('provider', ['apollo'])
     ->name('marketing.prospect-providers.oauth.callback');
+Route::get('/integrations/social/buffer/callback', [SocialBufferController::class, 'callback'])
+    ->middleware('throttle:20,1')
+    ->name('social.buffer.oauth.callback');
+Route::get('/social/accounts/callback', [SocialBufferController::class, 'callback'])
+    ->middleware('throttle:20,1')
+    ->name('social.buffer.oauth.callback.accounts');
 Route::get('/integrations/social/{platform}/callback', [SocialAccountConnectionController::class, 'oauthCallback'])
     ->whereIn('platform', ['facebook', 'instagram', 'linkedin', 'x'])
     ->name('social.accounts.oauth.callback');
@@ -246,6 +256,7 @@ Route::prefix('/public/ai-assistant')
     ->middleware('throttle:public-ai-assistant')
     ->group(function () {
         Route::post('/conversations', [AiPublicChatController::class, 'store'])->name('conversations.store');
+        Route::get('/conversations/{conversation}', [AiPublicChatController::class, 'show'])->name('conversations.show');
         Route::post('/conversations/{conversation}/messages', [AiPublicChatController::class, 'message'])->name('conversations.messages.store');
     });
 
@@ -263,8 +274,12 @@ Route::prefix('/book/{company}/{slug}')
         Route::post('/', [PublicBookingController::class, 'store'])->name('store');
     });
 
+Route::get('/pay/invoices/{invoice}', [PublicInvoiceController::class, 'show'])
+    ->middleware(['signed:session_id', 'throttle:public-signed'])
+    ->name('public.invoices.show');
+
 Route::middleware(['signed', 'throttle:public-signed'])->group(function () {
-    Route::get('/pay/invoices/{invoice}', [PublicInvoiceController::class, 'show'])->name('public.invoices.show');
+    Route::get('/pay/invoices/{invoice}/receipt', [PublicInvoiceReceiptController::class, 'show'])->name('public.invoices.receipt');
     Route::post('/pay/invoices/{invoice}', [PublicInvoiceController::class, 'storePayment'])->name('public.invoices.pay');
     Route::post('/pay/invoices/{invoice}/stripe', [PublicInvoiceController::class, 'createStripeCheckout'])
         ->name('public.invoices.stripe');
@@ -375,6 +390,23 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
     Route::get('/pipeline/timeline/{entityType}/{entityId}', [PipelineController::class, 'timeline'])
         ->name('pipeline.timeline');
     Route::get('/pipeline', [PipelineController::class, 'data'])->name('pipeline.data');
+    Route::get('/workspace/breadcrumb-entities/{type}', WorkspaceBreadcrumbEntityController::class)
+        ->whereIn('type', [
+            'customer',
+            'prospect',
+            'service_request',
+            'quote',
+            'sale',
+            'campaign',
+            'employee',
+            'work',
+            'task',
+            'invoice',
+            'expense',
+            'product',
+            'plan_scan',
+        ])
+        ->name('workspace.breadcrumb-entities.index');
     Route::get('/workspace-hubs/{category}', [WorkspaceCategoryController::class, 'show'])
         ->where('category', 'revenue|growth|operations|finance|catalog|workspace')
         ->name('workspace.hubs.show');
@@ -480,7 +512,7 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         ->name('crm.playbooks.run');
     Route::get('/crm/playbook-runs', [PlaybookRunController::class, 'index'])
         ->name('crm.playbook-runs.index');
-    Route::middleware('company.feature:sales')->group(function () {
+    Route::middleware(['company.feature:sales', 'company.feature:sales_crm'])->group(function () {
         Route::get('/crm/next-actions', [MyNextActionsController::class, 'index'])
             ->name('crm.next-actions.index');
         Route::get('/crm/sales-inbox', [SalesInboxController::class, 'index'])
@@ -559,6 +591,10 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         Route::get('/app/reservations/screen/data', [StaffReservationController::class, 'screenData'])->name('reservation.screen.data');
         Route::get('/app/reservations/events', [StaffReservationController::class, 'events'])->name('reservation.events');
         Route::get('/app/reservations/slots', [StaffReservationController::class, 'slots'])->name('reservation.slots');
+        Route::get('/app/reservations/customers/{customer}/rebooking', [StaffReservationController::class, 'customerRebooking'])
+            ->whereNumber('customer')
+            ->name('reservation.customer-rebooking');
+        Route::get('/app/reservations/{reservation}', [StaffReservationController::class, 'show'])->name('reservation.show');
         Route::post('/app/reservations', [StaffReservationController::class, 'store'])->name('reservation.store');
         Route::put('/app/reservations/{reservation}', [StaffReservationController::class, 'update'])->name('reservation.update');
         Route::patch('/app/reservations/{reservation}/status', [StaffReservationController::class, 'updateStatus'])
@@ -581,6 +617,16 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             ->name('reservation.queue.start');
         Route::patch('/app/reservations/queue/{item}/done', [StaffReservationController::class, 'queueDone'])
             ->name('reservation.queue.done');
+        Route::patch('/app/reservations/queue/{item}/finish', [StaffReservationController::class, 'queueFinish'])
+            ->name('reservation.queue.finish');
+        Route::post('/app/reservations/queue/{item}/checkout', [StaffReservationController::class, 'queueCheckout'])
+            ->name('reservation.queue.checkout');
+        Route::get('/app/reservations/queue/stripe/{attempt}/return', [ReservationQueueStripeCheckoutController::class, 'complete'])
+            ->name('reservation.queue.stripe.return');
+        Route::get('/app/reservations/queue/stripe/{attempt}/status', [ReservationQueueStripeCheckoutController::class, 'status'])
+            ->name('reservation.queue.stripe.status');
+        Route::get('/app/reservations/queue/stripe/{attempt}/cancel', [ReservationQueueStripeCheckoutController::class, 'cancel'])
+            ->name('reservation.queue.stripe.cancel');
         Route::patch('/app/reservations/queue/{item}/skip', [StaffReservationController::class, 'queueSkip'])
             ->name('reservation.queue.skip');
         Route::delete('/app/reservations/{reservation}', [StaffReservationController::class, 'destroy'])->name('reservation.destroy');
@@ -758,6 +804,8 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             ->name('social.campaigns.store');
         Route::post('/social/posts/{post}/publish', [SocialPostController::class, 'publish'])
             ->name('social.posts.publish');
+        Route::post('/social/posts/{post}/retry', [SocialPostController::class, 'retry'])
+            ->name('social.posts.retry');
         Route::post('/social/posts/{post}/schedule', [SocialPostController::class, 'schedule'])
             ->name('social.posts.schedule');
         Route::post('/social/posts/{post}/submit-approval', [SocialPostController::class, 'submitApproval'])
@@ -792,6 +840,19 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
             ->name('social.automations.destroy');
         Route::get('/social/accounts', [SocialAccountConnectionController::class, 'index'])
             ->name('social.accounts.index');
+        Route::get('/social/buffer/catalog', [SocialBufferController::class, 'catalog'])
+            ->name('social.buffer.catalog');
+        Route::post('/social/buffer/connect', [SocialBufferController::class, 'connect'])
+            ->middleware('throttle:10,1')
+            ->name('social.buffer.connect');
+        Route::post('/social/buffer/disconnect', [SocialBufferController::class, 'disconnect'])
+            ->middleware('throttle:10,1')
+            ->name('social.buffer.disconnect');
+        Route::post('/social/buffer/channels', [SocialBufferController::class, 'store'])
+            ->name('social.buffer.channels.store');
+        Route::post('/social/buffer/channels/sync', [SocialBufferController::class, 'sync'])
+            ->middleware('throttle:10,1')
+            ->name('social.buffer.channels.sync');
         Route::post('/social/accounts', [SocialAccountConnectionController::class, 'store'])
             ->name('social.accounts.store');
         Route::post('/social/accounts/test-connection', [SocialAccountConnectionController::class, 'storeTestConnection'])
@@ -1040,6 +1101,11 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
         ->name('customer.tags.update');
     Route::patch('/customer/{customer}/auto-validation', [CustomerController::class, 'updateAutoValidation'])
         ->name('customer.auto-validation.update');
+    Route::post('/customer/{customer}/portal-invitation', [CustomerController::class, 'resendPortalInvitation'])
+        ->middleware('throttle:6,1')
+        ->name('customer.portal-invitation.resend');
+    Route::get('/customer/{customer}/activity', [CustomerController::class, 'activity'])
+        ->name('customer.activity_index');
     Route::post('/customer/{customer}/packages', [CustomerPackageController::class, 'store'])
         ->name('customer.packages.store');
     Route::post('/customer/{customer}/packages/{customerPackage}/usages', [CustomerPackageController::class, 'consume'])
@@ -1125,7 +1191,9 @@ Route::middleware(['auth', EnsureInternalUser::class, 'demo.safe'])->group(funct
     // Payment Management
     Route::post('/invoice/{invoice}/payments', [PaymentController::class, 'store'])->name('payment.store');
     Route::patch('/payments/{payment}/mark-paid', [PaymentController::class, 'markAsPaid'])->name('payment.mark-paid');
-    Route::post('/sales/{sale}/payments', [SalePaymentController::class, 'store'])->name('sales.payments.store');
+    Route::post('/sales/{sale}/payments', [SalePaymentController::class, 'store'])
+        ->middleware('company.feature:sales')
+        ->name('sales.payments.store');
 });
 
 Route::middleware(['auth', 'demo.safe'])->group(function () {
@@ -1143,62 +1211,69 @@ Route::middleware(['auth', EnsureClientUser::class])
     ->prefix('portal')
     ->name('portal.')
     ->group(function () {
-        Route::get('/orders', [PortalProductOrderController::class, 'index'])->name('orders.index');
-        Route::post('/orders', [PortalProductOrderController::class, 'store'])->name('orders.store');
-        Route::get('/orders/{sale}', [PortalProductOrderController::class, 'showPage'])->name('orders.show');
-        Route::get('/orders/{sale}/edit', [PortalProductOrderController::class, 'edit'])->name('orders.edit');
-        Route::get('/orders/{sale}/pdf', [PortalProductOrderController::class, 'pdf'])->name('orders.pdf');
-        Route::put('/orders/{sale}', [PortalProductOrderController::class, 'update'])->name('orders.update');
-        Route::post('/orders/{sale}/pay', [PortalProductOrderController::class, 'pay'])->name('orders.pay');
-        Route::post('/orders/{sale}/confirm', [PortalProductOrderController::class, 'confirmReceipt'])->name('orders.confirm');
-        Route::delete('/orders/{sale}', [PortalProductOrderController::class, 'destroy'])->name('orders.destroy');
-        Route::post('/orders/{sale}/reorder', [PortalProductOrderController::class, 'reorder'])->name('orders.reorder');
-        Route::post('/orders/{sale}/reviews', [PortalReviewController::class, 'storeOrder'])->name('orders.reviews.store');
+        Route::get('/orders', [PortalProductOrderController::class, 'index'])->middleware('portal.capability:orders.history')->name('orders.index');
+        Route::post('/orders', [PortalProductOrderController::class, 'store'])->middleware('portal.capability:orders.create')->name('orders.store');
+        Route::get('/orders/{sale}', [PortalProductOrderController::class, 'showPage'])->middleware('portal.capability:orders.history')->name('orders.show');
+        Route::get('/orders/{sale}/edit', [PortalProductOrderController::class, 'edit'])->middleware('portal.capability:orders.update')->name('orders.edit');
+        Route::get('/orders/{sale}/pdf', [PortalProductOrderController::class, 'pdf'])->middleware('portal.capability:orders.history')->name('orders.pdf');
+        Route::put('/orders/{sale}', [PortalProductOrderController::class, 'update'])->middleware('portal.capability:orders.update')->name('orders.update');
+        Route::post('/orders/{sale}/pay', [PortalProductOrderController::class, 'pay'])->middleware('portal.capability:orders.pay')->name('orders.pay');
+        Route::post('/orders/{sale}/confirm', [PortalProductOrderController::class, 'confirmReceipt'])->middleware('portal.capability:orders.confirm')->name('orders.confirm');
+        Route::delete('/orders/{sale}', [PortalProductOrderController::class, 'destroy'])->middleware('portal.capability:orders.cancel')->name('orders.destroy');
+        Route::post('/orders/{sale}/reorder', [PortalProductOrderController::class, 'reorder'])->middleware('portal.capability:orders.reorder')->name('orders.reorder');
+        Route::post('/orders/{sale}/reviews', [PortalReviewController::class, 'storeOrder'])->middleware('portal.capability:orders.review')->name('orders.reviews.store');
         Route::post('/orders/{sale}/products/{product}/reviews', [PortalReviewController::class, 'storeProduct'])
+            ->middleware('portal.capability:orders.review')
             ->name('orders.products.reviews.store');
-        Route::get('/packages', [PortalCustomerPackageController::class, 'index'])->name('packages.index');
+        Route::get('/packages', [PortalCustomerPackageController::class, 'index'])->middleware('portal.capability:packages.view')->name('packages.index');
         Route::post('/packages/{customerPackage}/renewal-request', [PortalCustomerPackageController::class, 'requestRenewal'])
+            ->middleware('portal.capability:packages.manage')
             ->name('packages.renewal-request');
         Route::post('/packages/{customerPackage}/cancellation-request', [PortalCustomerPackageController::class, 'requestCancellation'])
+            ->middleware('portal.capability:packages.manage')
             ->name('packages.cancellation-request');
         Route::get('/loyalty', [PortalLoyaltyController::class, 'index'])
-            ->middleware('company.feature:loyalty')
+            ->middleware('portal.capability:loyalty.view')
             ->name('loyalty.index');
-        Route::post('/quotes/{quote}/accept', [PortalQuoteController::class, 'accept'])->name('quotes.accept');
-        Route::post('/quotes/{quote}/decline', [PortalQuoteController::class, 'decline'])->name('quotes.decline');
-        Route::post('/works/{work}/validate', [PortalWorkController::class, 'validateWork'])->name('works.validate');
-        Route::get('/works/{work}/proofs', [PortalWorkProofController::class, 'show'])->name('works.proofs');
-        Route::post('/works/{work}/schedule/confirm', [PortalWorkController::class, 'confirmSchedule'])->name('works.schedule.confirm');
-        Route::post('/works/{work}/schedule/reject', [PortalWorkController::class, 'rejectSchedule'])->name('works.schedule.reject');
-        Route::post('/works/{work}/dispute', [PortalWorkController::class, 'dispute'])->name('works.dispute');
-        Route::post('/tasks/{task}/media', [PortalTaskMediaController::class, 'store'])->name('tasks.media.store');
-        Route::get('/invoices/{invoice}', [PortalInvoiceController::class, 'show'])->name('invoices.show');
-        Route::post('/invoices/{invoice}/payments', [PortalInvoiceController::class, 'storePayment'])->name('invoices.payments.store');
+        Route::post('/quotes/{quote}/accept', [PortalQuoteController::class, 'accept'])->middleware('portal.capability:quotes.accept')->name('quotes.accept');
+        Route::post('/quotes/{quote}/decline', [PortalQuoteController::class, 'decline'])->middleware('portal.capability:quotes.decline')->name('quotes.decline');
+        Route::post('/works/{work}/validate', [PortalWorkController::class, 'validateWork'])->middleware('portal.capability:works.validate')->name('works.validate');
+        Route::get('/works/{work}/proofs', [PortalWorkProofController::class, 'show'])->middleware('portal.capability:works.proofs')->name('works.proofs');
+        Route::post('/works/{work}/schedule/confirm', [PortalWorkController::class, 'confirmSchedule'])->middleware('portal.capability:works.schedule')->name('works.schedule.confirm');
+        Route::post('/works/{work}/schedule/reject', [PortalWorkController::class, 'rejectSchedule'])->middleware('portal.capability:works.schedule')->name('works.schedule.reject');
+        Route::post('/works/{work}/dispute', [PortalWorkController::class, 'dispute'])->middleware('portal.capability:works.dispute')->name('works.dispute');
+        Route::post('/tasks/{task}/media', [PortalTaskMediaController::class, 'store'])->middleware('portal.capability:tasks.upload')->name('tasks.media.store');
+        Route::get('/invoices', [PortalInvoiceController::class, 'index'])->middleware('portal.capability:invoices.history')->name('invoices.index');
+        Route::get('/invoices/{invoice}', [PortalInvoiceController::class, 'show'])->middleware('portal.capability:invoices.history')->name('invoices.show');
+        Route::post('/invoices/{invoice}/payments', [PortalInvoiceController::class, 'storePayment'])->middleware('portal.capability:invoices.pay')->name('invoices.payments.store');
         Route::post('/invoices/{invoice}/stripe', [PortalInvoiceController::class, 'createStripeCheckout'])
+            ->middleware('portal.capability:invoices.pay')
             ->name('invoices.stripe');
-        Route::post('/quotes/{quote}/ratings', [PortalRatingController::class, 'storeQuote'])->name('quotes.ratings.store');
-        Route::post('/works/{work}/ratings', [PortalRatingController::class, 'storeWork'])->name('works.ratings.store');
+        Route::post('/quotes/{quote}/ratings', [PortalRatingController::class, 'storeQuote'])->middleware('portal.capability:quotes.rate')->name('quotes.ratings.store');
+        Route::post('/works/{work}/ratings', [PortalRatingController::class, 'storeWork'])->middleware('portal.capability:works.rate')->name('works.ratings.store');
     });
 
-Route::middleware(['auth', EnsureClientUser::class, 'company.feature:reservations'])
+Route::middleware(['auth', EnsureClientUser::class])
     ->prefix('client/reservations')
     ->name('client.reservations.')
     ->group(function () {
-        Route::get('/kiosk', [ClientReservationController::class, 'kiosk'])->name('kiosk');
-        Route::get('/book', [ClientReservationController::class, 'book'])->name('book');
-        Route::get('/slots', [ClientReservationController::class, 'slots'])->name('slots');
-        Route::post('/book', [ClientReservationController::class, 'store'])->name('store');
-        Route::post('/tickets', [ClientReservationController::class, 'ticketStore'])->name('tickets.store');
-        Route::patch('/tickets/{ticket}/cancel', [ClientReservationController::class, 'ticketCancel'])->name('tickets.cancel');
-        Route::patch('/tickets/{ticket}/still-here', [ClientReservationController::class, 'ticketStillHere'])->name('tickets.still-here');
-        Route::post('/waitlist', [ClientReservationController::class, 'waitlistStore'])->name('waitlist.store');
+        Route::get('/kiosk', [ClientReservationController::class, 'kiosk'])->middleware('portal.capability:reservations.book')->name('kiosk');
+        Route::get('/book', [ClientReservationController::class, 'book'])->middleware('portal.capability:reservations.book')->name('book');
+        Route::get('/slots', [ClientReservationController::class, 'slots'])->middleware('portal.capability:reservations.book')->name('slots');
+        Route::post('/book', [ClientReservationController::class, 'store'])->middleware('portal.capability:reservations.book')->name('store');
+        Route::post('/tickets', [ClientReservationController::class, 'ticketStore'])->middleware('portal.capability:reservations.book')->name('tickets.store');
+        Route::patch('/tickets/{ticket}/cancel', [ClientReservationController::class, 'ticketCancel'])->middleware('portal.capability:reservations.manage')->name('tickets.cancel');
+        Route::patch('/tickets/{ticket}/still-here', [ClientReservationController::class, 'ticketStillHere'])->middleware('portal.capability:reservations.manage')->name('tickets.still-here');
+        Route::post('/waitlist', [ClientReservationController::class, 'waitlistStore'])->middleware('portal.capability:reservations.book')->name('waitlist.store');
         Route::patch('/waitlist/{waitlist}/cancel', [ClientReservationController::class, 'waitlistCancel'])
+            ->middleware('portal.capability:reservations.manage')
             ->name('waitlist.cancel');
-        Route::get('/', [ClientReservationController::class, 'index'])->name('index');
-        Route::get('/events', [ClientReservationController::class, 'events'])->name('events');
-        Route::patch('/{reservation}/cancel', [ClientReservationController::class, 'cancel'])->name('cancel');
-        Route::post('/{reservation}/review', [ClientReservationController::class, 'review'])->name('review');
+        Route::get('/', [ClientReservationController::class, 'index'])->middleware('portal.capability:reservations.view')->name('index');
+        Route::get('/events', [ClientReservationController::class, 'events'])->middleware('portal.capability:reservations.view')->name('events');
+        Route::patch('/{reservation}/cancel', [ClientReservationController::class, 'cancel'])->middleware('portal.capability:reservations.manage')->name('cancel');
+        Route::post('/{reservation}/review', [ClientReservationController::class, 'review'])->middleware('portal.capability:reservations.review')->name('review');
         Route::patch('/{reservation}/reschedule', [ClientReservationController::class, 'reschedule'])
+            ->middleware('portal.capability:reservations.manage')
             ->name('reschedule');
     });
 

@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { useI18n } from 'vue-i18n';
 import AdminPaginationLinks from '@/Components/DataTable/AdminPaginationLinks.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import AppBreadcrumbs from '@/Components/UI/AppBreadcrumbs.vue';
@@ -123,39 +124,69 @@ const statCards = computed(() => ([
         key: 'total',
         label: t('crm_sales_inbox.cards.total'),
         value: Number(props.stats?.total || 0),
-        tone: 'border-stone-200 bg-stone-50 text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200',
+        tone: 'stone',
     },
     {
         key: 'overdue',
         label: t('crm_sales_inbox.cards.overdue'),
         value: Number(props.stats?.overdue || 0),
-        tone: 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-300',
+        tone: 'rose',
     },
     {
         key: 'no_next_action',
         label: t('crm_sales_inbox.cards.no_next_action'),
         value: Number(props.stats?.no_next_action || 0),
-        tone: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300',
+        tone: 'amber',
     },
     {
         key: 'quoted',
         label: t('crm_sales_inbox.cards.quoted'),
         value: Number(props.stats?.quoted || 0),
-        tone: 'border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-300',
+        tone: 'sky',
     },
     {
         key: 'needs_quote',
         label: t('crm_sales_inbox.cards.needs_quote'),
         value: Number(props.stats?.needs_quote || 0),
-        tone: 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-500/20 dark:bg-violet-500/10 dark:text-violet-300',
+        tone: 'violet',
     },
     {
         key: 'weighted_open_amount',
         label: t('crm_sales_inbox.cards.weighted_open_amount'),
         value: formatCurrency(props.stats?.weighted_open_amount || 0),
-        tone: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300',
+        tone: 'emerald',
     },
 ]));
+
+const queueTone = (queueKey) => ({
+    overdue: 'rose',
+    no_next_action: 'amber',
+    quoted: 'sky',
+    needs_quote: 'violet',
+}[queueKey] || 'emerald');
+
+const queueMetrics = computed(() => [
+    {
+        key: 'all',
+        label: t('crm_sales_inbox.queues.all'),
+        value: Number(props.stats?.total || 0),
+        context: formatCurrency(props.stats?.weighted_open_amount || 0),
+        tone: 'stone',
+        interactive: true,
+        action: '',
+        active: filterForm.queue === '',
+    },
+    ...queueSummary.value.map((queue) => ({
+        key: queue.key,
+        label: t(`crm_sales_inbox.queues.${queue.key}`),
+        value: queue.count,
+        context: formatCurrency(queue.weighted_amount || 0),
+        tone: queueTone(queue.key),
+        interactive: true,
+        action: queue.key,
+        active: filterForm.queue === queue.key,
+    })),
+]);
 
 const applyFilters = (overrides = {}) => {
     const payload = {
@@ -327,12 +358,6 @@ const shouldShowNextActionBadge = (item) => {
     return Boolean(nextActionState);
 };
 
-const queueCardClass = (queueKey) => (
-    filterForm.queue === queueKey
-        ? `${queueBadgeClass(queueKey)} ring-2 ring-offset-2 ring-offset-white dark:ring-offset-neutral-950`
-        : 'border-stone-200 bg-white text-stone-700 hover:border-stone-300 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-200 dark:hover:border-neutral-700'
-);
-
 const requestRoute = (item) => {
     const requestId = item?.crm_links?.request?.id || item?.request?.id;
 
@@ -441,21 +466,10 @@ const openedLabel = (item) => {
                 </div>
             </section>
 
-            <section class="grid gap-3 sm:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(11rem,1fr))]">
-                <article
-                    v-for="card in statCards"
-                    :key="card.key"
-                    class="rounded-sm border p-3 shadow-sm"
-                    :class="card.tone"
-                >
-                    <div class="text-[11px] font-semibold uppercase tracking-[0.14em] leading-4">
-                        {{ card.label }}
-                    </div>
-                    <div class="mt-1.5 text-xl font-semibold lg:text-2xl">
-                        {{ card.value }}
-                    </div>
-                </article>
-            </section>
+            <KpiMetricGrid
+                :metrics="statCards"
+                grid-class="sm:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(11rem,1fr))]"
+            />
 
             <section class="rounded-sm border border-stone-200 bg-white p-3.5 shadow-sm dark:border-neutral-800 dark:bg-neutral-950">
                 <div class="flex flex-wrap items-start justify-between gap-3">
@@ -520,43 +534,13 @@ const openedLabel = (item) => {
                     />
                 </div>
 
-                <div class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(10rem,1fr))]">
-                    <button
-                        type="button"
-                        class="rounded-sm border p-2.5 text-left shadow-sm transition"
-                        :class="queueCardClass('')"
-                        @click="selectQueue('')"
-                    >
-                        <div class="text-[11px] font-semibold uppercase tracking-[0.16em]">
-                            {{ t('crm_sales_inbox.queues.all') }}
-                        </div>
-                        <div class="mt-2 text-xl font-semibold">
-                            {{ Number(props.stats?.total || 0) }}
-                        </div>
-                        <div class="mt-1 text-xs opacity-80">
-                            {{ formatCurrency(props.stats?.weighted_open_amount || 0) }}
-                        </div>
-                    </button>
-
-                    <button
-                        v-for="queue in queueSummary"
-                        :key="queue.key"
-                        type="button"
-                        class="rounded-sm border p-2.5 text-left shadow-sm transition"
-                        :class="queueCardClass(queue.key)"
-                        @click="selectQueue(queue.key)"
-                    >
-                        <div class="text-[11px] font-semibold uppercase tracking-[0.16em]">
-                            {{ t(`crm_sales_inbox.queues.${queue.key}`) }}
-                        </div>
-                        <div class="mt-2 text-xl font-semibold">
-                            {{ queue.count }}
-                        </div>
-                        <div class="mt-1 text-xs opacity-80">
-                            {{ formatCurrency(queue.weighted_amount || 0) }}
-                        </div>
-                    </button>
-                </div>
+                <KpiMetricGrid
+                    class="mt-4"
+                    :metrics="queueMetrics"
+                    grid-class="sm:grid-cols-2 xl:grid-cols-[repeat(auto-fit,minmax(10rem,1fr))]"
+                    compact
+                    @activate="selectQueue"
+                />
 
                 <div
                     v-if="hasMultiplePages"

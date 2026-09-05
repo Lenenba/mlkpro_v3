@@ -273,6 +273,11 @@
     },
     "template_manager": {
       "title": "Templates",
+      "kpis": {
+        "total": "Templates",
+        "email": "Mises en page",
+        "defaults": "Par défaut"
+      },
       "template_name": "Nom du template",
       "channel": "Canal",
       "campaign_type": "Type de campagne",
@@ -636,6 +641,26 @@
         "offers": "Offres",
         "runs": "Exécutions"
       },
+      "run_summary": {
+        "targeted": "Ciblés",
+        "sent": "Envoyés",
+        "delivered": "Livrés",
+        "opened": "Ouverts",
+        "clicked": "Cliqués",
+        "converted": "Convertis",
+        "failed": "Échecs",
+        "skipped": "Ignorés"
+      },
+      "delivery": {
+        "title": "Livraison — dernier envoi",
+        "latest_run": "Dernier envoi",
+        "ab_split": "Répartition A/B",
+        "no_ab_data": "Aucune donnée A/B",
+        "holdout": "Groupe témoin",
+        "fallback": "Relais utilisé",
+        "fallback_value": "{count} relais",
+        "fallback_context": "{rate}% des échecs ({count})"
+      },
       "sections": {
         "funnel": "Tunnel",
         "prospecting": "Prospection",
@@ -652,9 +677,9 @@
         "qualified": "Qualifiés",
         "leads": "Leads",
         "customers": "Clients",
-        "prospect_to_lead_rate": "Taux prospect vers lead",
-        "lead_to_customer_rate": "Taux lead vers client",
-        "overall_customer_rate": "Taux prospect vers client",
+        "prospect_to_lead_rate": "Prospect → lead",
+        "lead_to_customer_rate": "Lead → client",
+        "overall_customer_rate": "Prospect → client",
         "not_available": "N/D"
       },
       "prospecting": {
@@ -779,6 +804,25 @@
       "header_edit": "Modifier campagne #{id}",
       "header_new": "Créer une campagne",
       "description": "Configurez la campagne, l’audience, les messages et la stratégie d’envoi.",
+      "results": {
+        "campaign_status": "Statut campagne",
+        "updated": "Mis à jour {date}",
+        "save_to_start": "Enregistrez le brouillon pour démarrer.",
+        "latest_run": "Dernier envoi",
+        "no_run": "Aucun envoi",
+        "launch_to_create": "Lancez depuis la revue pour créer le premier envoi.",
+        "targeted": "Ciblés",
+        "latest_recipients": "Destinataires du dernier envoi",
+        "estimated_recipients": "Destinataires admissibles estimés",
+        "delivered": "Livrés",
+        "delivery_context": "{sent} envoyés · {failed} échecs",
+        "metrics_after_launch": "Les données apparaîtront après le lancement.",
+        "trigger": "Déclencheur",
+        "started": "Début",
+        "completed": "Fin",
+        "engagement": "Engagement",
+        "engagement_value": "{opened} ouverts · {clicked} clics"
+      },
       "foundation": {
         "current_step": "Etape {current} sur {total}",
         "progress_ready": "{count} etape(s) prêtes",

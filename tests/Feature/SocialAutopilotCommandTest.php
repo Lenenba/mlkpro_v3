@@ -1,6 +1,6 @@
 <?php
 
-use App\Jobs\PublishSocialPostTargetJob;
+use App\Jobs\ProcessSocialDeliveryOutboxJob;
 use App\Models\AssistantCreditTransaction;
 use App\Models\Product;
 use App\Models\ProductCategory;
@@ -10,10 +10,16 @@ use App\Models\SocialApprovalRequest;
 use App\Models\SocialAutomationRule;
 use App\Models\SocialAutomationRun;
 use App\Models\SocialPost;
+use App\Models\SocialPostRevision;
 use App\Models\SocialPostTarget;
 use App\Models\SocialPostTemplate;
 use App\Models\User;
 use App\Services\Assistant\OpenAiClient;
+use App\Services\Social\SocialAutomationRunnerService;
+use App\Services\Social\SocialContentGeneratorService;
+use App\Services\Social\SocialPostRevisionSnapshotService;
+use App\Services\Social\SocialPostService;
+use App\Services\Social\SocialPublishingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -50,7 +56,7 @@ function socialAutopilotOwner(array $overrides = []): User
 
 function socialAutopilotConnection(User $owner, string $platform, array $overrides = []): SocialAccountConnection
 {
-    return SocialAccountConnection::query()->create(array_merge([
+    $attributes = array_merge([
         'user_id' => $owner->id,
         'platform' => $platform,
         'label' => Str::headline($platform).' Autopilot account',
@@ -66,7 +72,12 @@ function socialAutopilotConnection(User $owner, string $platform, array $overrid
             'provider_label' => Str::headline($platform),
             'target_type' => 'page',
         ],
-    ], $overrides));
+    ], $overrides);
+
+    return SocialAccountConnection::query()->create([
+        ...$attributes,
+        ...pulseDirectTransportIdentity($owner, $platform, (string) $attributes['external_account_id']),
+    ]);
 }
 
 function socialAutopilotProduct(User $owner, string $name = 'Pulse featured product'): Product
@@ -134,6 +145,37 @@ function socialAutopilotRule(User $owner, array $overrides = []): SocialAutomati
     ], $overrides));
 }
 
+/**
+ * @return array{
+ *     rule:SocialAutomationRule,
+ *     claim_token:string,
+ *     policy:array{rule_id:int,approval_mode:string,policy_fingerprint:string,rule_updated_at:string}
+ * }
+ */
+function socialAutopilotExecutionClaim(SocialAutomationRule $rule): array
+{
+    $claimToken = (string) Str::uuid();
+    $usesTimestamps = $rule->timestamps;
+    $rule->timestamps = false;
+
+    try {
+        $rule->forceFill([
+            'execution_claim_token' => $claimToken,
+            'execution_claimed_until' => now()->addMinutes(10),
+        ])->save();
+    } finally {
+        $rule->timestamps = $usesTimestamps;
+    }
+
+    $rule->refresh();
+
+    return [
+        'rule' => $rule,
+        'claim_token' => $claimToken,
+        'policy' => app(SocialPostRevisionSnapshotService::class)->autopilotPolicyForRule($rule),
+    ];
+}
+
 it('generates a pulse candidate and submits it for approval from a product automation rule', function () {
     $owner = socialAutopilotOwner();
     $connection = socialAutopilotConnection($owner, SocialAccountConnection::PLATFORM_FACEBOOK);
@@ -154,7 +196,13 @@ it('generates a pulse candidate and submits it for approval from a product autom
     ])->assertExitCode(0);
 
     $post = SocialPost::query()
-        ->with(['latestApprovalRequest', 'automationRule', 'targets.socialAccountConnection'])
+        ->with([
+            'automationRule',
+            'latestApprovalRequest.socialPostRevision',
+            'revisions',
+            'targets.currentRevision',
+            'targets.socialAccountConnection',
+        ])
         ->sole();
 
     $rule->refresh();
@@ -166,6 +214,10 @@ it('generates a pulse candidate and submits it for approval from a product autom
         ->and($post->automationRule?->is($rule))->toBeTrue()
         ->and((string) $post->latestApprovalRequest?->status)->toBe(SocialApprovalRequest::STATUS_PENDING)
         ->and((int) $post->latestApprovalRequest?->requested_by_user_id)->toBe((int) $owner->id)
+        ->and($post->revisions)->toHaveCount(1)
+        ->and($post->revisions->sole()->origin)->toBe(SocialPostRevision::ORIGIN_AUTOMATION)
+        ->and($post->latestApprovalRequest?->socialPostRevision?->is($post->revisions->sole()))->toBeTrue()
+        ->and($post->targets->sole()->currentRevision?->is($post->revisions->sole()))->toBeTrue()
         ->and(data_get($post->metadata, 'automation.rule_id'))->toBe($rule->id)
         ->and(data_get($post->metadata, 'automation.selected_source_type'))->toBe('product')
         ->and(data_get($post->metadata, 'automation.selected_source_id'))->toBe($product->id)
@@ -490,26 +542,272 @@ it('can auto publish a generated pulse candidate from a template automation rule
         '--rule_id' => $rule->id,
     ])->assertExitCode(0);
 
-    Queue::assertPushed(PublishSocialPostTargetJob::class, 1);
+    Queue::assertPushed(ProcessSocialDeliveryOutboxJob::class, 1);
 
     $post = SocialPost::query()
-        ->with(['latestApprovalRequest', 'targets.socialAccountConnection'])
+        ->with([
+            'approvedRevision',
+            'latestApprovalRequest.socialPostRevision',
+            'targets.lastSubmittedRevision',
+            'targets.socialAccountConnection',
+        ])
         ->sole();
 
     expect($post->status)->toBe(SocialPost::STATUS_PUBLISHING)
         ->and($post->source_type)->toBe('template')
         ->and($post->source_id)->toBe($template->id)
-        ->and($post->latestApprovalRequest)->toBeNull()
+        ->and($post->latestApprovalRequest?->status)->toBe(SocialApprovalRequest::STATUS_APPROVED)
+        ->and($post->latestApprovalRequest?->socialPostRevision?->is($post->approvedRevision))->toBeTrue()
+        ->and($post->approvedRevision?->approval_provenance)->toBe(SocialPostRevision::APPROVAL_TYPE_AUTOPILOT_POLICY)
+        ->and(data_get($post->latestApprovalRequest?->metadata, 'autopilot_policy.rule_id'))->toBe($rule->id)
+        ->and(data_get($post->latestApprovalRequest?->metadata, 'autopilot_policy.approval_mode'))
+        ->toBe(SocialAutomationRule::APPROVAL_AUTO_PUBLISH)
+        ->and(data_get($post->latestApprovalRequest?->metadata, 'autopilot_policy.policy_fingerprint'))
+        ->toMatch('/\A[0-9a-f]{64}\z/')
+        ->and(data_get($post->latestApprovalRequest?->metadata, 'autopilot_policy.rule_updated_at'))
+        ->toBe($rule->updated_at?->copy()->utc()->format('Y-m-d\TH:i:s\Z'))
         ->and(data_get($post->metadata, 'automation.rule_id'))->toBe($rule->id)
         ->and(data_get($post->metadata, 'automation.selected_source_type'))->toBe('template')
         ->and($post->targets)->toHaveCount(1)
-        ->and($post->targets->first()?->status)->toBe(SocialPostTarget::STATUS_PENDING);
+        ->and($post->targets->first()?->status)->toBe(SocialPostTarget::STATUS_PENDING)
+        ->and($post->targets->first()?->lastSubmittedRevision?->is($post->approvedRevision))->toBeTrue();
 
     $run = SocialAutomationRun::query()->sole();
 
     expect($run->status)->toBe(SocialAutomationRun::STATUS_GENERATED)
         ->and($run->outcome_code)->toBe('auto_published')
         ->and($run->social_post_id)->toBe($post->id);
+});
+
+it('refuses autopilot publication when the snapshotted policy no longer authorizes it', function () {
+    Queue::fake();
+
+    $owner = socialAutopilotOwner();
+    $connection = socialAutopilotConnection($owner, SocialAccountConnection::PLATFORM_FACEBOOK);
+    $rule = socialAutopilotRule($owner, [
+        'approval_mode' => SocialAutomationRule::APPROVAL_AUTO_PUBLISH,
+        'target_connection_ids' => [$connection->id],
+    ]);
+    $draft = app(SocialPostService::class)->createAutomationDraft(
+        $owner,
+        $owner,
+        $rule,
+        collect([$connection]),
+        [
+            'source_type' => 'template',
+            'source_id' => socialAutopilotTemplate($owner)->id,
+            'content_payload' => ['text' => 'Politique Autopilot immuable'],
+        ],
+    );
+    $execution = socialAutopilotExecutionClaim($rule);
+
+    $rule->forceFill([
+        'approval_mode' => SocialAutomationRule::APPROVAL_REQUIRED,
+        'updated_at' => now()->addSecond(),
+    ])->save();
+
+    expect(fn () => app(SocialPublishingService::class)->publishNowFromAutopilot(
+        $owner,
+        $owner,
+        $draft,
+        $rule,
+        $execution['policy'],
+        $execution['claim_token'],
+    ))->toThrow(LogicException::class, 'no longer authorizes automatic publication');
+
+    expect($draft->fresh()->approved_revision_id)->toBeNull()
+        ->and($draft->approvalRequests()->count())->toBe(0)
+        ->and($draft->targets()->sole()->last_submitted_revision_id)->toBeNull();
+    Queue::assertNothingPushed();
+});
+
+it('refuses autopilot publication when the policy version changed after revision capture', function () {
+    Queue::fake();
+
+    $owner = socialAutopilotOwner();
+    $connection = socialAutopilotConnection($owner, SocialAccountConnection::PLATFORM_FACEBOOK);
+    $rule = socialAutopilotRule($owner, [
+        'approval_mode' => SocialAutomationRule::APPROVAL_AUTO_PUBLISH,
+        'target_connection_ids' => [$connection->id],
+    ]);
+    $draft = app(SocialPostService::class)->createAutomationDraft(
+        $owner,
+        $owner,
+        $rule,
+        collect([$connection]),
+        [
+            'content_payload' => ['text' => 'Version de politique figée'],
+        ],
+    );
+    $execution = socialAutopilotExecutionClaim($rule);
+
+    $originalUpdatedAt = $rule->updated_at?->copy();
+    $rule->timestamps = false;
+    $rule->forceFill([
+        'metadata' => array_merge((array) $rule->metadata, [
+            'generation_settings' => ['tone' => SocialAutomationRule::AI_TONE_PREMIUM],
+        ]),
+        'updated_at' => $originalUpdatedAt,
+    ])->save();
+    $rule->timestamps = true;
+
+    expect(fn () => app(SocialPublishingService::class)->publishNowFromAutopilot(
+        $owner,
+        $owner,
+        $draft,
+        $rule,
+        $execution['policy'],
+        $execution['claim_token'],
+    ))->toThrow(LogicException::class, 'policy changed after candidate generation');
+
+    expect($draft->fresh()->approved_revision_id)->toBeNull()
+        ->and($draft->approvalRequests()->count())->toBe(0);
+    Queue::assertNothingPushed();
+});
+
+it('discards a generated candidate when the autopilot policy changes during generation', function () {
+    Queue::fake();
+
+    $owner = socialAutopilotOwner();
+    $connection = socialAutopilotConnection($owner, SocialAccountConnection::PLATFORM_FACEBOOK);
+    $product = socialAutopilotProduct($owner, 'Policy fenced product');
+    $rule = socialAutopilotRule($owner, [
+        'approval_mode' => SocialAutomationRule::APPROVAL_AUTO_PUBLISH,
+        'content_sources' => [
+            ['type' => 'product', 'mode' => 'selected_ids', 'ids' => [$product->id]],
+        ],
+        'target_connection_ids' => [$connection->id],
+    ]);
+    $realGenerator = app(SocialContentGeneratorService::class);
+    $generator = \Mockery::mock(SocialContentGeneratorService::class);
+    $generator->shouldReceive('generate')
+        ->once()
+        ->andReturnUsing(function (User $candidateOwner, SocialAutomationRule $candidateRule, array $source) use (
+            $realGenerator,
+            $rule,
+        ): array {
+            $candidate = $realGenerator->generate($candidateOwner, $candidateRule, $source);
+            $storedRule = SocialAutomationRule::query()->findOrFail($rule->id);
+            $originalUpdatedAt = $storedRule->updated_at?->copy();
+            $usesTimestamps = $storedRule->timestamps;
+            $storedRule->timestamps = false;
+
+            try {
+                $storedRule->forceFill([
+                    'metadata' => array_merge((array) $storedRule->metadata, [
+                        'generation_settings' => [
+                            'tone' => SocialAutomationRule::AI_TONE_PREMIUM,
+                        ],
+                    ]),
+                    'updated_at' => $originalUpdatedAt,
+                ])->save();
+            } finally {
+                $storedRule->timestamps = $usesTimestamps;
+            }
+
+            return $candidate;
+        });
+    $this->app->instance(SocialContentGeneratorService::class, $generator);
+
+    $result = app(SocialAutomationRunnerService::class)->runRule($rule);
+
+    expect($result['status'])->toBe('skipped')
+        ->and($result['message'])->toContain('claim or its policy changed')
+        ->and(SocialPost::query()->count())->toBe(0)
+        ->and(SocialApprovalRequest::query()->count())->toBe(0)
+        ->and(SocialAutomationRun::query()->count())->toBe(0)
+        ->and($rule->fresh()?->execution_claim_token)->toBeNull()
+        ->and($rule->fresh()?->execution_claimed_until)->toBeNull();
+    Queue::assertNothingPushed();
+});
+
+it('fences an expired replaced claim and lets only the next runner commit', function () {
+    Queue::fake();
+
+    $owner = socialAutopilotOwner();
+    $connection = socialAutopilotConnection($owner, SocialAccountConnection::PLATFORM_FACEBOOK);
+    $product = socialAutopilotProduct($owner, 'Claim fenced product');
+    $rule = socialAutopilotRule($owner, [
+        'content_sources' => [
+            ['type' => 'product', 'mode' => 'selected_ids', 'ids' => [$product->id]],
+        ],
+        'target_connection_ids' => [$connection->id],
+    ]);
+    $realGenerator = app(SocialContentGeneratorService::class);
+    $generationAttempt = 0;
+    $generator = \Mockery::mock(SocialContentGeneratorService::class);
+    $generator->shouldReceive('generate')
+        ->twice()
+        ->andReturnUsing(function (User $candidateOwner, SocialAutomationRule $candidateRule, array $source) use (
+            $realGenerator,
+            $rule,
+            &$generationAttempt,
+        ): array {
+            $candidate = $realGenerator->generate($candidateOwner, $candidateRule, $source);
+            $generationAttempt++;
+
+            if ($generationAttempt === 1) {
+                $storedRule = SocialAutomationRule::query()->findOrFail($rule->id);
+                $usesTimestamps = $storedRule->timestamps;
+                $storedRule->timestamps = false;
+
+                try {
+                    $storedRule->forceFill([
+                        'execution_claim_token' => (string) Str::uuid(),
+                        'execution_claimed_until' => now()->subSecond(),
+                    ])->save();
+                } finally {
+                    $storedRule->timestamps = $usesTimestamps;
+                }
+            }
+
+            return $candidate;
+        });
+    $this->app->instance(SocialContentGeneratorService::class, $generator);
+    $runner = app(SocialAutomationRunnerService::class);
+
+    $staleResult = $runner->runRule($rule);
+    $winningResult = $runner->runRule($rule->fresh(['user', 'createdBy']));
+
+    expect($staleResult['status'])->toBe('skipped')
+        ->and($winningResult['status'])->toBe('generated')
+        ->and(SocialPost::query()->count())->toBe(1)
+        ->and(SocialApprovalRequest::query()->count())->toBe(1)
+        ->and(SocialAutomationRun::query()->count())->toBe(1)
+        ->and($rule->fresh()?->execution_claim_token)->toBeNull()
+        ->and($rule->fresh()?->execution_claimed_until)->toBeNull();
+    Queue::assertNothingPushed();
+});
+
+it('records a human publication of an automation draft as direct approval', function () {
+    Queue::fake();
+
+    $owner = socialAutopilotOwner();
+    $connection = socialAutopilotConnection($owner, SocialAccountConnection::PLATFORM_FACEBOOK);
+    $rule = socialAutopilotRule($owner, [
+        'approval_mode' => SocialAutomationRule::APPROVAL_REQUIRED,
+        'target_connection_ids' => [$connection->id],
+    ]);
+    $draft = app(SocialPostService::class)->createAutomationDraft(
+        $owner,
+        $owner,
+        $rule,
+        collect([$connection]),
+        [
+            'source_type' => 'template',
+            'source_id' => socialAutopilotTemplate($owner)->id,
+            'content_payload' => ['text' => 'Publication humaine explicite'],
+        ],
+    );
+
+    app(SocialPublishingService::class)->publishNow($owner, $owner, $draft);
+
+    $publishedDraft = $draft->fresh(['approvedRevision', 'latestApprovalRequest']);
+
+    expect($publishedDraft->approvedRevision?->origin)->toBe(SocialPostRevision::ORIGIN_AUTOMATION)
+        ->and($publishedDraft->approvedRevision?->approval_provenance)
+        ->toBe(SocialPostRevision::APPROVAL_TYPE_DIRECT_IMPLICIT)
+        ->and(data_get($publishedDraft->latestApprovalRequest?->metadata, 'autopilot_policy'))->toBeNull();
 });
 
 it('skips a pulse automation rule when its target account is no longer publishable', function () {

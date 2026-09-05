@@ -36,14 +36,19 @@ const activeTabId = computed(() => {
     return props.tabs[0]?.id || null;
 });
 
+const isNavigation = computed(() => props.tabs.every((tab) => Boolean(tab.href)));
+
 const gridClass = computed(() => {
+    if (props.columns <= 1) {
+        return 'grid-cols-1';
+    }
     if (props.columns >= 4) {
-        return 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4';
+        return 'grid-cols-1 sm:grid-cols-2 xl:grid-cols-4';
     }
     if (props.columns === 3) {
-        return 'grid-cols-1 md:grid-cols-3';
+        return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3';
     }
-    return 'grid-cols-1 md:grid-cols-2';
+    return 'grid-cols-1 sm:grid-cols-2';
 });
 
 const panelTone = (tone, active) => {
@@ -85,23 +90,34 @@ const isActive = (tab) => activeTabId.value === tab.id;
 </script>
 
 <template>
-    <div class="rounded-[1.75rem] border border-stone-200/80 bg-white/80 p-2 shadow-[0_24px_60px_-42px_rgba(15,23,42,0.45)] backdrop-blur dark:border-neutral-800 dark:bg-neutral-900/70">
-        <div class="grid gap-2" :class="gridClass" role="tablist" :aria-label="ariaLabel">
+    <component
+        :is="isNavigation ? 'nav' : 'div'"
+        class="w-full min-w-0 max-w-full rounded-sm border border-stone-200/80 bg-white/80 p-2 shadow-[0_24px_60px_-42px_rgba(15,23,42,0.45)] backdrop-blur dark:border-neutral-800 dark:bg-neutral-900/70"
+        :aria-label="isNavigation ? ariaLabel : undefined"
+    >
+        <div
+            class="grid min-w-0 gap-2"
+            :class="gridClass"
+            :role="isNavigation ? undefined : 'tablist'"
+            :aria-label="isNavigation ? undefined : ariaLabel"
+        >
             <component
                 :is="tab.href && !tab.disabled ? Link : 'button'"
                 v-for="tab in tabs"
                 :key="tab.id"
                 :href="tab.href && !tab.disabled ? tab.href : null"
                 :type="tab.href ? null : 'button'"
-                class="group rounded-[1.35rem] border px-4 py-3 text-left transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-50 disabled:cursor-not-allowed disabled:opacity-60 dark:focus-visible:ring-offset-neutral-950"
+                class="group min-w-0 rounded-sm border px-4 py-3 text-left transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-stone-50 disabled:cursor-not-allowed disabled:opacity-60 dark:focus-visible:ring-offset-neutral-950"
                 :class="panelTone(tab.tone, isActive(tab))"
                 :disabled="tab.disabled && !tab.href"
-                :aria-current="tab.href && isActive(tab) ? 'page' : null"
+                :role="isNavigation ? undefined : 'tab'"
+                :aria-selected="isNavigation ? undefined : isActive(tab)"
+                :aria-current="isNavigation && isActive(tab) ? 'page' : undefined"
                 @click="handleClick(tab)"
             >
                 <div class="flex items-start justify-between gap-3">
                     <div class="min-w-0">
-                        <p class="text-sm font-semibold leading-tight">
+                        <p class="min-w-0 break-words text-sm font-semibold leading-tight">
                             {{ tab.label }}
                         </p>
                         <p
@@ -122,5 +138,5 @@ const isActive = (tab) => activeTabId.value === tab.id;
                 </div>
             </component>
         </div>
-    </div>
+    </component>
 </template>

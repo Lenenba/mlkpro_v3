@@ -220,7 +220,18 @@ const closeOverlay = () => {
     }
 };
 
-const submit = () => {
+// The create modal reuses a single component instance, so the form has to wipe
+// itself after a successful create. Otherwise the next create starts pre-filled
+// with the service that was just saved.
+const resetForCreate = () => {
+    form.reset();
+    form.clearErrors();
+    showCategoryForm.value = false;
+    categoryName.value = '';
+    categoryError.value = '';
+};
+
+const performSubmit = ({ keepOpen = false } = {}) => {
     if (!isValid.value) {
         form.setError('form', t('services.form.errors.required_fields'));
         return;
@@ -230,8 +241,9 @@ const submit = () => {
 
     normalizeMaterials();
 
-    const routeName = props.service?.id ? 'service.update' : 'service.store';
-    const routeParams = props.service?.id ? props.service.id : undefined;
+    const isUpdate = Boolean(props.service?.id);
+    const routeName = isUpdate ? 'service.update' : 'service.store';
+    const routeParams = isUpdate ? props.service.id : undefined;
 
     form
         .transform((data) => ({
@@ -239,14 +251,24 @@ const submit = () => {
             image: data.image instanceof File ? data.image : null,
             remove_image: Boolean(data.remove_image),
         }))
-        [props.service?.id ? 'put' : 'post'](route(routeName, routeParams), {
+        [isUpdate ? 'put' : 'post'](route(routeName, routeParams), {
             preserveScroll: true,
             onSuccess: () => {
                 emit('submitted');
-                closeOverlay();
+
+                if (!isUpdate) {
+                    resetForCreate();
+                }
+
+                if (!keepOpen) {
+                    closeOverlay();
+                }
             },
         });
 };
+
+const submit = () => performSubmit();
+const submitAndCreateAnother = () => performSubmit({ keepOpen: true });
 </script>
 
 <template>
@@ -284,7 +306,7 @@ const submit = () => {
                 </div>
             </div>
             <FloatingSelect v-model="form.unit" :label="$t('services.form.unit')" :options="unitOptions" />
-            <FloatingNumberInput v-model="form.tax_rate" :label="$t('services.form.tax_rate')" :step="0.01" />
+            <FloatingNumberInput v-model="form.tax_rate" :label="$t('services.form.tax_rate')" :step="0.0001" />
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -299,7 +321,11 @@ const submit = () => {
         </div>
 
         <FloatingTextarea v-model="form.description" :label="$t('services.form.description')" />
-        <DropzoneInput v-model="form.image" :label="$t('services.form.image')" />
+        <DropzoneInput
+            v-model="form.image"
+            :label="$t('services.form.image')"
+            :allowed-extensions="['jpg', 'jpeg', 'png', 'webp']"
+        />
 
         <div class="space-y-3">
             <div class="flex items-center justify-between">
@@ -355,6 +381,10 @@ const submit = () => {
             <button type="button" :data-hs-overlay="overlayTarget || undefined"
                 class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200">
                 {{ $t('services.actions.cancel') }}
+            </button>
+            <button v-if="!props.service" type="button" :disabled="form.processing" @click="submitAndCreateAnother"
+                class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-green-600 text-green-700 hover:bg-green-50 disabled:opacity-50 dark:text-green-400 dark:hover:bg-green-500/10">
+                {{ $t('services.actions.save_and_create_another') }}
             </button>
             <button type="submit" :disabled="form.processing"
                 class="py-2 px-3 inline-flex items-center text-sm font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50">

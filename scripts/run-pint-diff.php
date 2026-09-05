@@ -105,7 +105,7 @@ function phpFileChanges(): array
             'unstaged deleted PHP files'
         ),
         'staged_deleted' => gitFileList(
-            'git diff --cached --name-only -z --diff-filter=D -- "*.php"',
+            'git diff --cached --name-only -z --diff-filter=D --no-renames -- "*.php"',
             'staged deleted PHP files'
         ),
     ];
@@ -159,7 +159,7 @@ function diffPhpFiles(string $baseBranch, string $mode, bool $deletedOnly = fals
         exit(1);
     }
 
-    $diffFilter = $deletedOnly ? ' --diff-filter=D' : '';
+    $diffFilter = $deletedOnly ? ' --diff-filter=D --no-renames' : '';
     $description = $deletedOnly ? 'deleted PHP files' : 'PHP files';
 
     return gitFileList(

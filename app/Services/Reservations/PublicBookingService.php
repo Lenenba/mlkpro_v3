@@ -118,7 +118,7 @@ class PublicBookingService
             : LeadRequest::PUBLIC_STATUS_BOOKING_REQUESTED;
         $contactName = $this->contactName($validated);
 
-        $result = DB::transaction(function () use ($account, $contactName, $link, $publicStatus, $service, $status, $startsAt, $validated) {
+        $result = DB::transaction(function () use ($account, $contactName, $link, $publicStatus, $service, $slot, $status, $startsAt, $validated) {
             $prospect = LeadRequest::query()->create([
                 'user_id' => (int) $account->id,
                 'public_booking_link_id' => (int) $link->id,
@@ -339,7 +339,8 @@ class PublicBookingService
                     $details,
                     $actionUrl,
                     $isFr ? 'Ouvrir les reservations' : 'Open reservations',
-                    $title
+                    $title,
+                    mirrorInApp: false
                 ), $context);
             }
         }
@@ -358,7 +359,8 @@ class PublicBookingService
                 $isFr ? 'Voir la page de reservation' : 'View booking page',
                 $link->requires_manual_confirmation
                     ? ($isFr ? 'Demande de reservation recue' : 'Booking request received')
-                    : ($isFr ? 'Reservation confirmee' : 'Booking confirmed')
+                    : ($isFr ? 'Reservation confirmee' : 'Booking confirmed'),
+                accountOwnerId: $account->id,
             ), [
                 'reservation_id' => $reservation->id,
                 'prospect_id' => $reservation->prospect_id,

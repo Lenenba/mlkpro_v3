@@ -1,6 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 
 const props = defineProps({
     analytics: {
@@ -98,67 +99,67 @@ const cards = computed(() => [
         key: 'total',
         label: t('requests.analytics.dashboard.cards.total'),
         value: formatNumber(summary.value.total),
-        note: t('requests.analytics.dashboard.cards.total_note'),
-        borderClass: 'border-t-stone-700',
+        context: t('requests.analytics.dashboard.cards.total_note'),
+        tone: 'stone',
     },
     {
         key: 'new_this_week',
         label: t('requests.analytics.dashboard.cards.new_this_week'),
         value: formatNumber(summary.value.new_this_week),
-        note: t('requests.analytics.dashboard.cards.new_this_week_note'),
-        borderClass: 'border-t-sky-600',
+        context: t('requests.analytics.dashboard.cards.new_this_week_note'),
+        tone: 'sky',
     },
     {
         key: 'new_this_month',
         label: t('requests.analytics.dashboard.cards.new_this_month'),
         value: formatNumber(summary.value.new_this_month),
-        note: t('requests.analytics.dashboard.cards.new_this_month_note'),
-        borderClass: 'border-t-indigo-600',
+        context: t('requests.analytics.dashboard.cards.new_this_month_note'),
+        tone: 'indigo',
     },
     {
         key: 'due_today',
         label: t('requests.analytics.dashboard.cards.due_today'),
         value: formatNumber(summary.value.due_today),
-        note: t('requests.analytics.dashboard.cards.due_today_note'),
-        borderClass: 'border-t-amber-600',
+        context: t('requests.analytics.dashboard.cards.due_today_note'),
+        tone: 'amber',
     },
     {
         key: 'overdue',
         label: t('requests.analytics.dashboard.cards.overdue'),
         value: formatNumber(summary.value.overdue),
-        note: t('requests.analytics.dashboard.cards.overdue_note'),
-        borderClass: 'border-t-rose-600',
+        context: t('requests.analytics.dashboard.cards.overdue_note'),
+        tone: 'rose',
     },
     {
         key: 'won',
         label: t('requests.analytics.dashboard.cards.won'),
         value: formatNumber(summary.value.won),
-        note: t('requests.analytics.dashboard.cards.won_note'),
-        borderClass: 'border-t-emerald-600',
+        context: t('requests.analytics.dashboard.cards.won_note'),
+        tone: 'emerald',
     },
     {
         key: 'lost',
         label: t('requests.analytics.dashboard.cards.lost'),
         value: formatNumber(summary.value.lost),
-        note: t('requests.analytics.dashboard.cards.lost_note'),
-        borderClass: 'border-t-rose-700',
+        context: t('requests.analytics.dashboard.cards.lost_note'),
+        tone: 'rose',
     },
     {
         key: 'conversion_rate',
         label: t('requests.analytics.dashboard.cards.conversion_rate', { days: windowDays.value }),
         value: formatPercent(summary.value.conversion_rate),
-        note: t('requests.analytics.dashboard.cards.conversion_rate_note', {
+        context: t('requests.analytics.dashboard.cards.conversion_rate_note', {
             converted: formatNumber(summary.value.conversion_converted_count),
             created: formatNumber(summary.value.conversion_created_count),
         }),
-        borderClass: 'border-t-cyan-600',
+        tone: 'cyan',
     },
     {
         key: 'avg_conversion_days',
         label: t('requests.analytics.dashboard.cards.avg_conversion_days', { days: windowDays.value }),
         value: formatDays(summary.value.avg_conversion_days),
-        note: t('requests.analytics.dashboard.cards.avg_conversion_days_note'),
-        borderClass: 'border-t-violet-600',
+        context: t('requests.analytics.dashboard.cards.avg_conversion_days_note'),
+        tone: 'violet',
     },
 ]);
 </script>
@@ -204,18 +205,12 @@ const cards = computed(() => [
             </div>
         </div>
 
-        <div v-if="activeTab === 'overview'" class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
-            <div
-                v-for="card in cards"
-                :key="card.key"
-                class="rounded-sm border border-stone-200 border-t-4 bg-stone-50 p-4 dark:border-neutral-700 dark:bg-neutral-800"
-                :class="card.borderClass"
-            >
-                <div class="text-xs text-stone-500 dark:text-neutral-400">{{ card.label }}</div>
-                <div class="mt-2 text-2xl font-semibold text-stone-800 dark:text-neutral-100">{{ card.value }}</div>
-                <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">{{ card.note }}</div>
-            </div>
-        </div>
+        <KpiMetricGrid
+            v-if="activeTab === 'overview'"
+            :metrics="cards"
+            grid-class="grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5"
+            :aria-label="$t('requests.analytics.dashboard.title')"
+        />
 
         <div v-else-if="activeTab === 'pipeline'" class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr),minmax(0,1fr)]">
             <div class="rounded-sm border border-stone-200 bg-white p-4 dark:border-neutral-700 dark:bg-neutral-900">

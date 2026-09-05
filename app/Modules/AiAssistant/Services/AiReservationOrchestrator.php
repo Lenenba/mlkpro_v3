@@ -34,6 +34,15 @@ class AiReservationOrchestrator
         $draft = $this->updatedDraft($conversation, $message, $services, $tenant);
         $recommendations = $this->recommendationEngine->analyze($conversation, $settings, $tenant, $services, $draft, $message, $language);
         $draft = $this->recommendationEngine->applyToDraft($draft, $recommendations);
+        if (($previousDraft['preferred_time_start'] ?? null) !== ($draft['preferred_time_start'] ?? null)
+            || ($previousDraft['preferred_time_end'] ?? null) !== ($draft['preferred_time_end'] ?? null)) {
+            unset($draft['proposed_slots'], $draft['selected_slot'], $draft['preferred_time']);
+        }
+        if (! empty($previousDraft['selected_slot']) && empty($draft['selected_slot'])
+            && empty($draft['preferred_date']) && empty($draft['preferred_date_start'])) {
+            $draft['preferred_date'] = Carbon::parse($previousDraft['selected_slot']['starts_at'])
+                ->setTimezone($this->availabilityService->timezoneForAccount($tenant))->toDateString();
+        }
         $warmOpening = $this->warmOpeningFor($conversation, $previousDraft, $draft, $message, $language);
         $serviceAcknowledgement = $this->missingInformationMessageBuilder->selectedServiceAcknowledgement($previousDraft, $draft, $language);
         $opening = $this->joinSentences($warmOpening, $serviceAcknowledgement);
@@ -49,6 +58,29 @@ class AiReservationOrchestrator
 
         $freshConversation = $conversation->fresh() ?? $conversation;
         $confirmation = (array) data_get($freshConversation->metadata, 'booking_confirmation', []);
+        if ($this->isAwaitingBookingConfirmation($confirmation) && $this->bookingDetailsChanged($previousDraft, $draft)) {
+            $missingFields = $this->missingFields($draft);
+            $selectedSlot = (array) ($draft['selected_slot'] ?? []);
+            $confirmation = [
+                'summary_shown' => $selectedSlot !== [],
+                'awaiting_user_confirmation' => $selectedSlot !== [] && $missingFields === [],
+                'confirmed_by_user' => false,
+            ];
+            $this->updateConversationMetadata($freshConversation, ['booking_confirmation' => $confirmation]);
+            $conversation->refresh();
+
+            if ($selectedSlot !== []) {
+                return $opening.$this->bookingSummaryBuilder->build(
+                    $draft,
+                    $selectedSlot,
+                    $missingFields,
+                    $language,
+                    $this->availabilityService->timezoneForAccount($tenant),
+                    $this->willAutoConfirmReservation($settings)
+                );
+            }
+        }
+
         if ($this->isAwaitingBookingConfirmation($confirmation)) {
             if ($this->isPositiveConfirmation($message)) {
                 $missingFields = $this->missingFields($draft);
@@ -133,7 +165,7 @@ class AiReservationOrchestrator
                 return $opening.$this->line($language, 'invalid_date');
             }
 
-            return $opening.$this->missingInformationMessageBuilder->build($draft, $missingFields, $services, $language);
+            return $opening.$this->missingInformationMessageBuilder->build($draft, $missingFields, $this->serviceOptions($services, $draft), $language);
         }
 
         if (empty($draft['proposed_slots'])) {
@@ -148,6 +180,11 @@ class AiReservationOrchestrator
             if ($slots === []) {
                 $alternativeSlots = $this->proposeAlternativeSlots($tenant, $draft);
                 if ($alternativeSlots !== []) {
+                    $draft['proposed_slots'] = $alternativeSlots;
+                    $this->updateConversationMetadata($conversation, [
+                        'reservation_draft' => $draft,
+                    ]);
+
                     return $warmOpening.$this->summaryLine($draft, $language).$this->formatAlternativeSlotProposal($alternativeSlots, $language);
                 }
 
@@ -193,36 +230,66 @@ class AiReservationOrchestrator
         $draft = (array) data_get($conversation->metadata, 'reservation_draft', []);
         $text = trim($message);
         $expectedField = $this->firstMissingField($draft);
+        $phone = $this->extractPhone($text);
+        $email = $this->extractEmail($text);
+        $dateSelection = $this->extractDateSelection($phone ? str_replace($phone, ' ', $text) : $text, $tenant);
+        $time = $this->extractTime($text);
+        $service = $this->matchServiceSelection($text, $this->serviceOptions($services, $draft), $expectedField)
+            ?? $this->matchService($text, $services);
+        if (! $service && $expectedField === 'service_id') {
+            $query = $this->normalizedText($text);
+            $query = preg_replace('/^(?:je (?:veux|voudrais|souhaite) (?:reserver )?(?:un |une |le |la )?|i (?:want|would like) (?:to book )?(?:a )?)/u', '', $query) ?? $query;
+            $matches = Str::length($query) >= 3
+                ? $services->filter(fn (Product $option): bool => Str::contains($this->normalizedText((string) $option->name), $query))->values()
+                : collect();
+            if ($matches->count() === 1) {
+                $service = $matches->first();
+            } elseif ($matches->count() > 1) {
+                $draft['service_option_ids'] = $matches->pluck('id')->all();
+            }
+        }
 
-        if ($email = $this->extractEmail($text)) {
+        if ($email) {
             $draft['contact_email'] = $email;
         }
 
-        if ($phone = $this->extractPhone($text)) {
+        if ($phone) {
             $draft['contact_phone'] = $phone;
         }
 
-        if ($name = $this->extractName($text)) {
+        $nameText = $this->stripContactDetails($text, $phone, $email);
+        if ($name = $this->extractName($nameText)) {
             $draft['contact_name'] = $name;
-        } elseif ($expectedField === 'contact_name' && ($name = $this->plainTextName($this->stripContactDetails($text, $phone, $email)))) {
-            $draft['contact_name'] = $name;
+        } elseif ($expectedField === 'contact_name' && ! $dateSelection && ! $time && ! $service) {
+            $nameText = preg_replace('/^(?:mon\s+nom\s+de\s+famille|my\s+(?:last\s+name|surname))\s*(?:est|is|:)?\s*/iu', '', $nameText) ?? $nameText;
+            if ($name = $this->plainTextName($nameText)) {
+                $previousName = trim((string) ($draft['contact_name'] ?? ''));
+                $normalizedName = $this->normalizedText($name);
+                $normalizedPreviousName = $this->normalizedText($previousName);
+
+                if ($previousName === '' || Str::startsWith($normalizedName, $normalizedPreviousName.' ')) {
+                    $draft['contact_name'] = $name;
+                } elseif ($normalizedName !== $normalizedPreviousName) {
+                    $draft['contact_name'] = $previousName.' '.$name;
+                }
+            }
         }
 
-        if ($dateSelection = $this->extractDateSelection($text, $tenant)) {
+        if ($dateSelection) {
             unset($draft['preferred_date'], $draft['preferred_date_start'], $draft['preferred_date_end'], $draft['preferred_date_label']);
             $draft = array_merge($draft, $dateSelection);
             unset($draft['proposed_slots'], $draft['selected_slot']);
         }
 
-        if ($time = $this->extractTime($text)) {
+        if ($time) {
             $draft['preferred_time'] = $time;
             unset($draft['proposed_slots'], $draft['selected_slot']);
         }
 
-        if ($service = $this->matchServiceSelection($text, $services, $expectedField)) {
+        if ($service) {
             $draft['service_id'] = (int) $service->id;
             $draft['service_name'] = (string) $service->name;
-            unset($draft['proposed_slots'], $draft['selected_slot']);
+            unset($draft['proposed_slots'], $draft['selected_slot'], $draft['service_option_ids']);
         }
 
         if ($address = $this->extractAddress($text, $expectedField, $draft)) {
@@ -234,6 +301,33 @@ class AiReservationOrchestrator
         }
 
         return $draft;
+    }
+
+    /**
+     * @param  Collection<int, Product>  $services
+     * @param  array<string, mixed>  $draft
+     * @return Collection<int, Product>
+     */
+    private function serviceOptions(Collection $services, array $draft): Collection
+    {
+        $ids = (array) ($draft['service_option_ids'] ?? []);
+
+        return $ids !== [] ? $services->whereIn('id', $ids)->values() : $services;
+    }
+
+    /**
+     * @param  array<string, mixed>  $previousDraft
+     * @param  array<string, mixed>  $draft
+     */
+    private function bookingDetailsChanged(array $previousDraft, array $draft): bool
+    {
+        foreach (['service_id', 'contact_name', 'contact_phone', 'contact_email', 'service_address', 'preferred_date', 'preferred_date_start', 'preferred_date_end', 'preferred_time', 'preferred_time_start', 'preferred_time_end', 'selected_slot'] as $field) {
+            if (($previousDraft[$field] ?? null) !== ($draft[$field] ?? null)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function firstMissingField(array $draft): ?string
@@ -324,13 +418,14 @@ class AiReservationOrchestrator
             (int) $draft['service_id'],
             null
         );
+        $preferredTeamMemberId = (int) ($draft['preferred_team_member_id'] ?? 0);
 
         $result = $this->availabilityService->generateSlots(
             (int) $tenant->id,
             $startsAt->copy()->utc(),
             $endsAt->copy()->utc(),
             $durationMinutes,
-            null,
+            $preferredTeamMemberId > 0 ? $preferredTeamMemberId : null,
             null,
             null
         );
@@ -577,9 +672,27 @@ class AiReservationOrchestrator
 
     private function isPositiveConfirmation(string $message): bool
     {
-        $text = $this->normalizedText($message);
+        $text = $this->normalizedDecisionText($message);
 
-        return preg_match('/^(oui|yes|ok|okay|parfait|confirme|je confirme|c est bon|cest bon|go)$/u', $text) === 1;
+        return in_array($text, [
+            'oui',
+            'oui merci',
+            'oui je confirme',
+            'yes',
+            'ok',
+            'okay',
+            'parfait',
+            'confirme',
+            'comfirme',
+            'je confirme',
+            'c est bon',
+            'cest bon',
+            'ca marche',
+            'd accord',
+            'vas y',
+            'allez y',
+            'go',
+        ], true);
     }
 
     private function isNegativeConfirmation(string $message): bool
@@ -590,25 +703,16 @@ class AiReservationOrchestrator
             || Str::contains($text, ['modifier', 'changer', 'pas bon']);
     }
 
+    private function normalizedDecisionText(string $message): string
+    {
+        $text = preg_replace('/[^\pL\pN]+/u', ' ', $this->normalizedText($message)) ?? '';
+
+        return Str::squish($text);
+    }
+
     private function willAutoConfirmReservation(AiAssistantSetting $settings): bool
     {
         return false;
-    }
-
-    private function questionFor(string $field, string $language, Collection $services): string
-    {
-        $isFr = $language === 'fr';
-
-        return match ($field) {
-            'service_id' => $isFr
-                ? 'Quel service souhaitez-vous réserver? '.$this->availableServicesLine($services, 'fr')
-                : 'Which service are you interested in booking? '.$this->availableServicesLine($services, 'en'),
-            'contact_name' => $isFr ? 'Quel est votre nom complet?' : 'What is your full name?',
-            'contact_phone' => $isFr ? 'Quel numéro de téléphone pouvons-nous utiliser?' : 'What phone number can we use?',
-            'contact_email' => $isFr ? 'Quelle est votre adresse email?' : 'What email address should we use?',
-            'preferred_date' => $isFr ? 'Pour quelle date souhaitez-vous reserver?' : 'What date would you prefer?',
-            default => $isFr ? 'Pouvez-vous me donner un peu plus de details?' : 'Could you share a little more detail?',
-        };
     }
 
     private function warmOpeningFor(
@@ -660,59 +764,18 @@ class AiReservationOrchestrator
         return preg_match('/^(bonjour|bonsoir|salut|allo|hello|hi|hey)\b/u', $normalized) === 1;
     }
 
-    private function availableServicesLine(Collection $services, string $language): string
-    {
-        if ($services->isEmpty()) {
-            return '';
-        }
-
-        $servicesText = $services
-            ->values()
-            ->map(fn (Product $service, int $index): string => ($index + 1).'. '.(string) $service->name)
-            ->implode('; ');
-
-        return ($language === 'fr' ? 'Services disponibles: ' : 'Available services: ').$servicesText.'.';
-    }
-
-    private function withoutDuplicateOpening(string $message, string $warmOpening): string
-    {
-        if (trim($warmOpening) === '') {
-            return $message;
-        }
-
-        return trim(preg_replace('/^(Parfait|Perfect)\s+[A-Za-zÀ-ÿ\'’-]+\.\s*/u', '', $message) ?? $message);
-    }
-
     private function summaryLine(array $draft, string $language): string
     {
         return $this->missingInformationMessageBuilder->naturalUnderstanding($draft, $language);
     }
 
-    private function dateLabel(string $label, string $language): string
-    {
-        return match ($label) {
-            'next_week' => $language === 'fr' ? 'la semaine prochaine' : 'next week',
-            'end_of_month' => $language === 'fr' ? 'la fin du mois' : 'the end of the month',
-            'next_month' => $language === 'fr' ? 'le mois prochain' : 'next month',
-            'weekend' => $language === 'fr' ? 'la fin de semaine' : 'the weekend',
-            default => $label,
-        };
-    }
-
-    private function timeLabel(string $label, string $language): string
-    {
-        return match ($label) {
-            'after_work' => $language === 'fr' ? 'apres le travail' : 'after work',
-            'evening' => $language === 'fr' ? 'le soir' : 'in the evening',
-            'morning' => $language === 'fr' ? 'le matin' : 'in the morning',
-            'afternoon' => $language === 'fr' ? 'l apres-midi' : 'in the afternoon',
-            default => $label,
-        };
-    }
-
     private function looksLikeShortPhoneAttempt(string $message): bool
     {
-        $digits = preg_replace('/\D+/', '', $message) ?? '';
+        $text = preg_replace('/^(?:(?:mon|my)\s+)?(?:tel|téléphone|telephone|phone|cell|numero|numéro)\s*(?:est|is|:)?\s*/iu', '', trim($message)) ?? $message;
+        if (preg_match('/^\+?[\d\s().-]+$/', $text) !== 1 || preg_match('/\b\d{4}-\d{2}-\d{2}\b/', $text) === 1) {
+            return false;
+        }
+        $digits = preg_replace('/\D+/', '', $text) ?? '';
 
         return $digits !== '' && strlen($digits) < 7;
     }
@@ -828,10 +891,10 @@ class AiReservationOrchestrator
 
     private function matchService(string $message, Collection $services): ?Product
     {
-        $normalized = Str::lower($message);
+        $normalized = $this->normalizedText($message);
 
         return $services->first(function (Product $service) use ($normalized): bool {
-            return Str::contains($normalized, Str::lower((string) $service->name));
+            return Str::contains($normalized, $this->normalizedText((string) $service->name));
         });
     }
 
@@ -846,11 +909,17 @@ class AiReservationOrchestrator
 
     private function extractPhone(string $message): ?string
     {
-        if (preg_match('/(?:\+?\d[\d\s().-]{6,}\d)/', $message, $matches) !== 1) {
-            return null;
+        $text = preg_replace('/\b(?:\d{4}-\d{2}-\d{2}|\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{4})\b/', ' ', $message) ?? $message;
+        preg_match_all('/(?<!\d)\+?\d[\d\s().-]*\d(?!\d)/', $text, $matches);
+
+        foreach ($matches[0] as $candidate) {
+            $digits = preg_replace('/\D+/', '', $candidate) ?? '';
+            if (strlen($digits) >= 7 && strlen($digits) <= 15) {
+                return trim($candidate);
+            }
         }
 
-        return trim($matches[0]);
+        return null;
     }
 
     private function stripContactDetails(string $message, ?string $phone, ?string $email): string
@@ -877,14 +946,14 @@ class AiReservationOrchestrator
     {
         $stopBeforeIntent = '(?=(?:\s+(?:et\b|and\b|je\s+ve(?:u|ux|ut)\b|j\s*veux\b|i\s+want\b|pour\b|for\b|reservation\b|réservation\b|rdv\b|rendez\b)|[,.;]|$))';
         $patterns = [
-            '/(?:mon\s+nom\s+est|je\s+m[\'’\s]?appell?e?|je\s+m[\'’\s]?apell?e?|j[\'’\s]?m[\'’\s]?appell?e?|moi\s+c[\'’\s]?est|je\s+suis)\s+([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s\'’-]{1,80}?)'.$stopBeforeIntent.'/iu',
+            '/(?:mon\s+nom\s+(?:complet\s+)?est|je\s+m[\'’\s]?appell?e?|je\s+m[\'’\s]?apell?e?|j[\'’\s]?m[\'’\s]?appell?e?|moi\s+c[\'’\s]?est|je\s+suis)\s+([\pL][\pL\s\'’-]{1,80}?)'.$stopBeforeIntent.'/iu',
             '/(?:my\s+name\s+is|i\s+am|i\'m)\s+([A-Za-z][A-Za-z\s\'-]{1,80}?)(?=(?:\s+(?:and\b|i\s+want\b|for\b|booking\b|appointment\b)|[,.;]|$))/iu',
             '/(?:nom|name)\s*:\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s\'-]{1,80})/iu',
         ];
 
         foreach ($patterns as $pattern) {
             if (preg_match($pattern, $message, $matches) === 1) {
-                return trim($matches[1]);
+                return $this->plainTextName($matches[1]);
             }
         }
 
@@ -893,7 +962,7 @@ class AiReservationOrchestrator
 
     private function plainTextName(string $message): ?string
     {
-        $text = trim($message);
+        $text = Str::squish(trim($message, " \t\n\r\0\x0B,.;:!?"));
         if ($text === '' || Str::length($text) > 80) {
             return null;
         }
@@ -906,7 +975,16 @@ class AiReservationOrchestrator
             return null;
         }
 
-        if (preg_match('/^[\pL][\pL\s\'-]{1,79}$/u', $text) !== 1) {
+        $normalized = $this->normalizedText($text);
+        if ($this->mentionedWeekday($normalized) !== null || in_array($normalized, ['merci', 'merci beaucoup', 'bonjour', 'bonsoir', 'salut', 'oui', 'non', 'ok', 'okay', 'parfait', 'thanks', 'thank you', 'hello', 'hi', 'yes', 'no'], true)) {
+            return null;
+        }
+
+        if (preg_match('/^(?:je\b|j\b|i\b|pas\b|peu importe\b|c est\b|d accord\b|(?:le |la |en |the |in the )?(?:matin|soir|morning|afternoon|evening|semaine|week|disponible|available)\b)/u', $normalized) === 1) {
+            return null;
+        }
+
+        if (preg_match('/^[\pL][\pL\pM\s\'’-]{1,79}$/u', $text) !== 1) {
             return null;
         }
 
@@ -1228,6 +1306,10 @@ class AiReservationOrchestrator
     {
         if (preg_match('/\b([01]?\d|2[0-3])[:h]([0-5]\d)\b/u', $message, $matches) === 1) {
             return str_pad($matches[1], 2, '0', STR_PAD_LEFT).':'.$matches[2];
+        }
+
+        if (preg_match('/\b([01]?\d|2[0-3])\s*h\b/iu', $message, $matches) === 1) {
+            return str_pad($matches[1], 2, '0', STR_PAD_LEFT).':00';
         }
 
         if (preg_match('/\b(1[0-2]|0?[1-9])\s*(am|pm)\b/i', $message, $matches) === 1) {

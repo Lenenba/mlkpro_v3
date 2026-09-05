@@ -30,6 +30,7 @@ class AccessControl
             $user->relationLoaded('teamMembership')
             && $user->teamMembership
             && (int) $user->teamMembership->account_id === $accountId
+            && $user->teamMembership->is_active
         ) {
             $membership = $user->teamMembership;
             $membership->loadMissing('companyRole.permissions');

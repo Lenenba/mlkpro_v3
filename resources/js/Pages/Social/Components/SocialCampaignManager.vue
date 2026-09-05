@@ -8,6 +8,7 @@ import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 
 const props = defineProps({
     initialConnectedAccounts: {
@@ -67,6 +68,35 @@ const form = ref({
 
 const canManage = computed(() => Boolean(access.value.can_manage_posts));
 const selectedCount = computed(() => form.value.target_connection_ids.length);
+const campaignMetrics = computed(() => ([
+    {
+        key: 'generated',
+        label: t('social.campaign_manager.summary.generated'),
+        value: generatedPosts.value.length,
+        tone: 'violet',
+        colorClass: 'bg-violet-500/70 dark:bg-violet-400/50',
+        trend: null,
+        points: [],
+    },
+    {
+        key: 'scheduled',
+        label: t('social.campaign_manager.summary.scheduled'),
+        value: Number(summary.value.scheduled || 0),
+        tone: 'sky',
+        colorClass: 'bg-sky-500/70 dark:bg-sky-400/50',
+        trend: null,
+        points: [],
+    },
+    {
+        key: 'targets',
+        label: t('social.campaign_manager.summary.targets'),
+        value: selectedCount.value,
+        tone: 'emerald',
+        colorClass: 'bg-emerald-500/70 dark:bg-emerald-400/50',
+        trend: null,
+        points: [],
+    },
+]));
 const intentionOptions = computed(() => (
     Array.isArray(props.initialIntentionOptions) && props.initialIntentionOptions.length
         ? props.initialIntentionOptions
@@ -202,31 +232,12 @@ const postLabel = (post) => {
             {{ info }}
         </div>
 
-        <section class="grid grid-cols-1 gap-3 md:grid-cols-3">
-            <div class="rounded-md border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                <div class="text-xs uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
-                    {{ t('social.campaign_manager.summary.generated') }}
-                </div>
-                <div class="mt-1 text-xl font-semibold text-stone-900 dark:text-neutral-100">
-                    {{ generatedPosts.length }}
-                </div>
-            </div>
-            <div class="rounded-md border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                <div class="text-xs uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
-                    {{ t('social.campaign_manager.summary.scheduled') }}
-                </div>
-                <div class="mt-1 text-xl font-semibold text-stone-900 dark:text-neutral-100">
-                    {{ Number(summary.scheduled || 0) }}
-                </div>
-            </div>
-            <div class="rounded-md border border-stone-200 bg-white p-4 shadow-sm dark:border-neutral-700 dark:bg-neutral-900">
-                <div class="text-xs uppercase tracking-[0.18em] text-stone-400 dark:text-neutral-500">
-                    {{ t('social.campaign_manager.summary.targets') }}
-                </div>
-                <div class="mt-1 text-xl font-semibold text-stone-900 dark:text-neutral-100">
-                    {{ selectedCount }}
-                </div>
-            </div>
+        <section>
+            <KpiMetricGrid
+                :metrics="campaignMetrics"
+                grid-class="grid-cols-1 md:grid-cols-3"
+                :aria-label="t('social.workspace.tabs.campaigns')"
+            />
         </section>
 
         <section class="grid grid-cols-1 gap-5 xl:grid-cols-[1.15fr,0.85fr]">

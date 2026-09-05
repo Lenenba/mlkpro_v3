@@ -30,32 +30,18 @@ class MissingInformationMessageBuilder
         $missingName = in_array('contact_name', $missingFields, true);
         $missingPhone = in_array('contact_phone', $missingFields, true);
 
-        if ($missingName && $missingPhone) {
-            $firstName = $this->knownFirstName($draft);
-
-            if ($firstName !== '') {
-                return $isFr
-                    ? "J’ai déjà votre prénom, {$firstName}. Pouvez-vous me donner votre nom complet et un numéro de téléphone?"
-                    : "I already have your first name, {$firstName}. Could you share your full name and a phone number?";
-            }
-
-            return $isFr
-                ? 'Pour préparer la demande, j’ai besoin de votre nom complet et d’un numéro de téléphone.'
-                : 'To prepare the request, I need your full name and a phone number.';
-        }
-
         if ($missingName) {
             $firstName = $this->knownFirstName($draft);
 
             if ($firstName !== '') {
                 return $isFr
-                    ? "J’ai déjà votre prénom, {$firstName}. Il me manque seulement votre nom complet pour préparer la demande."
-                    : "I already have your first name, {$firstName}. I only need your full name to prepare the request.";
+                    ? "Merci {$firstName}. Quel est votre nom de famille?"
+                    : "Thanks {$firstName}. What is your last name?";
             }
 
             return $isFr
-                ? 'Il me manque seulement votre nom complet pour préparer la demande.'
-                : 'I only need your full name to prepare the request.';
+                ? 'Pour préparer la demande, quel est votre nom complet?'
+                : 'To prepare the request, what is your full name?';
         }
 
         if ($missingPhone) {
@@ -63,10 +49,11 @@ class MissingInformationMessageBuilder
             $thanks = $name !== ''
                 ? ($isFr ? 'Merci '.$this->displayName($name).'. ' : 'Thanks '.$this->displayName($name).'. ')
                 : '';
+            $onlyPhoneMissing = count($missingFields) === 1;
 
             return $thanks.($isFr
-                ? 'Il me manque seulement un numéro de téléphone pour que l’équipe puisse vous confirmer la demande.'
-                : 'I only need a phone number so the team can confirm the request with you.');
+                ? 'Il me manque '.($onlyPhoneMissing ? 'seulement ' : '').'un numéro de téléphone pour que l’équipe puisse vous confirmer la demande.'
+                : 'I '.($onlyPhoneMissing ? 'only ' : '').'need a phone number so the team can confirm the request with you.');
         }
 
         if (in_array('contact_email', $missingFields, true)) {
@@ -116,9 +103,18 @@ class MissingInformationMessageBuilder
             return '';
         }
 
-        return $language === 'fr'
+        $acknowledgement = $language === 'fr'
             ? "Parfait, vous souhaitez réserver le service {$serviceName}."
             : "Perfect, you would like to book {$serviceName}.";
+        $date = $this->datePhrase($draft, $language);
+
+        if ($date !== '') {
+            $acknowledgement .= $language === 'fr'
+                ? " Je note votre préférence pour {$date}."
+                : " I have noted your preferred date: {$date}.";
+        }
+
+        return $acknowledgement;
     }
 
     /**
@@ -156,10 +152,19 @@ class MissingInformationMessageBuilder
 
         $servicesText = $services
             ->values()
+            ->take(6)
             ->map(fn (Product $service, int $index): string => ($index + 1).'. '.(string) $service->name)
-            ->implode('; ');
+            ->implode("\n");
 
-        return ($language === 'fr' ? 'Options disponibles: ' : 'Available options: ').$servicesText.'.';
+        $options = ($language === 'fr' ? "Options disponibles:\n" : "Available options:\n").$servicesText;
+
+        if ($services->count() > 6) {
+            $options .= $language === 'fr'
+                ? "\n{$services->count()} services sont disponibles au total. Vous pouvez répondre avec un numéro ci-dessus ou saisir le nom de tout autre service."
+                : "\nThere are {$services->count()} services in total. You can reply with a number above or type the name of any other service.";
+        }
+
+        return $options;
     }
 
     /**

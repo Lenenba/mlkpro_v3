@@ -3,6 +3,7 @@
     "title": "Mes achats",
     "subtitle_company": "Ventes chez {name}",
     "subtitle_default": "Vos ventes recentes",
+    "portal_navigation": "Sections de votre espace client",
     "actions": {
       "order": "Commander",
       "reorder": "Recommander",

@@ -40,10 +40,7 @@ class TipReportController extends Controller
 
         $statsQuery = clone $query;
         $totalTips = $this->sumNetTips($statsQuery);
-        $reservationCount = (int) (clone $statsQuery)
-            ->whereNotNull('invoice_id')
-            ->distinct('invoice_id')
-            ->count('invoice_id');
+        $reservationCount = $this->tipServiceCount($statsQuery);
         $averageTip = $reservationCount > 0
             ? round($totalTips / $reservationCount, 2)
             : 0.0;
@@ -149,10 +146,7 @@ class TipReportController extends Controller
             ));
 
         $periodTotal = $this->sumNetTips(clone $query, $user->id);
-        $serviceCount = (int) (clone $query)
-            ->whereNotNull('invoice_id')
-            ->distinct('invoice_id')
-            ->count('invoice_id');
+        $serviceCount = $this->tipServiceCount($query);
         $averageTipPerService = $serviceCount > 0
             ? round($periodTotal / $serviceCount, 2)
             : 0.0;
@@ -308,6 +302,8 @@ class TipReportController extends Controller
         $relations = [
             'invoice:id,number,work_id,customer_id',
             'invoice.work:id,job_title',
+            'reservationQueueItem:id,service_id,team_member_id,queue_number',
+            'reservationQueueItem.service:id,name',
             'customer:id,company_name,first_name,last_name',
             'tipAssignee:id,name',
         ];
@@ -345,14 +341,20 @@ class TipReportController extends Controller
             $customerName = 'Customer #'.(int) ($payment->customer_id ?? 0);
         }
 
+        $queueItem = $payment->reservationQueueItem;
+        $documentNumber = $payment->invoice?->number
+            ?? $queueItem?->queue_number
+            ?? ($payment->invoice_id ? '#'.(int) $payment->invoice_id : 'Queue checkout #'.(int) $payment->id);
+
         return [
             'id' => $payment->id,
             'paid_at' => $payment->paid_at?->toDateTimeString(),
             'invoice_id' => $payment->invoice_id,
-            'invoice_number' => $payment->invoice?->number ?? ('#'.(int) ($payment->invoice_id ?? 0)),
+            'invoice_number' => $documentNumber,
+            'reservation_queue_item_id' => $payment->reservation_queue_item_id,
             'customer_name' => $customerName,
             'work_id' => $payment->invoice?->work_id,
-            'work_title' => $payment->invoice?->work?->job_title,
+            'work_title' => $payment->invoice?->work?->job_title ?? $queueItem?->service?->name,
             'team_member_name' => $this->teamMemberLabelForOwner($payment),
             'tip_mode' => $payment->tip_type ?: 'fixed',
             'tip_amount' => $tipAmount,
@@ -394,6 +396,21 @@ class TipReportController extends Controller
         $fullName = trim(($customer->first_name ?? '').' '.($customer->last_name ?? ''));
 
         return $fullName !== '' ? $fullName : 'Customer';
+    }
+
+    private function tipServiceCount(Builder $query): int
+    {
+        $invoiceCount = (int) (clone $query)
+            ->whereNotNull('invoice_id')
+            ->distinct('invoice_id')
+            ->count('invoice_id');
+        $queueCount = (int) (clone $query)
+            ->whereNull('invoice_id')
+            ->whereNotNull('reservation_queue_item_id')
+            ->distinct('reservation_queue_item_id')
+            ->count('reservation_queue_item_id');
+
+        return $invoiceCount + $queueCount;
     }
 
     private function tipTeamMemberOptions(int $accountId): array

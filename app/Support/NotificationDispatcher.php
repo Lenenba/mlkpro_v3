@@ -5,7 +5,6 @@ namespace App\Support;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Notification as NotificationFacade;
-use App\Support\EmailMirrorNotifier;
 
 class NotificationDispatcher
 {
@@ -40,6 +39,38 @@ class NotificationDispatcher
         $notifiable = NotificationFacade::route('mail', $email);
 
         return self::send($notifiable, $notification, array_merge($context, [
+            'email' => $email,
+        ]));
+    }
+
+    public static function sendNow($notifiable, Notification $notification, array $context = []): bool
+    {
+        try {
+            EmailMirrorNotifier::recordQueued($notification, $notifiable);
+            NotificationFacade::sendNow($notifiable, $notification);
+            EmailMirrorNotifier::recordStatus($notification, $notifiable, 'sent');
+
+            return true;
+        } catch (\Throwable $e) {
+            EmailMirrorNotifier::recordStatus($notification, $notifiable, 'failed');
+            Log::warning('Notification delivery failed.', array_merge([
+                'notification' => get_class($notification),
+                'notifiable_type' => is_object($notifiable) ? get_class($notifiable) : gettype($notifiable),
+                'notifiable_id' => is_object($notifiable) && property_exists($notifiable, 'id')
+                    ? $notifiable->id
+                    : null,
+                'error' => $e->getMessage(),
+            ], $context));
+
+            return false;
+        }
+    }
+
+    public static function sendNowToMail(string $email, Notification $notification, array $context = []): bool
+    {
+        $notifiable = NotificationFacade::route('mail', $email);
+
+        return self::sendNow($notifiable, $notification, array_merge($context, [
             'email' => $email,
         ]));
     }

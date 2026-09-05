@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\Work;
+use App\Services\Portal\PortalCapabilityService;
+use App\Services\TenantBrandingResolver;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
@@ -16,13 +18,26 @@ class PublicWorkProofController extends Controller
 {
     private const LINK_TTL_DAYS = 7;
 
+    public function __construct(
+        private readonly PortalCapabilityService $portalCapabilities,
+    ) {}
+
     public function show(Request $request, Work $work): Response
     {
         $work->load('customer:id,company_name,first_name,last_name,email,auto_validate_tasks');
 
         $customer = $work->customer;
         $owner = User::find($work->user_id);
-        $allowUpload = !(bool) ($customer?->auto_validate_tasks ?? false);
+        $capabilities = $owner
+            ? $this->portalCapabilities->forOwner($owner, $customer)
+            : [];
+        abort_unless(
+            data_get($capabilities, 'works.proofs') === true,
+            403,
+            __('ui.portal.capability_unavailable')
+        );
+        $tenantBranding = app(TenantBrandingResolver::class)->forAccountOwner($owner);
+        $allowUpload = data_get($capabilities, 'tasks.upload') === true;
 
         $expiresAt = $this->resolveExpiry($request);
 
@@ -107,8 +122,10 @@ class PublicWorkProofController extends Controller
                 'end_date' => $work->end_date,
             ],
             'company' => [
-                'name' => $owner?->company_name ?: config('app.name'),
-                'logo_url' => $owner?->company_logo_url,
+                'name' => $tenantBranding['name'],
+                'logo_url' => $tenantBranding['custom_logo_url'],
+                'custom_logo_url' => $tenantBranding['custom_logo_url'],
+                'has_custom_logo' => $tenantBranding['has_custom_logo'],
             ],
             'customer' => $customer ? [
                 'company_name' => $customer->company_name,

@@ -17,7 +17,14 @@
       "back_to_dashboard": "Retour au tableau de bord",
       "reset_filters": "Reinitialiser",
       "cancel_order": "Annuler la commande",
-      "cancel_confirm": "Annuler cette commande ?"
+      "cancel_confirm": "Annuler cette commande ?",
+      "close_cart": "Fermer le panier",
+      "close_product_details": "Fermer les détails du produit",
+      "decrease_quantity": "Réduire la quantité de {product}",
+      "increase_quantity": "Augmenter la quantité de {product}"
+    },
+    "validation": {
+      "title": "Certaines informations doivent être corrigées avant de continuer."
     },
     "locked_notice": "Cette commande est deja en livraison ou finalisee. Les modifications sont bloquees.",
     "status": {
@@ -127,7 +134,8 @@
       "delivery": "Livraison",
       "total": "Total",
       "checkout_update": "Mettre a jour la commande",
-      "checkout_create": "Commander maintenant"
+      "checkout_create": "Commander maintenant",
+      "checkout_processing": "Envoi en cours..."
     },
     "stock": {
       "out": "Rupture",

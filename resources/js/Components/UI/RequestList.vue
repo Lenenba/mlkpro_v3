@@ -1,6 +1,6 @@
 <script setup>
 import { Link, router } from '@inertiajs/vue3';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { humanizeDate } from '@/utils/date';
 import {
     serviceRequestRequesterLabel,
@@ -10,6 +10,7 @@ import {
     serviceRequestTitle,
 } from '@/utils/serviceRequestPresentation';
 import { useI18n } from 'vue-i18n';
+import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 
 const props = defineProps({
     requests: {
@@ -28,6 +29,9 @@ const props = defineProps({
 
 const processingId = ref(null);
 const { t } = useI18n();
+const { hasFeature } = useAccountFeatures();
+const requestsFeatureEnabled = computed(() => hasFeature('requests'));
+const quotesFeatureEnabled = computed(() => hasFeature('quotes'));
 
 const isServiceRequest = (item) => Object.prototype.hasOwnProperty.call(item || {}, 'source');
 
@@ -80,7 +84,9 @@ const statusLabel = (status) => {
         case 'REQ_QUALIFIED':
             return t('requests.status.qualified');
         case 'REQ_QUOTE_SENT':
-            return t('requests.status.quote_sent');
+            return quotesFeatureEnabled.value
+                ? t('requests.status.quote_sent')
+                : t('requests.status.contacted');
         case 'REQ_WON':
             return t('requests.status.won');
         case 'REQ_LOST':
@@ -147,7 +153,19 @@ const statusPillClass = (status) => {
 };
 
 const isClosedStatus = (status) => ['REQ_WON', 'REQ_LOST', 'accepted', 'refused', 'completed', 'cancelled'].includes(status);
-const canConvertLead = (lead) => !isServiceRequest(lead) && Boolean(lead) && !lead.quote && !isClosedStatus(lead.status);
+const canConvertLead = (lead) => (
+    requestsFeatureEnabled.value
+    && quotesFeatureEnabled.value
+    && !isServiceRequest(lead)
+    && Boolean(lead)
+    && !lead.quote
+    && !isClosedStatus(lead.status)
+);
+const hasLeadActions = (lead) => (
+    requestsFeatureEnabled.value
+    && quotesFeatureEnabled.value
+    && Boolean(lead?.quote || canConvertLead(lead))
+);
 const isOverdue = (lead) => {
     if (isServiceRequest(lead)) {
         return false;
@@ -164,7 +182,7 @@ const isOverdue = (lead) => {
 };
 
 const convertToQuote = (lead) => {
-    if (!lead?.id || processingId.value) {
+    if (!requestsFeatureEnabled.value || !quotesFeatureEnabled.value || !lead?.id || processingId.value) {
         return;
     }
 
@@ -204,7 +222,7 @@ const secondaryValue = (item) => {
 </script>
 
 <template>
-    <div class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+    <div v-if="requestsFeatureEnabled" class="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
         <div
             v-for="lead in requests"
             :key="lead.id"
@@ -232,7 +250,7 @@ const secondaryValue = (item) => {
                     </div>
                 </div>
 
-                <div v-if="!isServiceRequest(lead)" class="hs-dropdown [--placement:bottom-right] relative inline-flex">
+                <div v-if="!isServiceRequest(lead) && hasLeadActions(lead)" class="hs-dropdown [--placement:bottom-right] relative inline-flex">
                     <button :id="`request-actions-${lead.id}`" type="button"
                         class="size-7 inline-flex justify-center items-center gap-x-2 rounded-sm border border-stone-200 bg-white text-stone-500 shadow-sm hover:bg-stone-100 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:bg-stone-100 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800"
                         aria-haspopup="menu" aria-expanded="false" aria-label="Dropdown">
@@ -249,7 +267,7 @@ const secondaryValue = (item) => {
                         role="menu" aria-orientation="vertical" :aria-labelledby="`request-actions-${lead.id}`">
                         <div class="p-1">
                             <Link
-                                v-if="lead.quote"
+                                v-if="quotesFeatureEnabled && lead.quote"
                                 :href="route('customer.quote.show', lead.quote.id)"
                                 class="w-full flex items-center gap-x-3 py-1.5 px-2 rounded-sm text-[13px] font-normal text-stone-800 hover:bg-stone-100 focus:outline-none focus:bg-stone-100 dark:text-neutral-300 dark:hover:bg-neutral-800 dark:focus:bg-neutral-800"
                             >

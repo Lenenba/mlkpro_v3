@@ -15,6 +15,7 @@ use App\Notifications\OrderStatusNotification;
 use App\Services\InventoryService;
 use App\Services\NotificationPreferenceService;
 use App\Services\SaleTimelineService;
+use App\Services\TenantBrandingResolver;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -27,13 +28,23 @@ use Inertia\Response;
 
 class PublicStoreController extends Controller
 {
+    public function __construct(
+        private readonly TenantBrandingResolver $tenantBrandingResolver,
+    ) {}
+
     private function resolveOwner(string $slug): User
     {
-        return User::query()
+        $owner = User::query()
             ->where('company_slug', $slug)
-            ->where('company_type', 'products')
             ->where('is_suspended', false)
             ->firstOrFail();
+
+        abort_unless(
+            $owner->hasCompanyFeature('products') && $owner->hasCompanyFeature('sales'),
+            404
+        );
+
+        return $owner;
     }
 
     private function cartKey(User $owner): string
@@ -517,12 +528,15 @@ class PublicStoreController extends Controller
         $cartPayload = $this->buildCartPayload($owner, $cartItems);
         $this->putCartItems($request, $owner, $cartPayload['items']);
         $fulfillment = $this->normalizeFulfillment($owner->company_fulfillment, $owner);
+        $tenantBranding = $this->tenantBrandingResolver->forAccountOwner($owner);
 
         return Inertia::render('Public/Store', [
             'company' => [
-                'name' => $owner->company_name,
+                'name' => $tenantBranding['name'],
                 'slug' => $owner->company_slug,
-                'logo_url' => $owner->company_logo_url,
+                'logo_url' => $tenantBranding['custom_logo_url'],
+                'custom_logo_url' => $tenantBranding['custom_logo_url'],
+                'has_custom_logo' => $tenantBranding['has_custom_logo'],
                 'description' => $owner->company_description,
                 'currency_code' => $owner->businessCurrencyCode(),
                 'store_settings' => $storeSettings,

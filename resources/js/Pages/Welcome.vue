@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import FeatureTabsShowcaseSection from '@/Components/Public/FeatureTabsShowcaseSection.vue';
 import PublicFooterMenu from '@/Components/Public/PublicFooterMenu.vue';
+import PublicResponsiveImage from '@/Components/Public/PublicResponsiveImage.vue';
 import PublicSectionsRenderer from '@/Components/Public/PublicSectionsRenderer.vue';
 import PublicSiteHeader from '@/Components/Public/PublicSiteHeader.vue';
 import { Head, Link } from '@inertiajs/vue3';
@@ -397,14 +398,15 @@ const heroBodyStyle = computed(() => {
 
                     <div v-if="heroSideImage" class="welcome-hero-visual welcome-fade-in">
                         <Transition name="welcome-hero-slide">
-                            <img
+                            <PublicResponsiveImage
                                 :key="heroSideImage.id"
                                 :src="heroSideImage.src"
                                 :alt="heroSideImage.alt"
                                 class="welcome-hero-visual-image"
-                                loading="eager"
-                                fetchpriority="high"
+                                :loading="heroSlideIndex === 0 ? 'eager' : 'lazy'"
+                                :fetch-priority="heroSlideIndex === 0 ? 'high' : null"
                                 decoding="async"
+                                sizes="(max-width: 1024px) 100vw, 48vw"
                             />
                         </Transition>
                     </div>
@@ -507,12 +509,13 @@ const heroBodyStyle = computed(() => {
                         </div>
 
                         <div class="rounded-sm border border-stone-200 bg-white pl-4 p-4 shadow-lg">
-                            <img
+                            <PublicResponsiveImage
                                 :src="welcomeContent.workflow?.image_url || '/images/landing/stock/workflow-plan.jpg'"
                                 :alt="welcomeContent.workflow?.image_alt || $t('welcome.images.workflow_alt')"
                                 class="h-auto w-full rounded-sm"
                                 loading="lazy"
                                 decoding="async"
+                                sizes="(max-width: 1024px) 100vw, 50vw"
                             />
                         </div>
                     </div>
@@ -524,12 +527,13 @@ const heroBodyStyle = computed(() => {
                 <div class="welcome-container">
                     <div class="grid grid-cols-1 lg:grid-cols-2 lg:items-center welcome-split">
                         <div class="rounded-sm border border-stone-200 bg-white p-4 shadow-lg">
-                            <img
+                            <PublicResponsiveImage
                                 :src="welcomeContent.field?.image_url || '/images/landing/stock/field-checklist.jpg'"
                                 :alt="welcomeContent.field?.image_alt || $t('welcome.images.mobile_alt')"
                                 class="h-auto w-full rounded-sm"
                                 loading="lazy"
                                 decoding="async"
+                                sizes="(max-width: 1024px) 100vw, 50vw"
                             />
                         </div>
 

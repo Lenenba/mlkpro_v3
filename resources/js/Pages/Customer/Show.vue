@@ -1,7 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
-import { computed, ref, watch } from 'vue';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { computed, defineAsyncComponent, ref, watch } from 'vue';
 import axios from 'axios';
 import Header from './UI/Header.vue';
 import Card from '@/Components/UI/Card.vue';
@@ -13,10 +13,9 @@ import FloatingInput from '@/Components/FloatingInput.vue';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import FloatingTextarea from '@/Components/FloatingTextarea.vue';
 import InputError from '@/Components/InputError.vue';
-import SalesActivityPanel from '@/Components/CRM/SalesActivityPanel.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import { humanizeDate } from '@/utils/date';
 import { useI18n } from 'vue-i18n';
-import CustomerPreviewCard from './UI/CustomerPreviewCard.vue';
 import { useCurrencyFormatter } from '@/utils/currency';
 import { useAccountFeatures } from '@/Composables/useAccountFeatures';
 import { ArrowUpDown, Ban, ReceiptText } from 'lucide-vue-next';
@@ -26,11 +25,33 @@ import {
     useGeoapifyAddressAutocomplete,
 } from '@/Composables/useGeoapifyAddressAutocomplete';
 
+const SalesActivityPanel = defineAsyncComponent(
+    () => import('@/Components/CRM/SalesActivityPanel.vue'),
+);
+const CustomerHistoryTimeline = defineAsyncComponent(
+    () => import('@/Components/Customer/CustomerHistoryTimeline.vue'),
+);
+const CustomerPreviewCard = defineAsyncComponent(
+    () => import('./UI/CustomerPreviewCard.vue'),
+);
+
 const props = defineProps({
     customer: Object,
     canEdit: {
         type: Boolean,
         default: false,
+    },
+    canViewNotes: {
+        type: Boolean,
+        default: false,
+    },
+    canManageNotes: {
+        type: Boolean,
+        default: false,
+    },
+    detailCapabilities: {
+        type: Object,
+        default: () => ({}),
     },
     stats: {
         type: Object,
@@ -60,6 +81,14 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    customerActivity: {
+        type: Object,
+        default: () => ({ data: [], meta: {}, links: {} }),
+    },
+    customerActivityEndpoint: {
+        type: String,
+        default: '',
+    },
     lastInteraction: {
         type: Object,
         default: null,
@@ -84,6 +113,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    customerPurchasedPacks: {
+        type: Array,
+        default: () => [],
+    },
     customerPackageSummary: {
         type: Object,
         default: () => ({
@@ -91,6 +124,14 @@ const props = defineProps({
             active: 0,
             remaining_quantity: 0,
             expiring_soon: 0,
+        }),
+    },
+    customerPurchasedPackSummary: {
+        type: Object,
+        default: () => ({
+            total_lines: 0,
+            total_quantity: 0,
+            currency_breakdown: [],
         }),
     },
     customerPackageOptions: {
@@ -125,26 +166,99 @@ const props = defineProps({
 
 const { t } = useI18n();
 
-const page = usePage();
 const { visibleFeaturePayload, hasFeature } = useAccountFeatures();
-const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
-const showSales = computed(() => companyType.value === 'products');
-const showServiceOps = computed(() => companyType.value !== 'products');
+const allowsDetail = (capability) => Boolean(props.detailCapabilities?.[capability]);
+const showSales = computed(() => hasFeature('sales') && allowsDetail('sales'));
 const loyalty = computed(() => visibleFeaturePayload('loyalty', props.loyalty));
-const quotesFeatureEnabled = computed(() => hasFeature('quotes'));
-const requestsFeatureEnabled = computed(() => hasFeature('requests'));
-const jobsFeatureEnabled = computed(() => hasFeature('jobs'));
-const tasksFeatureEnabled = computed(() => hasFeature('tasks'));
-const invoicesFeatureEnabled = computed(() => hasFeature('invoices'));
+const quotesFeatureEnabled = computed(() => hasFeature('quotes') && allowsDetail('quotes'));
+const requestsFeatureEnabled = computed(() => hasFeature('requests') && allowsDetail('requests'));
+const jobsFeatureEnabled = computed(() => hasFeature('jobs') && allowsDetail('jobs'));
+const tasksFeatureEnabled = computed(() => hasFeature('tasks') && allowsDetail('tasks'));
+const invoicesFeatureEnabled = computed(() => hasFeature('invoices') && allowsDetail('invoices'));
+const reservationsFeatureEnabled = computed(() => hasFeature('reservations') && allowsDetail('reservations'));
+const showServiceOps = computed(() => (
+    requestsFeatureEnabled.value
+    || quotesFeatureEnabled.value
+    || jobsFeatureEnabled.value
+    || tasksFeatureEnabled.value
+    || invoicesFeatureEnabled.value
+    || reservationsFeatureEnabled.value
+));
 const campaignsFeatureEnabled = computed(() => Boolean(props.campaignsFeatureEnabled) && hasFeature('campaigns'));
 const loyaltyFeatureEnabled = computed(() => hasFeature('loyalty') && Boolean(loyalty.value));
+const showCustomerOverview = computed(() => (
+    showServiceOps.value
+    && (
+        requestsFeatureEnabled.value
+        || quotesFeatureEnabled.value
+        || jobsFeatureEnabled.value
+        || invoicesFeatureEnabled.value
+    )
+));
+
+const isActivityModuleVisible = (item) => {
+    const subjectType = String(item?.subject_type || '');
+    const action = String(item?.action || '').toLowerCase();
+    const actionTokens = action.split(/[^a-z0-9]+/).filter(Boolean);
+    const actionReferences = (module) => actionTokens.includes(module);
+
+    if ((!quotesFeatureEnabled.value && subjectType.endsWith('Quote'))
+        || (!quotesFeatureEnabled.value && actionReferences('quote'))) {
+        return false;
+    }
+    if (!requestsFeatureEnabled.value
+        && (subjectType.endsWith('Request') || actionReferences('request'))) {
+        return false;
+    }
+    if (!jobsFeatureEnabled.value
+        && (subjectType.endsWith('Work') || actionReferences('work') || actionReferences('job'))) {
+        return false;
+    }
+    if (!tasksFeatureEnabled.value
+        && (subjectType.endsWith('Task') || actionReferences('task'))) {
+        return false;
+    }
+    if (!invoicesFeatureEnabled.value
+        && (subjectType.endsWith('Invoice') || actionReferences('invoice'))) {
+        return false;
+    }
+
+    return true;
+};
+const isQuoteActivityDefinition = (definition) => [
+    definition?.id,
+    definition?.action,
+    definition?.activity_key,
+    definition?.outcome,
+].some((value) => String(value || '').toLowerCase().includes('quote'));
+const visibleActivity = computed(() => (props.activity || []).filter(isActivityModuleVisible));
+const visibleLastInteraction = computed(() => (
+    props.lastInteraction && isActivityModuleVisible(props.lastInteraction)
+        ? props.lastInteraction
+        : (visibleActivity.value[0] || null)
+));
+const visibleSalesActivityQuickActions = computed(() => (
+    quotesFeatureEnabled.value
+        ? (props.salesActivityQuickActions || [])
+        : (props.salesActivityQuickActions || []).filter((definition) => !isQuoteActivityDefinition(definition))
+));
+const visibleSalesActivityManualActions = computed(() => (
+    quotesFeatureEnabled.value
+        ? (props.salesActivityManualActions || [])
+        : (props.salesActivityManualActions || []).filter((definition) => !isQuoteActivityDefinition(definition))
+));
+const customerHistory = ref(null);
+const customerActivityEndpoint = computed(() => (
+    props.customerActivityEndpoint || route('customer.activity_index', props.customer?.id)
+));
+const refreshCustomerHistory = () => customerHistory.value?.refresh();
 
 const properties = computed(() => props.customer?.properties || []);
 const tags = computed(() => props.customer?.tags || []);
 const vipTiers = computed(() => props.vipTiers || []);
-const latestQuote = computed(() => (props.customer?.quotes || [])[0] || null);
-const latestWork = computed(() => (props.customer?.works || [])[0] || null);
-const latestInvoice = computed(() => (props.customer?.invoices || [])[0] || null);
+const latestQuote = computed(() => visibleFeaturePayload('quotes', props.customer?.quotes, [])[0] || null);
+const latestWork = computed(() => visibleFeaturePayload('jobs', props.customer?.works, [])[0] || null);
+const latestInvoice = computed(() => visibleFeaturePayload('invoices', props.customer?.invoices, [])[0] || null);
 const showBillingHistory = computed(() => showServiceOps.value && invoicesFeatureEnabled.value);
 
 const formatDate = (value) => humanizeDate(value);
@@ -170,9 +284,39 @@ const formatStatus = (status, keyPrefix = '') => {
 const hasValue = (value) => value !== null && value !== undefined;
 const topProducts = computed(() => props.topProducts || []);
 const assignedPackages = computed(() => props.customerPackages || []);
+const purchasedPacks = computed(() => props.customerPurchasedPacks || []);
 const packageSummary = computed(() => props.customerPackageSummary || {});
+const purchasedPackSummary = computed(() => props.customerPurchasedPackSummary || {});
 const customerPackageOptions = computed(() => props.customerPackageOptions || []);
-const showCustomerPackages = computed(() => props.canEdit || assignedPackages.value.length > 0);
+const salesSummaryMetrics = computed(() => ([
+    {
+        key: 'sales-count',
+        label: t('customers.details.sales.count'),
+        value: props.salesSummary?.count || 0,
+        tone: 'stone',
+    },
+    {
+        key: 'sales-paid',
+        label: t('customers.details.sales.paid'),
+        value: formatCurrency(props.salesSummary?.paid || 0),
+        tone: 'emerald',
+    },
+    {
+        key: 'sales-total',
+        label: t('customers.details.sales.total'),
+        value: formatCurrency(props.salesSummary?.total || 0),
+        tone: 'sky',
+    },
+]));
+const customerOfferCount = computed(() => (
+    Number(packageSummary.value.total || assignedPackages.value.length)
+    + Number(purchasedPackSummary.value.total_lines || purchasedPacks.value.length)
+));
+const showCustomerPackages = computed(() => (
+    props.canEdit
+    || assignedPackages.value.length > 0
+    || purchasedPacks.value.length > 0
+));
 const loyaltyPointLabel = computed(() => loyalty.value?.label || t('customers.details.loyalty.points_unit'));
 const loyaltyRecent = computed(() => loyalty.value?.recent || []);
 const loyaltyRoundingLabel = computed(() => {
@@ -182,6 +326,86 @@ const loyaltyRoundingLabel = computed(() => {
 
     return translated && translated !== key ? translated : mode;
 });
+const customerPackageMetrics = computed(() => ([
+    {
+        key: 'offers-total',
+        label: t('customers.details.customer_packages.summary.total'),
+        value: customerOfferCount.value,
+        tone: 'stone',
+    },
+    {
+        key: 'packs-total',
+        label: t('customers.details.customer_packages.summary.packs'),
+        value: purchasedPackSummary.value.total_lines || 0,
+        tone: 'sky',
+    },
+    {
+        key: 'packages-active',
+        label: t('customers.details.customer_packages.summary.active'),
+        value: packageSummary.value.active || 0,
+        tone: 'emerald',
+    },
+    {
+        key: 'quantity-remaining',
+        label: t('customers.details.customer_packages.summary.remaining'),
+        value: formatNumber(packageSummary.value.remaining_quantity || 0),
+        tone: 'violet',
+    },
+    {
+        key: 'packages-expiring',
+        label: t('customers.details.customer_packages.summary.expiring'),
+        value: packageSummary.value.expiring_soon || 0,
+        tone: 'amber',
+    },
+]));
+const billingSummaryMetrics = computed(() => ([
+    {
+        key: 'billing-invoiced',
+        label: t('customers.details.billing_history.invoiced'),
+        value: formatCurrency(props.billing?.summary?.total_invoiced),
+        tone: 'sky',
+    },
+    {
+        key: 'billing-paid',
+        label: t('customers.details.billing_history.paid'),
+        value: formatCurrency(props.billing?.summary?.total_paid),
+        tone: 'emerald',
+    },
+    {
+        key: 'billing-balance-due',
+        label: t('customers.details.billing_history.balance_due'),
+        value: formatCurrency(props.billing?.summary?.balance_due),
+        tone: 'amber',
+    },
+]));
+const loyaltySummaryMetrics = computed(() => ([
+    {
+        key: 'loyalty-balance',
+        label: t('customers.details.loyalty.balance'),
+        value: `${formatNumber(loyalty.value?.balance || 0)} ${loyaltyPointLabel.value}`,
+        tone: 'violet',
+    },
+    {
+        key: 'loyalty-earn-rate',
+        label: t('customers.details.loyalty.earn_rate'),
+        value: t('customers.details.loyalty.rate_value', {
+            rate: formatNumber(loyalty.value?.rate || 0, 2),
+        }),
+        context: t('customers.details.loyalty.rounding', {
+            mode: loyaltyRoundingLabel.value,
+        }),
+        tone: 'emerald',
+    },
+    {
+        key: 'loyalty-minimum-spend',
+        label: t('customers.details.loyalty.minimum_spend'),
+        value: formatCurrency(loyalty.value?.minimum_spend || 0),
+        context: loyalty.value?.enabled
+            ? t('customers.details.loyalty.enabled')
+            : t('customers.details.loyalty.disabled'),
+        tone: 'amber',
+    },
+]));
 const formatSignedPoints = (value) => {
     const points = Number(value || 0);
     const prefix = points > 0 ? '+' : '';
@@ -212,36 +436,51 @@ const purchaseCards = computed(() => {
 
     return [
         {
+            key: 'last-purchase',
             label: t('customers.details.purchase.last_purchase'),
             value: insights.last_purchase_at ? formatDate(insights.last_purchase_at) : t('customers.labels.none'),
+            tone: 'stone',
         },
         {
+            key: 'days-since-purchase',
             label: t('customers.details.purchase.days_since'),
             value: hasValue(insights.days_since_last_purchase)
                 ? t('customers.details.days_label', { count: numberLabel(insights.days_since_last_purchase) })
                 : t('customers.labels.none'),
+            tone: 'amber',
         },
         {
+            key: 'average-order',
             label: t('customers.details.purchase.average_order'),
             value: formatCurrency(insights.average_order_value || 0),
+            tone: 'emerald',
         },
         {
+            key: 'average-items',
             label: t('customers.details.purchase.average_items'),
             value: hasValue(insights.average_items) ? numberLabel(insights.average_items, 1) : t('customers.labels.none'),
+            tone: 'sky',
         },
         {
+            key: 'purchase-frequency',
             label: t('customers.details.purchase.frequency'),
             value: hasValue(insights.purchase_frequency_days)
                 ? t('customers.details.days_label', { count: numberLabel(insights.purchase_frequency_days, 1) })
                 : t('customers.labels.none'),
+            tone: 'violet',
         },
         {
+            key: 'recent-purchases',
             label: t('customers.details.purchase.recent_30'),
             value: numberLabel(insights.recent_30_count || 0),
+            tone: 'blue',
         },
         {
+            key: 'purchase-preference',
             label: t('customers.details.purchase.preference'),
             value: preferred || t('customers.labels.none'),
+            wrapValue: true,
+            tone: 'cyan',
         },
     ];
 });
@@ -498,7 +737,7 @@ const submitRenewPackage = () => {
 
 const renewalInvoicePackageId = ref(null);
 const createRenewalInvoice = (customerPackage) => {
-    if (!customerPackage?.id || renewalInvoicePackageId.value) {
+    if (!invoicesFeatureEnabled.value || !customerPackage?.id || renewalInvoicePackageId.value) {
         return;
     }
 
@@ -533,9 +772,6 @@ const changePackageForm = useForm({
     carry_over_unused_balance: false,
     note: '',
 });
-const changingPackage = computed(() =>
-    assignedPackages.value.find((customerPackage) => Number(customerPackage.id) === Number(changingPackageId.value))
-);
 const selectedChangeOffer = computed(() =>
     customerPackageOptions.value.find((offer) => String(offer.id) === String(changePackageForm.target_offer_package_id))
 );
@@ -655,31 +891,29 @@ const packageStatusLabel = (status) => {
 };
 
 const packageStatusClass = (status) => ({
-    'bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400': status === 'active',
+    'bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400': ['active', 'paid'].includes(status),
     'bg-stone-100 text-stone-700 dark:bg-neutral-800 dark:text-neutral-300': status === 'consumed',
-    'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300': status === 'expired',
-    'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400': status === 'cancelled',
+    'bg-sky-100 text-sky-700 dark:bg-sky-500/10 dark:text-sky-300': status === 'sent',
+    'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300': ['expired', 'draft', 'partial'].includes(status),
+    'bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400': ['cancelled', 'overdue'].includes(status),
 });
+
+const authorizedPurchasedPackInvoiceHref = (purchasedPack) => {
+    const invoice = purchasedPack?.invoice;
+    if (!invoice || invoice.can_view === false || typeof invoice.href !== 'string') {
+        return null;
+    }
+
+    const href = invoice.href.trim();
+
+    return /^\/(?!\/)/u.test(href) ? href : null;
+};
 
 const packageUnitLabel = (unitType) => {
     const key = `customers.details.customer_packages.units.${unitType || 'credit'}`;
     const translated = t(key);
 
     return translated && translated !== key ? translated : (unitType || 'credit');
-};
-
-const recurrenceLabel = (frequency) => {
-    const key = `customers.details.customer_packages.recurrence.${frequency || 'monthly'}`;
-    const translated = t(key);
-
-    return translated && translated !== key ? translated : (frequency || 'monthly');
-};
-
-const recurrenceStatusLabel = (status) => {
-    const key = `customers.details.customer_packages.recurrence_statuses.${status || 'active'}`;
-    const translated = t(key);
-
-    return translated && translated !== key ? translated : formatStatus(status);
 };
 
 const packageProgress = (customerPackage) => {
@@ -737,6 +971,10 @@ const notesForm = useForm({
 });
 
 const startEditNotes = () => {
+    if (!props.canManageNotes) {
+        return;
+    }
+
     notesForm.description = props.customer?.description || '';
     notesForm.clearErrors();
     editingNotes.value = true;
@@ -809,9 +1047,16 @@ const submitAutoValidation = () => {
         return;
     }
 
-    autoValidationForm.patch(route('customer.auto-validation.update', props.customer.id), {
-        preserveScroll: true,
-    });
+    autoValidationForm
+        .transform((data) => ({
+            ...(quotesFeatureEnabled.value ? { auto_accept_quotes: Boolean(data.auto_accept_quotes) } : {}),
+            ...(jobsFeatureEnabled.value ? { auto_validate_jobs: Boolean(data.auto_validate_jobs) } : {}),
+            ...(tasksFeatureEnabled.value ? { auto_validate_tasks: Boolean(data.auto_validate_tasks) } : {}),
+            ...(invoicesFeatureEnabled.value ? { auto_validate_invoices: Boolean(data.auto_validate_invoices) } : {}),
+        }))
+        .patch(route('customer.auto-validation.update', props.customer.id), {
+            preserveScroll: true,
+        });
 };
 
 const editingVip = ref(false);
@@ -943,8 +1188,8 @@ const rightRailTabs = computed(() => {
         tabs.push({
             id: 'packages',
             label: t('customers.details.sidebar.tabs.packages'),
-            initials: 'FP',
-            meta: t('customers.tabs.items', { count: packageSummary.value.total || 0 }),
+            initials: 'PF',
+            meta: t('customers.tabs.items', { count: customerOfferCount.value }),
             tone: 'violet',
         });
     }
@@ -991,7 +1236,13 @@ watch(rightRailTabs, (tabs) => {
 
 const showPlanningWorkspace = computed(() => showServiceOps.value && (jobsFeatureEnabled.value || tasksFeatureEnabled.value));
 const activityWorkspaceTabs = computed(() => {
-    const tabs = [];
+    const tabs = [{
+        id: 'history',
+        label: t('customers.details.history.title'),
+        initials: 'HI',
+        meta: t('customers.tabs.items', { count: props.customerActivity?.data?.length || 0 }),
+        tone: 'violet',
+    }];
 
     if (showPlanningWorkspace.value) {
         tabs.push({
@@ -1013,11 +1264,11 @@ const activityWorkspaceTabs = computed(() => {
 
     return tabs;
 });
-const activeActivityWorkspaceTab = ref('planning');
+const activeActivityWorkspaceTab = ref('history');
 
 watch(activityWorkspaceTabs, (tabs) => {
     if (!tabs.some((tab) => tab.id === activeActivityWorkspaceTab.value)) {
-        activeActivityWorkspaceTab.value = tabs[0]?.id || 'crm';
+        activeActivityWorkspaceTab.value = tabs[0]?.id || 'history';
     }
 }, { immediate: true });
 
@@ -1055,6 +1306,10 @@ watch(planningTabs, (tabs) => {
 }, { immediate: true });
 
 const activityHref = (log) => {
+    if (!isActivityModuleVisible(log)) {
+        return null;
+    }
+
     const type = log?.subject_type || '';
     const id = log?.subject_id;
 
@@ -1253,20 +1508,11 @@ const deleteProperty = (property) => {
                         </div>
                     </template>
 
-                    <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
-                        <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
-                            <div class="text-xs uppercase text-stone-400">{{ $t('customers.details.sales.count') }}</div>
-                            <div class="mt-1 text-lg font-semibold">{{ salesSummary?.count || 0 }}</div>
-                        </div>
-                        <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
-                            <div class="text-xs uppercase text-stone-400">{{ $t('customers.details.sales.paid') }}</div>
-                            <div class="mt-1 text-lg font-semibold">{{ formatCurrency(salesSummary?.paid || 0) }}</div>
-                        </div>
-                        <div class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200">
-                            <div class="text-xs uppercase text-stone-400">{{ $t('customers.details.sales.total') }}</div>
-                            <div class="mt-1 text-lg font-semibold">{{ formatCurrency(salesSummary?.total || 0) }}</div>
-                        </div>
-                    </div>
+                    <KpiMetricGrid
+                        variant="record"
+                        :metrics="salesSummaryMetrics"
+                        grid-class="grid-cols-1 md:grid-cols-3"
+                    />
 
                     <div class="mt-4">
                         <div v-if="!sales.length" class="text-sm text-stone-500 dark:text-neutral-400">
@@ -1301,18 +1547,12 @@ const deleteProperty = (property) => {
                 <Card v-if="showSales" class="mt-5">
                     <template #title>{{ $t('customers.details.purchase.title') }}</template>
 
-                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                        <div
-                            v-for="card in purchaseCards"
-                            :key="card.label"
-                            class="rounded-sm border border-stone-200 bg-stone-50 p-3 text-sm text-stone-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
-                        >
-                            <div class="text-xs uppercase text-stone-400">{{ card.label }}</div>
-                            <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-100">
-                                {{ card.value }}
-                            </div>
-                        </div>
-                    </div>
+                    <KpiMetricGrid
+                        variant="record"
+                        :metrics="purchaseCards"
+                        grid-class="grid-cols-1 sm:grid-cols-2 xl:grid-cols-3"
+                        compact
+                    />
 
                     <div class="mt-5">
                         <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">{{ $t('customers.details.top_products.title') }}</h3>
@@ -1680,7 +1920,7 @@ const deleteProperty = (property) => {
                     </ul>
                 </Card>
 
-                <CardNav v-if="showServiceOps" class="mt-5" :customer="customer" />
+                <CardNav v-if="showCustomerOverview" class="mt-5" :customer="customer" />
 
                 <Card class="mt-5">
                     <template #title>{{ $t('customers.details.workspace.title') }}</template>
@@ -1690,11 +1930,19 @@ const deleteProperty = (property) => {
                         v-model="activeActivityWorkspaceTab"
                         :tabs="activityWorkspaceTabs"
                         :aria-label="$t('customers.details.workspace.title')"
-                        grid-class="grid-cols-1 sm:grid-cols-2"
+                        grid-class="grid-cols-1 sm:grid-cols-3"
                         class="mb-4"
                     />
 
-                    <template v-if="activeActivityWorkspaceTab === 'planning'">
+                    <CustomerHistoryTimeline
+                        v-if="activeActivityWorkspaceTab === 'history'"
+                        ref="customerHistory"
+                        :activity="customerActivity"
+                        :fallback-items="visibleActivity"
+                        :endpoint="customerActivityEndpoint"
+                    />
+
+                    <template v-else-if="activeActivityWorkspaceTab === 'planning'">
                         <CardTileTabs
                             v-if="planningTabs.length > 1"
                             v-model="activePlanningTab"
@@ -1789,30 +2037,32 @@ const deleteProperty = (property) => {
 
                     <div v-else-if="activeActivityWorkspaceTab === 'crm'">
                         <SalesActivityPanel
-                            :items="activity"
+                            :items="visibleActivity"
                             :can-log="canLogSalesActivity"
-                            :quick-actions="salesActivityQuickActions"
-                            :manual-actions="salesActivityManualActions"
+                            :quick-actions="visibleSalesActivityQuickActions"
+                            :manual-actions="visibleSalesActivityManualActions"
                             :store-route="route('crm.sales-activities.customers.store', customer.id)"
                             :resolve-href="activityHref"
                             :show-subject="true"
                             i18n-prefix="customers.details.sales_activity"
                             dialog-id="customer-sales-activity-modal"
                             :embedded="true"
+                            :show-feed="false"
+                            @logged="refreshCustomerHistory"
                         />
                     </div>
                 </Card>
             </div>
             <div class="rise-stagger">
                 <CustomerPreviewCard
-                    v-if="showServiceOps"
+                    v-if="showCustomerOverview"
                     :stats="stats"
                     :billing="billing"
                     :latest-quote="latestQuote"
                     :latest-work="latestWork"
                     :latest-invoice="latestInvoice"
                 />
-                <Card :class="showServiceOps ? 'mt-5' : ''">
+                <Card :class="showCustomerOverview ? 'mt-5' : ''">
                     <template #title>{{ $t('customers.details.sidebar.title') }}</template>
 
                     <CardTileTabs
@@ -1854,6 +2104,7 @@ const deleteProperty = (property) => {
 
                                     <div class="flex justify-end">
                                         <button
+                                            v-if="canEdit"
                                             type="button"
                                             @click="startEditTags"
                                             class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
@@ -1887,7 +2138,7 @@ const deleteProperty = (property) => {
                                 </form>
                             </div>
 
-                            <div class="rounded-sm border border-stone-200 bg-stone-50/70 p-4 dark:border-neutral-700 dark:bg-neutral-900/60">
+                            <div v-if="canViewNotes" class="rounded-sm border border-stone-200 bg-stone-50/70 p-4 dark:border-neutral-700 dark:bg-neutral-900/60">
                                 <div class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
                                     {{ $t('customers.details.notes.title') }}
                                 </div>
@@ -1898,6 +2149,7 @@ const deleteProperty = (property) => {
                                     </p>
                                     <div class="flex justify-end">
                                         <button
+                                            v-if="canManageNotes"
                                             type="button"
                                             @click="startEditNotes"
                                             class="py-2 px-2.5 inline-flex items-center gap-x-2 text-xs font-semibold rounded-sm border border-stone-200 bg-white text-stone-800 shadow-sm hover:bg-stone-50 focus:outline-none focus:bg-stone-50 dark:bg-neutral-800 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700"
@@ -1936,12 +2188,12 @@ const deleteProperty = (property) => {
                                     {{ $t('customers.details.last_interaction.title') }}
                                 </div>
 
-                                <div v-if="lastInteraction" class="mt-3 space-y-1 text-sm">
+                                <div v-if="visibleLastInteraction" class="mt-3 space-y-1 text-sm">
                                     <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">
-                                        {{ lastInteraction.subject }} • {{ formatDate(lastInteraction.created_at) }}
+                                        {{ visibleLastInteraction.subject }} • {{ formatDate(visibleLastInteraction.created_at) }}
                                     </div>
                                     <div class="text-sm text-stone-800 dark:text-neutral-200">
-                                        {{ lastInteraction.description || lastInteraction.action }}
+                                        {{ visibleLastInteraction.description || visibleLastInteraction.action }}
                                     </div>
                                 </div>
                                 <div v-else class="mt-3 text-sm text-stone-500 dark:text-neutral-400">
@@ -1954,7 +2206,7 @@ const deleteProperty = (property) => {
                             <div class="rounded-sm border border-stone-200 bg-stone-50/70 p-4 dark:border-neutral-700 dark:bg-neutral-900/60">
                                 <div class="flex items-center justify-between gap-3">
                                     <div class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
-                                        {{ $t('customers.details.customer_packages.title') }}
+                                        {{ $t('customers.details.customer_packages.combined_title') }}
                                     </div>
                                     <button
                                         v-if="canEdit"
@@ -1966,24 +2218,13 @@ const deleteProperty = (property) => {
                                     </button>
                                 </div>
 
-                                <div class="mt-3 grid grid-cols-2 gap-2">
-                                    <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
-                                        <div class="text-xs uppercase text-stone-400">{{ $t('customers.details.customer_packages.summary.total') }}</div>
-                                        <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">{{ packageSummary.total || 0 }}</div>
-                                    </div>
-                                    <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
-                                        <div class="text-xs uppercase text-stone-400">{{ $t('customers.details.customer_packages.summary.active') }}</div>
-                                        <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">{{ packageSummary.active || 0 }}</div>
-                                    </div>
-                                    <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
-                                        <div class="text-xs uppercase text-stone-400">{{ $t('customers.details.customer_packages.summary.remaining') }}</div>
-                                        <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">{{ formatNumber(packageSummary.remaining_quantity || 0) }}</div>
-                                    </div>
-                                    <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
-                                        <div class="text-xs uppercase text-stone-400">{{ $t('customers.details.customer_packages.summary.expiring') }}</div>
-                                        <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">{{ packageSummary.expiring_soon || 0 }}</div>
-                                    </div>
-                                </div>
+                                <KpiMetricGrid
+                                    class="mt-3"
+                                    variant="record"
+                                    :metrics="customerPackageMetrics"
+                                    grid-class="grid-cols-2"
+                                    compact
+                                />
 
                                 <div
                                     v-if="showAssignPackage"
@@ -2058,7 +2299,20 @@ const deleteProperty = (property) => {
                                 </div>
                             </div>
 
-                            <div class="rounded-sm border border-stone-200 bg-stone-50/70 p-4 dark:border-neutral-700 dark:bg-neutral-900/60">
+                            <div
+                                data-customer-forfaits
+                                class="rounded-sm border border-stone-200 bg-stone-50/70 p-4 dark:border-neutral-700 dark:bg-neutral-900/60"
+                                role="region"
+                                aria-labelledby="customer-forfaits-title"
+                            >
+                                <div class="mb-3 flex items-center justify-between gap-3">
+                                    <h3 id="customer-forfaits-title" class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                        {{ $t('customers.details.customer_packages.title') }}
+                                    </h3>
+                                    <span class="inline-flex min-w-6 items-center justify-center rounded-sm bg-white px-2 py-1 text-xs font-semibold text-stone-700 dark:bg-neutral-900 dark:text-neutral-200">
+                                        {{ assignedPackages.length }}
+                                    </span>
+                                </div>
                                 <div v-if="!assignedPackages.length" class="text-sm text-stone-500 dark:text-neutral-400">
                                     {{ $t('customers.details.customer_packages.empty') }}
                                 </div>
@@ -2111,7 +2365,7 @@ const deleteProperty = (property) => {
                                         </div>
 
                                         <div
-                                            v-if="customerPackage.renewal_invoice"
+                                            v-if="invoicesFeatureEnabled && customerPackage.renewal_invoice"
                                             class="mt-3 rounded-sm border border-green-100 bg-green-50/70 px-3 py-2 text-sm dark:border-green-500/20 dark:bg-green-500/10"
                                         >
                                             <div class="flex min-w-0 items-center gap-2">
@@ -2376,7 +2630,7 @@ const deleteProperty = (property) => {
 
                                         <div v-else-if="canEdit && customerPackage.status !== 'cancelled'" class="mt-4 flex flex-wrap justify-end gap-2">
                                             <button
-                                                v-if="customerPackage.is_recurring && !customerPackage.renewal_invoice"
+                                                v-if="invoicesFeatureEnabled && customerPackage.is_recurring && !customerPackage.renewal_invoice"
                                                 type="button"
                                                 :disabled="renewalInvoicePackageId === customerPackage.id"
                                                 @click="createRenewalInvoice(customerPackage)"
@@ -2427,6 +2681,126 @@ const deleteProperty = (property) => {
                                     </div>
                                 </div>
                             </div>
+
+                            <section
+                                data-customer-purchased-packs
+                                class="rounded-sm border border-stone-200 bg-stone-50/70 p-4 dark:border-neutral-700 dark:bg-neutral-900/60"
+                                aria-labelledby="customer-purchased-packs-title"
+                            >
+                                <div class="flex flex-wrap items-center justify-between gap-3">
+                                    <h3 id="customer-purchased-packs-title" class="text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-neutral-400">
+                                        {{ $t('customers.details.customer_packages.purchased_packs_title') }}
+                                    </h3>
+                                    <span class="inline-flex min-w-6 items-center justify-center rounded-sm bg-white px-2 py-1 text-xs font-semibold text-stone-700 dark:bg-neutral-900 dark:text-neutral-200">
+                                        {{ purchasedPackSummary.total_lines || purchasedPacks.length }}
+                                    </span>
+                                </div>
+
+                                <div
+                                    v-if="purchasedPackSummary.currency_breakdown?.length"
+                                    class="mt-3 flex flex-wrap gap-2"
+                                    role="list"
+                                    :aria-label="$t('customers.details.customer_packages.amount')"
+                                >
+                                    <div
+                                        v-for="currency in purchasedPackSummary.currency_breakdown"
+                                        :key="currency.currency_code"
+                                        class="rounded-sm border border-stone-200 bg-white px-2.5 py-2 text-xs text-stone-600 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300"
+                                        role="listitem"
+                                    >
+                                        <span class="font-semibold text-stone-800 dark:text-neutral-100">
+                                            {{ formatCurrency(currency.total_spent || 0, currency.currency_code) }}
+                                        </span>
+                                        <span class="ml-1 text-stone-500 dark:text-neutral-400">
+                                            · {{ formatNumber(currency.total_quantity || 0) }} {{ $t('customers.details.customer_packages.pack_type') }}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div
+                                    v-if="!purchasedPacks.length"
+                                    class="mt-3 rounded-sm border border-dashed border-stone-200 bg-white px-3 py-5 text-center text-sm text-stone-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400"
+                                    role="status"
+                                >
+                                    {{ $t('customers.details.customer_packages.purchased_packs_empty') }}
+                                </div>
+
+                                <div v-else class="mt-3 space-y-2" role="list">
+                                    <article
+                                        v-for="purchasedPack in purchasedPacks"
+                                        :key="purchasedPack.id"
+                                        class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900"
+                                        role="listitem"
+                                    >
+                                        <div class="flex flex-wrap items-start justify-between gap-3">
+                                            <div class="min-w-0 flex-1">
+                                                <div class="flex flex-wrap items-center gap-2">
+                                                    <h4 class="break-words text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                                        {{ purchasedPack.name }}
+                                                    </h4>
+                                                    <span class="inline-flex rounded-sm bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-700 dark:bg-violet-500/10 dark:text-violet-300">
+                                                        {{ $t('customers.details.customer_packages.pack_type') }}
+                                                    </span>
+                                                    <span
+                                                        v-if="purchasedPack.invoice?.status"
+                                                        class="inline-flex rounded-sm px-2 py-0.5 text-xs font-semibold"
+                                                        :class="packageStatusClass(purchasedPack.invoice.status)"
+                                                    >
+                                                        {{ formatStatus(purchasedPack.invoice.status, 'customers.details.customer_packages.invoice_statuses') }}
+                                                    </span>
+                                                </div>
+                                                <p v-if="purchasedPack.description" class="mt-1 break-words text-xs text-stone-500 dark:text-neutral-400">
+                                                    {{ purchasedPack.description }}
+                                                </p>
+                                            </div>
+                                            <div class="shrink-0 text-right">
+                                                <div class="text-sm font-semibold text-stone-800 dark:text-neutral-100">
+                                                    {{ formatCurrency(purchasedPack.total || 0, purchasedPack.currency_code) }}
+                                                </div>
+                                                <div class="text-xs text-stone-500 dark:text-neutral-400">
+                                                    {{ $t('customers.details.customer_packages.amount') }}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <dl class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                                            <div class="rounded-sm bg-stone-50 px-2.5 py-2 dark:bg-neutral-800">
+                                                <dt class="text-stone-500 dark:text-neutral-400">
+                                                    {{ $t('customers.details.customer_packages.quantity') }}
+                                                </dt>
+                                                <dd class="mt-1 font-semibold text-stone-800 dark:text-neutral-100">
+                                                    {{ formatNumber(purchasedPack.quantity || 0) }} × {{ formatCurrency(purchasedPack.unit_price || 0, purchasedPack.currency_code) }}
+                                                </dd>
+                                            </div>
+                                            <div class="rounded-sm bg-stone-50 px-2.5 py-2 dark:bg-neutral-800">
+                                                <dt class="text-stone-500 dark:text-neutral-400">
+                                                    {{ $t('customers.details.customer_packages.purchased_on') }}
+                                                </dt>
+                                                <dd class="mt-1 font-semibold text-stone-800 dark:text-neutral-100">
+                                                    {{ formatDate(purchasedPack.purchased_at) }}
+                                                </dd>
+                                            </div>
+                                        </dl>
+
+                                        <div v-if="purchasedPack.invoice" class="mt-3 flex min-w-0 items-center gap-2 border-t border-stone-100 pt-3 text-xs dark:border-neutral-800">
+                                            <ReceiptText class="size-4 shrink-0 text-stone-400" aria-hidden="true" />
+                                            <span class="shrink-0 text-stone-500 dark:text-neutral-400">
+                                                {{ $t('customers.details.customer_packages.invoice') }}
+                                            </span>
+                                            <Link
+                                                v-if="authorizedPurchasedPackInvoiceHref(purchasedPack)"
+                                                :href="authorizedPurchasedPackInvoiceHref(purchasedPack)"
+                                                class="min-w-0 truncate font-semibold text-green-700 hover:underline focus:outline-none focus:ring-2 focus:ring-green-500 dark:text-green-300"
+                                            >
+                                                {{ purchasedPack.invoice.number }}
+                                            </Link>
+                                            <span v-else class="min-w-0 truncate font-semibold text-stone-700 dark:text-neutral-200">
+                                                {{ purchasedPack.invoice.number }}
+                                            </span>
+                                        </div>
+                                    </article>
+                                </div>
+                            </section>
                         </template>
 
                         <template v-else-if="activeRightRailTab === 'marketing'">
@@ -2581,26 +2955,13 @@ const deleteProperty = (property) => {
                                     {{ $t('customers.details.billing_history.title') }}
                                 </div>
 
-                                <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                                    <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
-                                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('customers.details.billing_history.invoiced') }}</div>
-                                        <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
-                                            {{ formatCurrency(billing?.summary?.total_invoiced) }}
-                                        </div>
-                                    </div>
-                                    <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
-                                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('customers.details.billing_history.paid') }}</div>
-                                        <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
-                                            {{ formatCurrency(billing?.summary?.total_paid) }}
-                                        </div>
-                                    </div>
-                                    <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
-                                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('customers.details.billing_history.balance_due') }}</div>
-                                        <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
-                                            {{ formatCurrency(billing?.summary?.balance_due) }}
-                                        </div>
-                                    </div>
-                                </div>
+                                <KpiMetricGrid
+                                    class="mt-3"
+                                    variant="record"
+                                    :metrics="billingSummaryMetrics"
+                                    grid-class="grid-cols-1 sm:grid-cols-3"
+                                    compact
+                                />
 
                                 <div class="mt-5">
                                     <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">{{ $t('customers.details.billing_history.recent_payments') }}</h3>
@@ -2650,32 +3011,13 @@ const deleteProperty = (property) => {
                                     {{ $t('customers.details.loyalty.title') }}
                                 </div>
 
-                                <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                                    <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
-                                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('customers.details.loyalty.balance') }}</div>
-                                        <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
-                                            {{ formatNumber(loyalty?.balance || 0) }} {{ loyaltyPointLabel }}
-                                        </div>
-                                    </div>
-                                    <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
-                                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('customers.details.loyalty.earn_rate') }}</div>
-                                        <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
-                                            {{ $t('customers.details.loyalty.rate_value', { rate: formatNumber(loyalty?.rate || 0, 2) }) }}
-                                        </div>
-                                        <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                                            {{ $t('customers.details.loyalty.rounding', { mode: loyaltyRoundingLabel }) }}
-                                        </div>
-                                    </div>
-                                    <div class="rounded-sm border border-stone-200 bg-white p-3 dark:border-neutral-700 dark:bg-neutral-900">
-                                        <div class="text-xs text-stone-500 dark:text-neutral-400">{{ $t('customers.details.loyalty.minimum_spend') }}</div>
-                                        <div class="mt-1 text-sm font-semibold text-stone-800 dark:text-neutral-200">
-                                            {{ formatCurrency(loyalty?.minimum_spend || 0) }}
-                                        </div>
-                                        <div class="mt-1 text-xs text-stone-500 dark:text-neutral-400">
-                                            {{ loyalty?.enabled ? $t('customers.details.loyalty.enabled') : $t('customers.details.loyalty.disabled') }}
-                                        </div>
-                                    </div>
-                                </div>
+                                <KpiMetricGrid
+                                    class="mt-3"
+                                    variant="record"
+                                    :metrics="loyaltySummaryMetrics"
+                                    grid-class="grid-cols-1 sm:grid-cols-3"
+                                    compact
+                                />
 
                                 <div class="mt-5">
                                     <h3 class="text-sm font-semibold text-stone-800 dark:text-neutral-200">{{ $t('customers.details.loyalty.recent_activity') }}</h3>

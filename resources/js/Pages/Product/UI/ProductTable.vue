@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue';
-import { Link, router, useForm, usePage } from '@inertiajs/vue3';
+import { Link, router, useForm } from '@inertiajs/vue3';
 import AdminDataTable from '@/Components/DataTable/AdminDataTable.vue';
 import AdminDataTableBulkBar from '@/Components/DataTable/AdminDataTableBulkBar.vue';
 import AdminDataTableBulkActionMenu from '@/Components/DataTable/AdminDataTableBulkActionMenu.vue';
@@ -13,6 +13,7 @@ import Checkbox from '@/Components/Checkbox.vue';
 import { useI18n } from 'vue-i18n';
 import FloatingSelect from '@/Components/FloatingSelect.vue';
 import DatePicker from '@/Components/DatePicker.vue';
+import KpiMetricGrid from '@/Components/Dashboard/KpiMetricGrid.vue';
 import axios from 'axios';
 import { resolveDataTablePerPage } from '@/Components/DataTable/pagination';
 import { useDataTableSelection } from '@/Composables/useDataTableSelection';
@@ -63,6 +64,14 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    canCreate: {
+        type: Boolean,
+        default: false,
+    },
+    abilities: {
+        type: Object,
+        default: () => ({}),
+    },
     tenantCurrencyCode: {
         type: String,
         default: 'CAD',
@@ -105,12 +114,20 @@ const filterForm = useForm({
 });
 
 const { t } = useI18n();
-const page = usePage();
-
-const canEdit = computed(() => Boolean(props.canEdit));
+const resolveAbility = (ability, fallback = false) => (
+    Object.prototype.hasOwnProperty.call(props.abilities || {}, ability)
+        ? Boolean(props.abilities[ability])
+        : Boolean(fallback)
+);
+const canEdit = computed(() => resolveAbility('edit', props.canEdit));
+const canCreate = computed(() => resolveAbility('create', props.canCreate));
+const canDelete = computed(() => resolveAbility('delete'));
+const canAdjustStock = computed(() => resolveAbility('stock'));
+const canExport = computed(() => resolveAbility('export', true));
+const canImport = computed(() => resolveAbility('import'));
+const canManageBulk = computed(() => Boolean(props.bulkActions?.enabled));
 const canOpenPulseComposer = computed(() => Boolean(props.pulse?.can_open));
-const companyType = computed(() => page.props.auth?.account?.company?.type ?? null);
-const canCreateBulkOrder = computed(() => companyType.value === 'products');
+const canCreateBulkOrder = computed(() => resolveAbility('create_order'));
 const aiImage = computed(() => (props.aiImage && typeof props.aiImage === 'object' ? props.aiImage : {}));
 const aiImageEnabled = computed(() => Boolean(aiImage.value.enabled) && Boolean(aiImage.value.generate_url));
 const aiImageLimit = computed(() => Number(aiImage.value.daily_limit ?? 1));
@@ -431,6 +448,42 @@ const alertDetailsProduct = ref(null);
 const alertDetailsType = ref('');
 const reservedOrdersLoading = ref(false);
 const reservedOrdersError = ref(false);
+const alertStockMetrics = computed(() => {
+    const product = alertDetailsProduct.value;
+
+    if (!product) {
+        return [];
+    }
+
+    const available = getAvailableStock(product);
+
+    return [
+        {
+            key: 'available',
+            label: t('products.labels.available'),
+            value: formatNumber(available),
+            tone: available <= 0 ? 'red' : (available <= product.minimum_stock ? 'amber' : 'emerald'),
+        },
+        {
+            key: 'minimum',
+            label: t('products.labels.minimum'),
+            value: formatNumber(product.minimum_stock),
+            tone: 'stone',
+        },
+        {
+            key: 'reserved',
+            label: t('products.labels.reserved'),
+            value: formatNumber(getReservedStock(product)),
+            tone: 'sky',
+        },
+        {
+            key: 'damaged',
+            label: t('products.labels.damaged'),
+            value: formatNumber(getDamagedStock(product)),
+            tone: 'red',
+        },
+    ];
+});
 const alertDetailsTitle = computed(() => {
     if (!alertDetailsProduct.value) {
         return t('products.alerts.details_title');
@@ -451,6 +504,14 @@ const openAlertDetails = (product, alertType) => {
     if (window.HSOverlay) {
         window.HSOverlay.open('#hs-pro-alert-details');
     }
+};
+
+const openProductEdit = (product) => {
+    if (!product?.id || !window.HSOverlay) {
+        return;
+    }
+
+    window.HSOverlay.open(`#hs-pro-edit${product.id}`);
 };
 
 const loadReservedOrders = async (product) => {
@@ -1150,15 +1211,17 @@ const submitImport = () => {
                 </template>
 
                 <template #actions>
-                    <template v-if="canEdit">
+                    <template v-if="canExport">
                         <a :href="exportUrl"
                             class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
                             {{ $t('products.actions.export_csv') }}
                         </a>
-                        <button type="button" data-hs-overlay="#hs-pro-import"
+                        <button v-if="canImport" type="button" data-hs-overlay="#hs-pro-import"
                             class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-stone-200 bg-white text-stone-700 hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-700">
                             {{ $t('products.actions.import_csv') }}
                         </button>
+                    </template>
+                    <template v-if="canCreate">
                         <button type="button"
                             class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-transparent bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-none focus:ring-2 focus:ring-green-500 action-feedback"
                             data-hs-overlay="#hs-pro-dasadpm">
@@ -1170,6 +1233,8 @@ const submitImport = () => {
                             </svg>
                             {{ $t('products.actions.add_product') }}
                         </button>
+                    </template>
+                    <template v-if="canEdit">
                         <button
                             type="button"
                             class="py-2 px-2.5 inline-flex items-center gap-x-1.5 text-xs font-medium rounded-sm border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 disabled:opacity-50 disabled:pointer-events-none dark:border-emerald-500/40 dark:bg-emerald-500/10 dark:text-emerald-200 dark:hover:bg-emerald-500/20"
@@ -1246,7 +1311,7 @@ const submitImport = () => {
                 </div>
 
                 <AdminDataTableBulkBar
-                    v-if="canEdit"
+                    v-if="canManageBulk"
                     :count="selectedCount"
                     :label="$t(bulkSelectionLabelKey, { count: selectedCount })"
                     :result="bulkResult"
@@ -1279,8 +1344,9 @@ const submitImport = () => {
                         <div class="text-xs text-stone-500 dark:text-neutral-400">
                             {{ $t('products.empty.subtitle') }}
                         </div>
-                        <div v-if="canEdit" class="flex flex-wrap justify-center gap-2 pt-2">
+                        <div v-if="canCreate || canImport" class="flex flex-wrap justify-center gap-2 pt-2">
                             <button
+                                v-if="canCreate"
                                 type="button"
                                 data-hs-overlay="#hs-pro-dasadpm"
                                 class="inline-flex items-center rounded-sm border border-green-600 bg-green-600 px-3 py-2 text-xs font-semibold text-white hover:bg-green-700"
@@ -1288,6 +1354,7 @@ const submitImport = () => {
                                 {{ $t('products.empty.add_action') }}
                             </button>
                             <button
+                                v-if="canImport"
                                 type="button"
                                 data-hs-overlay="#hs-pro-import"
                                 class="inline-flex items-center rounded-sm border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 hover:bg-stone-50 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200 dark:hover:bg-neutral-800"
@@ -1302,7 +1369,7 @@ const submitImport = () => {
             <template #head>
                 <tr class="border-t border-stone-200 dark:border-neutral-700">
                     <th scope="col" class="px-4 py-2 w-10">
-                        <input v-if="canEdit" ref="selectAllRef" type="checkbox" :checked="allSelected" @change="toggleAll"
+                        <input v-if="canManageBulk" ref="selectAllRef" type="checkbox" :checked="allSelected" @change="toggleAll"
                             class="rounded border-stone-300 text-green-600 shadow-sm focus:ring-green-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-green-400 dark:focus:ring-green-400" />
                     </th>
                     <th scope="col" class="min-w-[230px]">
@@ -1397,7 +1464,7 @@ const submitImport = () => {
                     </template>
                     <template v-else>
                     <td class="size-px whitespace-nowrap px-4 py-2">
-                        <Checkbox v-if="canEdit" v-model:checked="selected" :value="product.id" />
+                        <Checkbox v-if="canManageBulk" v-model:checked="selected" :value="product.id" />
                     </td>
                     <td class="size-px whitespace-nowrap px-4 py-2">
                         <div class="w-full flex items-center gap-x-3">
@@ -1479,7 +1546,7 @@ const submitImport = () => {
                         </div>
                     </td>
                     <td class="size-px whitespace-nowrap px-4 py-2">
-                        <div v-if="editingId === product.id" class="space-y-2">
+                        <div v-if="editingId === product.id && canAdjustStock" class="space-y-2">
                             <input type="number" step="1" v-model="inlineForm.stock"
                                 class="w-24 py-1.5 px-2 bg-white border border-stone-200 rounded-sm text-xs text-stone-700 focus:border-green-500 focus:ring-green-600 dark:bg-neutral-900 dark:border-neutral-700 dark:text-neutral-200"
                                 :placeholder="$t('products.labels.available')">
@@ -1587,13 +1654,18 @@ const submitImport = () => {
                         </div>
                         <div v-else>
                             <ProductActionsMenu
-                                v-if="canEdit"
+                                v-if="canEdit || canDelete || canAdjustStock || canCreate || canOpenPulseComposer"
                                 :product="product"
+                                :can-edit="canEdit"
+                                :can-delete="canDelete"
+                                :can-adjust-stock="canAdjustStock"
+                                :can-duplicate="canCreate && (Number(product.stock || 0) <= 0 || canAdjustStock)"
                                 :can-publish-with-pulse="canOpenPulseComposer"
                                 @quick-edit="startInlineEdit(product)"
                                 @adjust="openAdjust(product)"
                                 @duplicate="duplicateProduct(product)"
                                 @toggle-archive="toggleArchive(product)"
+                                @edit="openProductEdit(product)"
                                 @delete="destroyProduct(product)"
                             />
                             <div v-else>
@@ -1685,32 +1757,11 @@ const submitImport = () => {
 
             <div class="rounded-sm border border-stone-200 p-4 dark:border-neutral-700">
                 <template v-if="alertDetailsType === 'out' || alertDetailsType === 'low'">
-                    <div class="grid gap-3 md:grid-cols-4">
-                        <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
-                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('products.labels.available') }}</div>
-                            <div class="text-lg font-semibold text-stone-800 dark:text-neutral-200">
-                                {{ formatNumber(getAvailableStock(alertDetailsProduct)) }}
-                            </div>
-                        </div>
-                        <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
-                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('products.labels.minimum') }}</div>
-                            <div class="text-lg font-semibold text-stone-800 dark:text-neutral-200">
-                                {{ formatNumber(alertDetailsProduct.minimum_stock) }}
-                            </div>
-                        </div>
-                        <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
-                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('products.labels.reserved') }}</div>
-                            <div class="text-lg font-semibold text-stone-800 dark:text-neutral-200">
-                                {{ formatNumber(getReservedStock(alertDetailsProduct)) }}
-                            </div>
-                        </div>
-                        <div class="rounded-sm border border-stone-200 p-3 dark:border-neutral-700">
-                            <div class="text-xs uppercase text-stone-500 dark:text-neutral-400">{{ $t('products.labels.damaged') }}</div>
-                            <div class="text-lg font-semibold text-stone-800 dark:text-neutral-200">
-                                {{ formatNumber(getDamagedStock(alertDetailsProduct)) }}
-                            </div>
-                        </div>
-                    </div>
+                    <KpiMetricGrid
+                        :metrics="alertStockMetrics"
+                        grid-class="grid-cols-1 sm:grid-cols-2 md:grid-cols-4"
+                        compact
+                    />
                     <div class="mt-3 flex flex-wrap items-center gap-2 text-xs text-stone-500 dark:text-neutral-400">
                         <span v-if="getAvailableStock(alertDetailsProduct) <= 0" class="text-red-600 dark:text-red-400">
                             {{ $t('products.alerts.stock_depleted') }}
@@ -1724,7 +1775,7 @@ const submitImport = () => {
                         </span>
                     </div>
                     <div class="mt-4 flex flex-wrap gap-2">
-                        <button v-if="canEdit" type="button"
+                        <button v-if="canAdjustStock" type="button"
                             class="inline-flex items-center rounded-sm border border-green-600 bg-green-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-green-700"
                             @click="openAdjust(alertDetailsProduct)">
                             {{ $t('products.actions.adjust_stock') }}
@@ -1887,7 +1938,7 @@ const submitImport = () => {
         </div>
     </Modal>
 
-    <Modal v-if="canEdit" :title="$t('products.actions.add_product')" :id="'hs-pro-dasadpm'">
+    <Modal v-if="canCreate" :title="$t('products.actions.add_product')" :id="'hs-pro-dasadpm'">
         <ProductForm
             :product="product"
             :categories="categories"
@@ -1897,7 +1948,7 @@ const submitImport = () => {
         />
     </Modal>
 
-    <Modal v-if="canEdit" :title="$t('products.import.title')" :id="'hs-pro-import'">
+    <Modal v-if="canImport" :title="$t('products.import.title')" :id="'hs-pro-import'">
         <form @submit.prevent="submitImport" class="space-y-4">
             <div>
                 <label class="block text-sm font-medium text-stone-700 dark:text-neutral-300">{{ $t('products.import.csv_file') }}</label>
@@ -1917,7 +1968,7 @@ const submitImport = () => {
         </form>
     </Modal>
 
-    <Modal v-if="canEdit" :title="$t('products.adjust.title')" :id="'hs-pro-stock-adjust'">
+    <Modal v-if="canAdjustStock" :title="$t('products.adjust.title')" :id="'hs-pro-stock-adjust'">
         <div v-if="activeProduct" class="space-y-4">
             <div class="flex flex-wrap items-center justify-between gap-2">
                 <div>
